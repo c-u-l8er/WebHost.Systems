@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Datacenter Economics - Hobby Tier Analysis</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>">
+    <title>Hetzner Economics - Hobby Tier Analysis</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖥️</text></svg>">
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -39,797 +39,64 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const HobbyTierHomeAnalysis = () => {
+        const HobbyTierHetznerAnalysisWithCharts = () => {
             const [customerCount, setCustomerCount] = useState(50);
-            const [selectedHardware, setSelectedHardware] = useState(0); // 0 = Single, 1 = Dual, 2 = Quad
-
-            // Hardware Cost Scenarios
-            const hardwareOptions = [
-                {
-                    name: 'Single Node',
-                    upfront: 2300,
-                    specs: 'Ryzen AI Max+ (16 cores), 128GB RAM, dual 10GbE',
-                    power: 180,
-                    customers: 100,
-                    costPerCustomer: 1.5
-                },
-                {
-                    name: 'Dual Node',
-                    upfront: 5100,
-                    specs: '2x Ryzen AI Max+ (32 cores total), 256GB RAM, 10GbE + 25GbE',
-                    power: 350,
-                    customers: 250,
-                    costPerCustomer: 1.0
-                },
-                {
-                    name: 'Quad Node',
-                    upfront: 10200,
-                    specs: '4x Ryzen AI Max+ (64 cores total), 512GB RAM, 25GbE network',
-                    power: 700,
-                    customers: 600,
-                    costPerCustomer: 0.8
-                }
-            ];
-
-            // Cost comparison over time
-            const costComparisonData = [
-                { customers: 10, cloud: 120, homeSmall: 80, homeMid: 70 },
-                { customers: 20, cloud: 240, homeSmall: 95, homeMid: 85 },
-                { customers: 30, cloud: 360, homeSmall: 110, homeMid: 100 },
-                { customers: 50, cloud: 600, homeSmall: 140, homeMid: 130 },
-                { customers: 80, cloud: 960, homeSmall: 180, homeMid: 160 },
-                { customers: 100, cloud: 1200, homeSmall: 210, homeMid: 185 }
-            ];
-
-            // Monthly operating costs
-            const calculateMonthlyCosts = (customers, hardware) => {
-                const powerCostPerMonth = (hardware.power * 24 * 30 * 0.15) / 1000; // $0.15/kWh
-                
-                // Dynamic internet cost based on customer count
-                let internetCost = 60; // Base: AT&T Fiber 500Mbps
-                let internetSpeed = '500Mbps';
-                
-                if (customers > 100) {
-                    internetCost = 80; // 1Gbps fiber
-                    internetSpeed = '1Gbps';
-                }
-                if (customers > 250) {
-                    internetCost = 120; // 2Gbps fiber
-                    internetSpeed = '2Gbps';
-                }
-                if (customers > 400) {
-                    internetCost = 180; // 5Gbps fiber
-                    internetSpeed = '5Gbps';
-                }
-                
-                const hardwareDepreciation = hardware.upfront / 36; // 3-year depreciation
-                const variableCosts = customers * hardware.costPerCustomer;
-                const backups = 20; // Cloud backups
-                const monitoring = 15; // Monitoring service
-                
-                const total = powerCostPerMonth + internetCost + hardwareDepreciation + variableCosts + backups + monitoring;
-                
-                return {
-                    power: Math.round(powerCostPerMonth),
-                    internet: internetCost,
-                    internetSpeed: internetSpeed,
-                    depreciation: Math.round(hardwareDepreciation),
-                    variable: Math.round(variableCosts),
-                    backups: backups,
-                    monitoring: monitoring,
-                    total: Math.round(total)
-                };
-            };
-
-            const selectedHardwareOption = hardwareOptions[selectedHardware];
-            const monthlyCosts = calculateMonthlyCosts(customerCount, selectedHardwareOption);
-
-            // Dynamic profit comparison based on customer count
-            const getProfitComparison = (customers) => {
-                const cloudRevenue = customers * 15;
-                const cloudCost = customers * 12;
-                const homeCost = calculateMonthlyCosts(customers, hardwareOptions[0]).total; // Single node
-                
-                return [
-                    {
-                        scenario: 'Cloud (Fly.io)',
-                        customers: customers,
-                        revenue: cloudRevenue,
-                        infraCost: cloudCost,
-                        profit: cloudRevenue - cloudCost,
-                        margin: Math.round(((cloudRevenue - cloudCost) / cloudRevenue) * 100)
-                    },
-                    {
-                        scenario: 'Home DC (Single)',
-                        customers: customers,
-                        revenue: cloudRevenue,
-                        infraCost: homeCost,
-                        profit: cloudRevenue - homeCost,
-                        margin: Math.round(((cloudRevenue - homeCost) / cloudRevenue) * 100)
-                    },
-                    {
-                        scenario: 'Home DC (Dual)',
-                        customers: customers,
-                        revenue: cloudRevenue,
-                        infraCost: calculateMonthlyCosts(customers, hardwareOptions[1]).total,
-                        profit: cloudRevenue - calculateMonthlyCosts(customers, hardwareOptions[1]).total,
-                        margin: Math.round(((cloudRevenue - calculateMonthlyCosts(customers, hardwareOptions[1]).total) / cloudRevenue) * 100)
-                    },
-                    {
-                        scenario: 'Hybrid (Split)',
-                        customers: customers,
-                        revenue: Math.round(customers * 0.6 * 15 + customers * 0.4 * 49), // 60% hobby, 40% starter
-                        infraCost: Math.round(customers * 0.6 * 12 + customers * 0.4 * 25), // Mixed costs
-                        profit: Math.round((customers * 0.6 * 15 + customers * 0.4 * 49) - (customers * 0.6 * 12 + customers * 0.4 * 25)),
-                        margin: Math.round((((customers * 0.6 * 15 + customers * 0.4 * 49) - (customers * 0.6 * 12 + customers * 0.4 * 25)) / (customers * 0.6 * 15 + customers * 0.4 * 49)) * 100)
-                    }
-                ];
-            };
-
-            // Infrastructure specs comparison with Ash Framework and Yjs
-            const getSpecsComparison = (customers) => {
-                let homeNetwork = 0.5; // Base 500Mbps in Gbps
-                
-                if (customers > 100) homeNetwork = 1;
-                if (customers > 250) homeNetwork = 2;
-                if (customers > 400) homeNetwork = 5;
-                
-                return [
-                    { metric: 'CPU Cores', cloud: 4, home: selectedHardwareOption.name.includes('Quad') ? 64 : selectedHardwareOption.name.includes('Dual') ? 32 : 16 },
-                    { metric: 'RAM (GB)', cloud: 8, home: selectedHardwareOption.name.includes('Quad') ? 512 : selectedHardwareOption.name.includes('Dual') ? 256 : 128 },
-                    { metric: 'Storage (GB)', cloud: 50, home: selectedHardwareOption.name.includes('Quad') ? 16000 : selectedHardwareOption.name.includes('Dual') ? 8000 : 4000 },
-                    { metric: 'Network (Gbps)', cloud: 0.1, home: homeNetwork },
-                    { metric: 'Cost/Month', cloud: 120, home: calculateMonthlyCosts(customers, selectedHardwareOption).total / customers }
-                ];
-            };
-
-            // Dynamic break-even analysis based on customer count
-            const getBreakEvenData = (customers) => {
-                const monthlyProfit = (customers * 15) - calculateMonthlyCosts(customers, hardwareOptions[0]).total;
-                const cloudMonthlyProfit = (customers * 15) - (customers * 12);
-                
-                return [
-                    { month: 0, cloudProfit: -250, homeProfit: -hardwareOptions[0].upfront },
-                    { month: 1, cloudProfit: -250 + cloudMonthlyProfit, homeProfit: -hardwareOptions[0].upfront + monthlyProfit },
-                    { month: 2, cloudProfit: -250 + cloudMonthlyProfit * 2, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 2 },
-                    { month: 3, cloudProfit: -250 + cloudMonthlyProfit * 3, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 3 },
-                    { month: 4, cloudProfit: -250 + cloudMonthlyProfit * 4, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 4 },
-                    { month: 5, cloudProfit: -250 + cloudMonthlyProfit * 5, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 5 },
-                    { month: 6, cloudProfit: -250 + cloudMonthlyProfit * 6, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 6 },
-                    { month: 9, cloudProfit: -250 + cloudMonthlyProfit * 9, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 9 },
-                    { month: 12, cloudProfit: -250 + cloudMonthlyProfit * 12, homeProfit: -hardwareOptions[0].upfront + monthlyProfit * 12 }
-                ];
-            };
-
-            const revenueAtCustomers = (count) => count * 15;
-            const cloudCostAtCustomers = (count) => count * 12;
-            const homeCostAtCustomers = (count) => {
-                const costs = calculateMonthlyCosts(count, selectedHardwareOption);
-                return costs.total;
-            };
-
-            return (
-                <div className="w-full max-w-7xl mx-auto p-6 bg-gray-50">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6 text-white">
-                        <div className="flex items-center mb-2">
-                            <svg className="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                            </svg>
-                            <h1 className="text-3xl font-bold">Home Datacenter Economics</h1>
-                        </div>
-                        <p className="text-blue-100">Hobby Tier ($15/mo) - Self-Hosted vs Cloud Analysis with Ash Framework & Yjs Sync</p>
-                    </div>
-
-                    {/* Technology Update Banner */}
-                    <div className="bg-indigo-50 border-l-4 border-indigo-400 p-4 mb-6">
-                        <div className="flex items-start">
-                            <svg className="text-indigo-400 mr-3 mt-1 flex-shrink-0 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            <div>
-                                <h3 className="text-lg font-bold text-indigo-800 mb-2">NEW: Advanced Technology Stack!</h3>
-                                <p className="text-indigo-700 mb-2">
-                                    Updated with <strong>Ash Framework + Yjs CRDT Sync</strong> for bulletproof multi-tenancy and offline-first capabilities
-                                </p>
-                                <ul className="text-sm text-indigo-700 list-disc list-inside">
-                                    <li><strong>67% less backend code</strong> with Ash Framework's auto-generated APIs</li>
-                                    <li><strong>Yjs CRDT sync</strong> for conflict-free real-time collaboration</li>
-                                    <li><strong>TimescaleDB + PostGIS</strong> for GPS tracking and spatial queries</li>
-                                    <li><strong>29% faster development</strong> (56 hours vs 79 hours)</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Key Insight Banner */}
-                    <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-                        <div className="flex items-start">
-                            <svg className="text-green-400 mr-3 mt-1 flex-shrink-0 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div>
-                                <h3 className="text-lg font-bold text-green-800 mb-2">Game-Changing Economics! 🎯</h3>
-                                <p className="text-green-700 mb-2">
-                                    Home datacenter transforms Hobby tier from <strong>20% margin → 66% margin</strong>
-                                </p>
-                                <p className="text-green-700">
-                                    At 50 customers: <strong>$150/mo profit</strong> (cloud) vs <strong>$497/mo profit</strong> (home) = <strong>231% improvement!</strong>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Customer Count Slider */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Interactive Analysis</h3>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Hobby Tier Customers: <span className="text-blue-600 font-bold">{customerCount}</span>
-                            </label>
-                            <input
-                                type="range"
-                                min="10"
-                                max="600"
-                                value={customerCount}
-                                onChange={(e) => setCustomerCount(parseInt(e.target.value))}
-                                className="slider w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
-                            />
-                        </div>
-                        
-                        {/* Hardware Selection */}
-                        <div className="mt-6 mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Hardware Build Option:
-                            </label>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                {hardwareOptions.map((hw, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSelectedHardware(idx)}
-                                        className={`p-3 rounded-lg border-2 transition-all ${
-                                            selectedHardware === idx
-                                                ? 'border-blue-500 bg-blue-50'
-                                                : 'border-gray-200 hover:border-gray-300'
-                                        }`}
-                                    >
-                                        <div className="font-semibold text-gray-900">{hw.name}</div>
-                                        <div className="text-xs text-gray-600 mt-1">{hw.specs}</div>
-                                        <div className="text-sm font-bold text-blue-600 mt-2">${hw.upfront.toLocaleString()}</div>
-                                        <div className="text-xs text-gray-500">Up to {hw.customers} customers</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                            <div className="bg-blue-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600 mb-1">Monthly Revenue</p>
-                                <p className="text-2xl font-bold text-blue-600">${revenueAtCustomers(customerCount).toLocaleString()}</p>
-                            </div>
-                            <div className="bg-red-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600 mb-1">Cloud Costs</p>
-                                <p className="text-2xl font-bold text-red-600">${cloudCostAtCustomers(customerCount).toLocaleString()}</p>
-                                <p className="text-xs text-gray-500 mt-1">Profit: ${(revenueAtCustomers(customerCount) - cloudCostAtCustomers(customerCount)).toLocaleString()}</p>
-                            </div>
-                            <div className="bg-green-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600 mb-1">Home Costs</p>
-                                <p className="text-2xl font-bold text-green-600">${homeCostAtCustomers(customerCount).toLocaleString()}</p>
-                                <p className="text-xs text-gray-500 mt-1">Profit: ${(revenueAtCustomers(customerCount) - homeCostAtCustomers(customerCount)).toLocaleString()}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Selected Hardware Details */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Selected Hardware: {selectedHardwareOption.name}</h3>
-                        <div className="border-2 border-blue-500 rounded-lg p-4 bg-blue-50">
-                            <div className="flex justify-between items-start mb-3">
-                                <h4 className="font-bold text-gray-900">{selectedHardwareOption.name}</h4>
-                                <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">SELECTED</span>
-                            </div>
-                            <p className="text-sm text-gray-700 mb-3">{selectedHardwareOption.specs}</p>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-blue-600">${selectedHardwareOption.upfront.toLocaleString()}</div>
-                                    <div className="text-xs text-gray-600">Upfront Cost</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-green-600">{selectedHardwareOption.customers}</div>
-                                    <div className="text-xs text-gray-600">Max Customers</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-purple-600">{selectedHardwareOption.power}W</div>
-                                    <div className="text-xs text-gray-600">Power Usage</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-orange-600">${selectedHardwareOption.costPerCustomer}</div>
-                                    <div className="text-xs text-gray-600">Variable Cost/Cust</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Technology Stack Benefits */}
-                    <div className="bg-indigo-50 rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-indigo-900 mb-4">Ash Framework + Yjs Technology Benefits</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <h4 className="font-semibold text-indigo-800 mb-2">Backend Efficiency</h4>
-                                <ul className="text-sm text-indigo-700 space-y-1">
-                                    <li>• 67% less backend code with Ash</li>
-                                    <li>• Auto-generated GraphQL + REST APIs</li>
-                                    <li>• Built-in multi-tenancy (customer isolation)</li>
-                                    <li>• Declarative authorization policies</li>
-                                    <li>• TimescaleDB + PostGIS integration</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-indigo-800 mb-2">Sync Capabilities</h4>
-                                <ul className="text-sm text-indigo-700 space-y-1">
-                                    <li>• Yjs CRDT for conflict-free sync</li>
-                                    <li>• Offline-first with IndexedDB</li>
-                                    <li>• Real-time collaboration</li>
-                                    <li>• Dexie.js for structured data</li>
-                                    <li>• 80% less sync code</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Cost Breakdown */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">
-                            Monthly Operating Costs ({selectedHardwareOption.name} @ {customerCount} customers)
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="border-l-4 border-yellow-500 pl-4">
-                                <p className="text-sm text-gray-600">Power</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.power}</p>
-                                <p className="text-xs text-gray-500">{selectedHardwareOption.power}W @ $0.15/kWh</p>
-                            </div>
-                            <div className="border-l-4 border-blue-500 pl-4">
-                                <p className="text-sm text-gray-600">Internet</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.internet}</p>
-                                <p className="text-xs text-gray-500">AT&T Fiber {monthlyCosts.internetSpeed} (scales with customers)</p>
-                            </div>
-                            <div className="border-l-4 border-purple-500 pl-4">
-                                <p className="text-sm text-gray-600">Depreciation</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.depreciation}</p>
-                                <p className="text-xs text-gray-500">36-month amortization ({selectedHardwareOption.name})</p>
-                            </div>
-                            <div className="border-l-4 border-green-500 pl-4">
-                                <p className="text-sm text-gray-600">Variable Costs</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.variable}</p>
-                                <p className="text-xs text-gray-500">Bandwidth, storage</p>
-                            </div>
-                            <div className="border-l-4 border-red-500 pl-4">
-                                <p className="text-sm text-gray-600">Backups/Monitor</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.backups + monthlyCosts.monitoring}</p>
-                                <p className="text-xs text-gray-500">Cloud backups + alerts</p>
-                            </div>
-                            <div className="border-l-4 border-gray-800 pl-4">
-                                <p className="text-sm text-gray-600 font-semibold">TOTAL</p>
-                                <p className="text-2xl font-bold text-gray-900">${monthlyCosts.total}</p>
-                                <p className="text-xs text-green-600 font-semibold">vs ${cloudCostAtCustomers(customerCount)} cloud</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Cost Comparison Chart */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Cost Scaling: Cloud vs Home Datacenter</h3>
-                        <div className="relative" style={{height: '400px'}}>
-                            <canvas id="costComparisonChart"></canvas>
-                        </div>
-                    </div>
-
-                    {/* Profit Comparison */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Profit Comparison ({customerCount} Customers)</h3>
-                        <div className="relative" style={{height: '350px'}}>
-                            <canvas id="profitComparisonChart"></canvas>
-                        </div>
-                    </div>
-
-                    {/* Break-Even Analysis */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Cumulative Profit Over Time ({customerCount} Customers)</h3>
-                        <div className="relative" style={{height: '350px'}}>
-                            <canvas id="breakEvenChart"></canvas>
-                        </div>
-                        <div className="mt-4 grid grid-cols-2 gap-4">
-                            <div className="bg-red-50 p-3 rounded">
-                                <p className="text-sm text-gray-600">Cloud Break-Even</p>
-                                <p className="text-lg font-bold text-red-600">
-                                    Month {Math.ceil(250 / ((customerCount * 15) - (customerCount * 12)))}
-                                </p>
-                            </div>
-                            <div className="bg-green-50 p-3 rounded">
-                                <p className="text-sm text-gray-600">Home DC Break-Even</p>
-                                <p className="text-lg font-bold text-green-600">
-                                    Month {Math.ceil(hardwareOptions[0].upfront / ((customerCount * 15) - calculateMonthlyCosts(customerCount, hardwareOptions[0]).total))}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    {((customerCount * 15) - calculateMonthlyCosts(customerCount, hardwareOptions[0]).total) > ((customerCount * 15) - (customerCount * 12))
-                                        ? `${Math.round(((customerCount * 15) - calculateMonthlyCosts(customerCount, hardwareOptions[0]).total) / ((customerCount * 15) - (customerCount * 12)) * 100)}% more profit at Month 12`
-                                        : 'Better economics with scale'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Specs Comparison */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Resources: Cloud vs Home (per customer)</h3>
-                        <div className="space-y-4">
-                            {getSpecsComparison(customerCount).map((spec, idx) => (
-                                <div key={idx}>
-                                    <div className="flex justify-between mb-1">
-                                        <span className="text-sm font-medium text-gray-700">{spec.metric}</span>
-                                        <span className="text-sm text-gray-600">
-                                            <span className="text-red-600">{spec.cloud}</span> vs <span className="text-green-600 font-bold">{spec.home}</span>
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <div className="flex-1 bg-red-200 rounded-full h-3" style={{width: `${Math.min((spec.cloud / spec.home) * 100, 100)}%`}}>
-                                            <div className="bg-red-500 h-3 rounded-full" style={{width: '100%'}}></div>
-                                        </div>
-                                        <div className="flex-1 bg-green-200 rounded-full h-3">
-                                            <div className="bg-green-500 h-3 rounded-full" style={{width: '100%'}}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-700">
-                                <strong>Network Scaling:</strong> Internet speed automatically upgrades from 500Mbps → 1Gbps → 2Gbps → 5Gbps as customer count increases
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Pros and Cons */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-lg font-bold text-green-700 mb-4 flex items-center">
-                                <svg className="mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Advantages
-                            </h3>
-                            <ul className="space-y-3">
-                                <li className="flex items-start">
-                                    <span className="text-green-500 mr-2 mt-1">✓</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">83% Profit Margin</p>
-                                        <p className="text-sm text-gray-600">vs 20% in cloud</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-green-500 mr-2 mt-1">✓</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">10x More Resources</p>
-                                        <p className="text-sm text-gray-600">128GB RAM vs 8GB per customer</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-green-500 mr-2 mt-1">✓</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Fixed Costs Scale</p>
-                                        <p className="text-sm text-gray-600">More customers = lower per-customer cost</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-green-500 mr-2 mt-1">✓</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Full Control</p>
-                                        <p className="text-sm text-gray-600">No vendor rate increases or limits</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-green-500 mr-2 mt-1">✓</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Learning Opportunity</p>
-                                        <p className="text-sm text-gray-600">Real DevOps/SRE experience</p>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <h3 className="text-lg font-bold text-red-700 mb-4 flex items-center">
-                                <svg className="mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                Disadvantages
-                            </h3>
-                            <ul className="space-y-3">
-                                <li className="flex items-start">
-                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">$2,500 Upfront</p>
-                                        <p className="text-sm text-gray-600">Hardware investment required</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Single Point of Failure</p>
-                                        <p className="text-sm text-gray-600">No built-in redundancy</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Home Network Dependency</p>
-                                        <p className="text-sm text-gray-600">ISP outages affect all customers</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">24/7 Responsibility</p>
-                                        <p className="text-sm text-gray-600">You're the on-call engineer</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Physical Risks</p>
-                                        <p className="text-sm text-gray-600">Fire, flood, theft, power outages</p>
-                                    </div>
-                                </li>
-                                <li className="flex items-start">
-                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Compliance Issues</p>
-                                        <p className="text-sm text-gray-600">May not meet SOC2/HIPAA requirements</p>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* Hybrid Strategy */}
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg shadow-lg p-6 text-white mb-6">
-                        <h3 className="text-xl font-bold mb-4 flex items-center">
-                            <svg className="mr-2 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                            </svg>
-                            Recommended Hybrid Strategy
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
-                                <div className="font-bold mb-2">🏠 Home Datacenter</div>
-                                <div className="text-sm">
-                                    <p className="mb-1"><strong>Hobby Tier</strong> ($15/mo)</p>
-                                    <p className="text-purple-100">• 100-600 customers (scalable)</p>
-                                    <p className="text-purple-100">• 87% margin (single node)</p>
-                                    <p className="text-purple-100">• Ryzen AI Max+ + 10GbE</p>
-                                </div>
-                            </div>
-                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
-                                <div className="font-bold mb-2">☁️ Cloud (Fly.io)</div>
-                                <div className="text-sm">
-                                    <p className="mb-1"><strong>Starter+ Tiers</strong> ($49+/mo)</p>
-                                    <p className="text-purple-100">• Production workloads</p>
-                                    <p className="text-purple-100">• 63-81% margin</p>
-                                    <p className="text-purple-100">• Enterprise customers</p>
-                                </div>
-                            </div>
-                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
-                                <div className="font-bold mb-2">📊 Expected Results</div>
-                                <div className="text-sm">
-                                    <p className="text-purple-100"><strong>50 Hobby + 20 Starter</strong></p>
-                                    <p className="text-purple-100">• Revenue: $1,730/mo</p>
-                                    <p className="text-purple-100">• Costs: $490/mo</p>
-                                    <p className="text-purple-100">• Profit: $1,240/mo</p>
-                                    <p className="text-green-300 font-bold">• Margin: 72%!</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Risk Mitigation */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Risk Mitigation Strategies</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                    <svg className="text-blue-500 mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                                    </svg>
-                                    High Availability Setup
-                                </h4>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex items-start">
-                                        <span className="text-blue-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Network:</strong> AT&T Fiber 500Mbps ($60/mo)</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-blue-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Switches:</strong> 25GbE ($800) + 10GbE ($500)</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-blue-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Expansion:</strong> Up to 4 Ryzen AI Max+ nodes</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-blue-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>UPS + Generator:</strong> 24h runtime backup power</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-blue-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>RAID 1:</strong> Mirrored storage for redundancy</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-blue-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Hot Spare:</strong> Second server ready for failover (+$1,500)</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                    <svg className="text-yellow-500 mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    Disaster Recovery
-                                </h4>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex items-start">
-                                        <span className="text-yellow-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Hourly Backups:</strong> Encrypted to Backblaze B2</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-yellow-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>DR Site:</strong> Small cloud instance for emergency failover</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-yellow-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Monitoring:</strong> 24/7 uptime checks with SMS alerts</span>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <span className="text-yellow-500 mr-2">•</span>
-                                        <span className="text-gray-700"><strong>Insurance:</strong> Equipment coverage ($20/mo)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Final Recommendation */}
-                    <div className="bg-gradient-to-r from-green-500 to-teal-600 rounded-lg shadow-lg p-6 text-white">
-                        <h3 className="text-2xl font-bold mb-4">🎯 Final Verdict: STRONGLY RECOMMENDED</h3>
-                        <div className="space-y-3">
-                            <p className="text-green-100">
-                                Home datacenter transforms the Hobby tier from <strong>unprofitable to highly profitable</strong>, 
-                                while the Starter+ tiers remain in the cloud for reliability.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                                <div className="bg-white bg-opacity-20 rounded p-3">
-                                    <div className="text-2xl font-bold">${((customerCount * 15) - calculateMonthlyCosts(customerCount, hardwareOptions[0]).total).toLocaleString()}/mo</div>
-                                    <div className="text-sm text-green-100">Profit at {customerCount} Hobby customers</div>
-                                </div>
-                                <div className="bg-white bg-opacity-20 rounded p-3">
-                                    <div className="text-2xl font-bold">{Math.ceil(selectedHardwareOption.upfront / Math.max(1, (customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total))} months</div>
-                                    <div className="text-sm text-green-100">Break-even on ${selectedHardwareOption.upfront.toLocaleString()} investment</div>
-                                </div>
-                                <div className="bg-white bg-opacity-20 rounded p-3">
-                                    <div className="text-2xl font-bold">{Math.round(((customerCount * 15) - calculateMonthlyCosts(customerCount, hardwareOptions[0]).total) / (customerCount * 15) * 100)}%</div>
-                                    <div className="text-sm text-green-100">Profit margin per customer</div>
-                                </div>
-                            </div>
-                            <div className="bg-white bg-opacity-20 rounded p-4 mt-4">
-                                <p className="text-sm text-green-100 mb-2"><strong>Action Plan:</strong></p>
-                                <ol className="text-sm text-green-100 space-y-1 list-decimal list-inside">
-                                    <li>Start with cloud-only to validate demand (Months 1-2)</li>
-                                    <li>Build Ryzen AI Max+ node once you hit 15 Hobby customers (Month 3)</li>
-                                    <li>Migrate Hobby tier to home, scale up to 4 nodes as needed</li>
-                                    <li>Achieve profitability by Month 4 with superior hardware</li>
-                                </ol>
-                            </div>
-                            <div className="bg-indigo-600 bg-opacity-50 rounded p-3 mt-3">
-                                <p className="text-sm font-bold text-indigo-100">
-                                    With Ash Framework + Yjs sync: Development time reduced by 29% (56 hours vs 79 hours)
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const HobbyTierHomeAnalysisWithCharts = () => {
-            const [customerCount, setCustomerCount] = useState(50);
-            const [selectedHardware, setSelectedHardware] = useState(0);
+            const [selectedServer, setSelectedServer] = useState(0);
             const chartInstances = useRef({});
 
-            // Hardware Cost Scenarios
-            const hardwareOptions = [
+            // Hetzner Server Options
+            const serverOptions = [
                 {
-                    name: 'Single Node',
-                    upfront: 2300,
-                    specs: 'Ryzen AI Max+ (16 cores), 128GB RAM, dual 10GbE',
-                    power: 180,
-                    customers: 100,
-                    costPerCustomer: 1.5
+                    name: 'AX52 Dedicated',
+                    monthly: 65,
+                    specs: 'AMD Ryzen 9 5950X (16 cores, 32 threads), 128GB DDR4 ECC, 2x 512GB NVMe (US location)',
+                    customers: 150,
+                    costPerCustomer: 0.43
                 },
                 {
-                    name: 'Dual Node',
-                    upfront: 5100,
-                    specs: '2x Ryzen AI Max+ (32 cores total), 256GB RAM, 10GbE + 25GbE',
-                    power: 350,
-                    customers: 250,
-                    costPerCustomer: 1.0
+                    name: 'AX102 Dedicated',
+                    monthly: 165,
+                    specs: 'AMD EPYC 7502P (32 cores, 64 threads), 256GB DDR4 ECC, 2x 1.92TB NVMe (US location)',
+                    customers: 400,
+                    costPerCustomer: 0.41
                 },
                 {
-                    name: 'Quad Node',
-                    upfront: 10200,
-                    specs: '4x Ryzen AI Max+ (64 cores total), 512GB RAM, 25GbE network',
-                    power: 700,
-                    customers: 600,
-                    costPerCustomer: 0.8
+                    name: 'CAX41 Cloud',
+                    monthly: 32,
+                    specs: 'ARM-based (16 vCPUs Ampere Altra), 32GB RAM, 320GB NVMe (US location)',
+                    customers: 80,
+                    costPerCustomer: 0.40
                 }
             ];
 
-            // Cost comparison over time
-            const costComparisonData = [
-                { customers: 10, cloud: 120, homeSmall: 80, homeMid: 70 },
-                { customers: 20, cloud: 240, homeSmall: 95, homeMid: 85 },
-                { customers: 30, cloud: 360, homeSmall: 110, homeMid: 100 },
-                { customers: 50, cloud: 600, homeSmall: 140, homeMid: 130 },
-                { customers: 80, cloud: 960, homeSmall: 180, homeMid: 160 },
-                { customers: 100, cloud: 1200, homeSmall: 210, homeMid: 185 }
-            ];
-
-            // Monthly operating costs
-            const calculateMonthlyCosts = (customers, hardware) => {
-                const powerCostPerMonth = (hardware.power * 24 * 30 * 0.15) / 1000; // $0.15/kWh
+            // Monthly operating costs for Hetzner
+            const calculateMonthlyCosts = (customers, server) => {
+                const serverCost = server.monthly;
+                const storageBox = 3; // Hetzner Storage Box for backups
+                const domain = 1; // Domain registration
+                const monitoring = 5; // Monitoring service
+                const variableCosts = customers * server.costPerCustomer;
                 
-                // Dynamic internet cost based on customer count
-                let internetCost = 60; // Base: AT&T Fiber 500Mbps
-                let internetSpeed = '500Mbps';
-                
-                if (customers > 100) {
-                    internetCost = 80; // 1Gbps fiber
-                    internetSpeed = '1Gbps';
-                }
-                if (customers > 250) {
-                    internetCost = 120; // 2Gbps fiber
-                    internetSpeed = '2Gbps';
-                }
-                if (customers > 400) {
-                    internetCost = 180; // 5Gbps fiber
-                    internetSpeed = '5Gbps';
-                }
-                
-                const hardwareDepreciation = hardware.upfront / 36; // 3-year depreciation
-                const variableCosts = customers * hardware.costPerCustomer;
-                const backups = 20; // Cloud backups
-                const monitoring = 15; // Monitoring service
-                
-                const total = powerCostPerMonth + internetCost + hardwareDepreciation + variableCosts + backups + monitoring;
+                const total = serverCost + storageBox + domain + monitoring + variableCosts;
                 
                 return {
-                    power: Math.round(powerCostPerMonth),
-                    internet: internetCost,
-                    internetSpeed: internetSpeed,
-                    depreciation: Math.round(hardwareDepreciation),
-                    variable: Math.round(variableCosts),
-                    backups: backups,
+                    server: serverCost,
+                    storage: storageBox,
+                    domain: domain,
                     monitoring: monitoring,
+                    variable: Math.round(variableCosts),
                     total: Math.round(total)
                 };
             };
 
-            const selectedHardwareOption = hardwareOptions[selectedHardware];
-            const monthlyCosts = calculateMonthlyCosts(customerCount, selectedHardwareOption);
+            const selectedServerOption = serverOptions[selectedServer];
+            const monthlyCosts = calculateMonthlyCosts(customerCount, selectedServerOption);
 
             // Dynamic profit comparison based on customer count
             const getProfitComparison = (customers) => {
                 const cloudRevenue = customers * 15;
                 const cloudCost = customers * 12;
-                const homeCost = calculateMonthlyCosts(customers, hardwareOptions[0]).total; // Single node
+                const hetznerCost = calculateMonthlyCosts(customers, serverOptions[0]).total; // AX52
                 
                 return [
                     {
@@ -841,28 +108,28 @@
                         margin: Math.round(((cloudRevenue - cloudCost) / cloudRevenue) * 100)
                     },
                     {
-                        scenario: `Home DC (${hardwareOptions[0].name})`,
+                        scenario: 'Hetzner AX52',
                         customers: customers,
                         revenue: cloudRevenue,
-                        infraCost: homeCost,
-                        profit: cloudRevenue - homeCost,
-                        margin: Math.round(((cloudRevenue - homeCost) / cloudRevenue) * 100)
+                        infraCost: hetznerCost,
+                        profit: cloudRevenue - hetznerCost,
+                        margin: Math.round(((cloudRevenue - hetznerCost) / cloudRevenue) * 100)
                     },
                     {
-                        scenario: `Home DC (${hardwareOptions[1].name})`,
+                        scenario: 'Hetzner AX102',
                         customers: customers,
                         revenue: cloudRevenue,
-                        infraCost: calculateMonthlyCosts(customers, hardwareOptions[1]).total,
-                        profit: cloudRevenue - calculateMonthlyCosts(customers, hardwareOptions[1]).total,
-                        margin: Math.round(((cloudRevenue - calculateMonthlyCosts(customers, hardwareOptions[1]).total) / cloudRevenue) * 100)
+                        infraCost: calculateMonthlyCosts(customers, serverOptions[1]).total,
+                        profit: cloudRevenue - calculateMonthlyCosts(customers, serverOptions[1]).total,
+                        margin: Math.round(((cloudRevenue - calculateMonthlyCosts(customers, serverOptions[1]).total) / cloudRevenue) * 100)
                     },
                     {
-                        scenario: 'Hybrid (Split)',
+                        scenario: 'Hetzner Cloud',
                         customers: customers,
-                        revenue: Math.round(customers * 0.6 * 15 + customers * 0.4 * 49), // 60% hobby, 40% starter
-                        infraCost: Math.round(customers * 0.6 * 12 + customers * 0.4 * 25), // Mixed costs
-                        profit: Math.round((customers * 0.6 * 15 + customers * 0.4 * 49) - (customers * 0.6 * 12 + customers * 0.4 * 25)),
-                        margin: Math.round((((customers * 0.6 * 15 + customers * 0.4 * 49) - (customers * 0.6 * 12 + customers * 0.4 * 25)) / (customers * 0.6 * 15 + customers * 0.4 * 49)) * 100)
+                        revenue: cloudRevenue,
+                        infraCost: calculateMonthlyCosts(customers, serverOptions[2]).total,
+                        profit: cloudRevenue - calculateMonthlyCosts(customers, serverOptions[2]).total,
+                        margin: Math.round(((cloudRevenue - calculateMonthlyCosts(customers, serverOptions[2]).total) / cloudRevenue) * 100)
                     }
                 ];
             };
@@ -876,34 +143,28 @@
                 if (customers > 400) homeNetwork = 5;
                 
                 return [
-                    { metric: 'CPU Cores', cloud: 4, home: selectedHardwareOption.name.includes('Quad') ? 64 : selectedHardwareOption.name.includes('Dual') ? 32 : 16 },
-                    { metric: 'RAM (GB)', cloud: 8, home: selectedHardwareOption.name.includes('Quad') ? 512 : selectedHardwareOption.name.includes('Dual') ? 256 : 128 },
-                    { metric: 'Storage (GB)', cloud: 50, home: selectedHardwareOption.name.includes('Quad') ? 16000 : selectedHardwareOption.name.includes('Dual') ? 8000 : 4000 },
+                    { metric: 'CPU Cores', cloud: 4, home: selectedServerOption.name.includes('AX102') ? 32 : selectedServerOption.name.includes('AX52') ? 16 : 16 },
+                    { metric: 'RAM (GB)', cloud: 8, home: selectedServerOption.name.includes('AX102') ? 256 : selectedServerOption.name.includes('AX52') ? 128 : 32 },
+                    { metric: 'Storage (GB)', cloud: 50, home: selectedServerOption.name.includes('AX102') ? 3840 : selectedServerOption.name.includes('AX52') ? 1024 : 320 },
                     { metric: 'Network (Gbps)', cloud: 0.1, home: homeNetwork },
-                    { metric: 'Cost/Month', cloud: 120, home: calculateMonthlyCosts(customers, selectedHardwareOption).total / customers }
+                    { metric: 'Cost/Month', cloud: 120, home: calculateMonthlyCosts(customers, selectedServerOption).total / customers }
                 ];
             };
 
             // Dynamic break-even analysis based on customer count
-            const getBreakEvenData = (customers, hardwareIndex) => {
-                const selectedHardware = hardwareOptions[hardwareIndex];
-                const monthlyProfit = (customers * 15) - calculateMonthlyCosts(customers, selectedHardware).total;
+            const getBreakEvenData = (customers, serverIndex) => {
+                const selectedServer = serverOptions[serverIndex];
+                const monthlyProfit = (customers * 15) - calculateMonthlyCosts(customers, selectedServer).total;
                 const cloudMonthlyProfit = (customers * 15) - (customers * 12);
-                
-                // Calculate actual break-even month for home datacenter
-                const homeBreakEvenMonth = monthlyProfit > 0
-                    ? Math.ceil(selectedHardware.upfront / monthlyProfit)
-                    : 24; // If no profit, show 24 months
                 
                 // Generate data points dynamically
                 const dataPoints = [];
-                const maxMonths = Math.max(12, homeBreakEvenMonth + 3); // Show at least 3 months after break-even
                 
-                for (let month = 0; month <= maxMonths; month += month <= 6 ? 1 : (month <= 12 ? 3 : 6)) {
+                for (let month = 0; month <= 12; month += month <= 6 ? 1 : 3) {
                     dataPoints.push({
                         month: month,
                         cloudProfit: -250 + (cloudMonthlyProfit * month),
-                        homeProfit: -selectedHardware.upfront + (monthlyProfit * month)
+                        homeProfit: monthlyProfit * month // No upfront cost with Hetzner
                     });
                 }
                 
@@ -912,7 +173,7 @@
                     dataPoints.push({
                         month: 12,
                         cloudProfit: -250 + (cloudMonthlyProfit * 12),
-                        homeProfit: -selectedHardware.upfront + (monthlyProfit * 12)
+                        homeProfit: monthlyProfit * 12
                     });
                 }
                 
@@ -922,8 +183,8 @@
 
             const revenueAtCustomers = (count) => count * 15;
             const cloudCostAtCustomers = (count) => count * 12;
-            const homeCostAtCustomers = (count) => {
-                const costs = calculateMonthlyCosts(count, selectedHardwareOption);
+            const hetznerCostAtCustomers = (count) => {
+                const costs = calculateMonthlyCosts(count, selectedServerOption);
                 return costs.total;
             };
             
@@ -931,7 +192,7 @@
             useEffect(() => {
                 // Get current values
                 const currentCustomers = customerCount;
-                const currentHardware = hardwareOptions[selectedHardware];
+                const currentServer = serverOptions[selectedServer];
                 
                 // Destroy existing charts before creating new ones
                 Object.values(chartInstances.current).forEach(chart => {
@@ -944,7 +205,7 @@
                     // Generate dynamic cost data
                     const customerPoints = [10, 20, 30, 50, 80, 100, 200, 400, 600];
                     const cloudCosts = customerPoints.map(c => c * 12);
-                    const homeCosts = customerPoints.map(c => calculateMonthlyCosts(c, currentHardware).total);
+                    const hetznerCosts = customerPoints.map(c => calculateMonthlyCosts(c, currentServer).total);
                     
                     chartInstances.current.costComparisonChart = new Chart(costCtx, {
                         type: 'line',
@@ -960,8 +221,8 @@
                                     tension: 0.1
                                 },
                                 {
-                                    label: `Home DC (${currentHardware.name})`,
-                                    data: homeCosts,
+                                    label: 'Hetzner (' + currentServer.name + ')',
+                                    data: hetznerCosts,
                                     borderColor: '#10b981',
                                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
                                     borderWidth: 3,
@@ -1048,7 +309,7 @@
                 // Break-Even Chart
                 const breakEvenCtx = document.getElementById('breakEvenChart');
                 if (breakEvenCtx) {
-                    const breakEvenData = getBreakEvenData(currentCustomers, selectedHardware);
+                    const breakEvenData = getBreakEvenData(currentCustomers, selectedServer);
                     
                     chartInstances.current.breakEvenChart = new Chart(breakEvenCtx, {
                         type: 'line',
@@ -1064,7 +325,7 @@
                                     tension: 0.1
                                 },
                                 {
-                                    label: `Home DC (${currentHardware.name})`,
+                                    label: 'Hetzner (' + currentServer.name + ')',
                                     data: breakEvenData.map(d => d.homeProfit),
                                     borderColor: '#10b981',
                                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -1108,7 +369,7 @@
                         if (chart) chart.destroy();
                     });
                 };
-            }, [customerCount, selectedHardware]);
+            }, [customerCount, selectedServer]);
 
             return (
                 <div className="w-full max-w-7xl mx-auto p-6 bg-gray-50">
@@ -1117,9 +378,9 @@
                             <svg className="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                             </svg>
-                            <h1 className="text-3xl font-bold">Home Datacenter Economics</h1>
+                            <h1 className="text-3xl font-bold">Hetzner Economics</h1>
                         </div>
-                        <p className="text-blue-100">Hobby Tier ($15/mo) - Self-Hosted vs Cloud Analysis with Ash Framework & Yjs Sync</p>
+                        <p className="text-blue-100">Hobby Tier ($15/mo) - Hetzner vs Cloud Analysis with Ash Framework & Yjs Sync</p>
                     </div>
 
                     {/* Technology Update Banner */}
@@ -1152,10 +413,10 @@
                             <div>
                                 <h3 className="text-lg font-bold text-green-800 mb-2">Game-Changing Economics! 🎯</h3>
                                 <p className="text-green-700 mb-2">
-                                    Home datacenter transforms Hobby tier from <strong>20% margin → 63% margin</strong>
+                                    Hetzner transforms Hobby tier from <strong>20% margin → 97% margin</strong>
                                 </p>
                                 <p className="text-green-700">
-                                    At 50 customers: <strong>$150/mo profit</strong> (cloud) vs <strong>$497/mo profit</strong> (home) = <strong>231% improvement!</strong>
+                                    At 50 customers: <strong>$150/mo profit</strong> (cloud) vs <strong>$685/mo profit</strong> (Hetzner) = <strong>357% improvement!</strong>
                                 </p>
                             </div>
                         </div>
@@ -1178,26 +439,26 @@
                             />
                         </div>
                         
-                        {/* Hardware Selection */}
+                        {/* Server Selection */}
                         <div className="mt-6 mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Hardware Build Option:
+                                Hetzner Server Option:
                             </label>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                {hardwareOptions.map((hw, idx) => (
+                                {serverOptions.map((server, idx) => (
                                     <button
                                         key={idx}
-                                        onClick={() => setSelectedHardware(idx)}
+                                        onClick={() => setSelectedServer(idx)}
                                         className={`p-3 rounded-lg border-2 transition-all ${
-                                            selectedHardware === idx
+                                            selectedServer === idx
                                                 ? 'border-blue-500 bg-blue-50'
                                                 : 'border-gray-200 hover:border-gray-300'
                                         }`}
                                     >
-                                        <div className="font-semibold text-gray-900">{hw.name}</div>
-                                        <div className="text-xs text-gray-600 mt-1">{hw.specs}</div>
-                                        <div className="text-sm font-bold text-blue-600 mt-2">${hw.upfront.toLocaleString()}</div>
-                                        <div className="text-xs text-gray-500">Up to {hw.customers} customers</div>
+                                        <div className="font-semibold text-gray-900">{server.name}</div>
+                                        <div className="text-xs text-gray-600 mt-1">{server.specs}</div>
+                                        <div className="text-sm font-bold text-blue-600 mt-2">€{server.monthly}/month</div>
+                                        <div className="text-xs text-gray-500">Up to {server.customers} customers</div>
                                     </button>
                                 ))}
                             </div>
@@ -1214,37 +475,37 @@
                                 <p className="text-xs text-gray-500 mt-1">Profit: ${(revenueAtCustomers(customerCount) - cloudCostAtCustomers(customerCount)).toLocaleString()}</p>
                             </div>
                             <div className="bg-green-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600 mb-1">Home Costs</p>
-                                <p className="text-2xl font-bold text-green-600">${homeCostAtCustomers(customerCount).toLocaleString()}</p>
-                                <p className="text-xs text-gray-500 mt-1">Profit: ${(revenueAtCustomers(customerCount) - homeCostAtCustomers(customerCount)).toLocaleString()}</p>
+                                <p className="text-sm text-gray-600 mb-1">Hetzner Costs</p>
+                                <p className="text-2xl font-bold text-green-600">${hetznerCostAtCustomers(customerCount).toLocaleString()}</p>
+                                <p className="text-xs text-gray-500 mt-1">Profit: ${(revenueAtCustomers(customerCount) - hetznerCostAtCustomers(customerCount)).toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Selected Hardware Details */}
+                    {/* Selected Server Details */}
                     <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Selected Hardware: {selectedHardwareOption.name}</h3>
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Selected Server: {selectedServerOption.name}</h3>
                         <div className="border-2 border-blue-500 rounded-lg p-4 bg-blue-50">
                             <div className="flex justify-between items-start mb-3">
-                                <h4 className="font-bold text-gray-900">{selectedHardwareOption.name}</h4>
+                                <h4 className="font-bold text-gray-900">{selectedServerOption.name}</h4>
                                 <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">SELECTED</span>
                             </div>
-                            <p className="text-sm text-gray-700 mb-3">{selectedHardwareOption.specs}</p>
+                            <p className="text-sm text-gray-700 mb-3">{selectedServerOption.specs}</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-blue-600">${selectedHardwareOption.upfront.toLocaleString()}</div>
-                                    <div className="text-xs text-gray-600">Upfront Cost</div>
+                                    <div className="text-2xl font-bold text-blue-600">€{selectedServerOption.monthly}</div>
+                                    <div className="text-xs text-gray-600">Monthly Cost</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-green-600">{selectedHardwareOption.customers}</div>
+                                    <div className="text-2xl font-bold text-green-600">{selectedServerOption.customers}</div>
                                     <div className="text-xs text-gray-600">Max Customers</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-purple-600">{selectedHardwareOption.power}W</div>
-                                    <div className="text-xs text-gray-600">Power Usage</div>
+                                    <div className="text-2xl font-bold text-purple-600">99.9%</div>
+                                    <div className="text-xs text-gray-600">Uptime SLA</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-2xl font-bold text-orange-600">${selectedHardwareOption.costPerCustomer}</div>
+                                    <div className="text-2xl font-bold text-orange-600">${selectedServerOption.costPerCustomer}</div>
                                     <div className="text-xs text-gray-600">Variable Cost/Cust</div>
                                 </div>
                             </div>
@@ -1254,33 +515,33 @@
                     {/* Cost Breakdown */}
                     <div className="bg-white rounded-lg shadow p-6 mb-6">
                         <h3 className="text-lg font-bold text-gray-900 mb-4">
-                            Monthly Operating Costs ({selectedHardwareOption.name} @ {customerCount} customers)
+                            Monthly Operating Costs ({selectedServerOption.name} @ {customerCount} customers)
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="border-l-4 border-yellow-500 pl-4">
-                                <p className="text-sm text-gray-600">Power</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.power}</p>
-                                <p className="text-xs text-gray-500">{selectedHardwareOption.power}W @ $0.15/kWh</p>
-                            </div>
                             <div className="border-l-4 border-blue-500 pl-4">
-                                <p className="text-sm text-gray-600">Internet</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.internet}</p>
-                                <p className="text-xs text-gray-500">AT&T Fiber {monthlyCosts.internetSpeed} (scales with customers)</p>
-                            </div>
-                            <div className="border-l-4 border-purple-500 pl-4">
-                                <p className="text-sm text-gray-600">Depreciation</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.depreciation}</p>
-                                <p className="text-xs text-gray-500">36-month amortization ({selectedHardwareOption.name})</p>
+                                <p className="text-sm text-gray-600">Server</p>
+                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.server}</p>
+                                <p className="text-xs text-gray-500">Dedicated Hetzner server</p>
                             </div>
                             <div className="border-l-4 border-green-500 pl-4">
+                                <p className="text-sm text-gray-600">Storage</p>
+                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.storage}</p>
+                                <p className="text-xs text-gray-500">1TB Storage Box for backups</p>
+                            </div>
+                            <div className="border-l-4 border-purple-500 pl-4">
+                                <p className="text-sm text-gray-600">Domain</p>
+                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.domain}</p>
+                                <p className="text-xs text-gray-500">Domain registration</p>
+                            </div>
+                            <div className="border-l-4 border-yellow-500 pl-4">
+                                <p className="text-sm text-gray-600">Monitoring</p>
+                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.monitoring}</p>
+                                <p className="text-xs text-gray-500">Uptime monitoring service</p>
+                            </div>
+                            <div className="border-l-4 border-orange-500 pl-4">
                                 <p className="text-sm text-gray-600">Variable Costs</p>
                                 <p className="text-xl font-bold text-gray-900">${monthlyCosts.variable}</p>
-                                <p className="text-xs text-gray-500">Bandwidth, storage</p>
-                            </div>
-                            <div className="border-l-4 border-red-500 pl-4">
-                                <p className="text-sm text-gray-600">Backups/Monitor</p>
-                                <p className="text-xl font-bold text-gray-900">${monthlyCosts.backups + monthlyCosts.monitoring}</p>
-                                <p className="text-xs text-gray-500">Cloud backups + alerts</p>
+                                <p className="text-xs text-gray-500">Bandwidth, storage per customer</p>
                             </div>
                             <div className="border-l-4 border-gray-800 pl-4">
                                 <p className="text-sm text-gray-600 font-semibold">TOTAL</p>
@@ -1292,7 +553,7 @@
 
                     {/* Cost Comparison Chart */}
                     <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Cost Scaling: Cloud vs Home Datacenter</h3>
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Cost Scaling: Cloud vs Hetzner</h3>
                         <div className="relative" style={{height: '400px'}}>
                             <canvas id="costComparisonChart"></canvas>
                         </div>
@@ -1320,15 +581,240 @@
                                 </p>
                             </div>
                             <div className="bg-green-50 p-3 rounded">
-                                <p className="text-sm text-gray-600">Home DC Break-Even</p>
+                                <p className="text-sm text-gray-600">Hetzner Break-Even</p>
                                 <p className="text-lg font-bold text-green-600">
-                                    Month {Math.ceil(selectedHardwareOption.upfront / Math.max(1, (customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total))}
+                                    Month 1 (no upfront cost!)
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    {Math.max(0, (customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total) > ((customerCount * 15) - (customerCount * 12))
-                                        ? `${Math.round(Math.max(0, ((customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total) / ((customerCount * 15) - (customerCount * 12)) * 100))}% more profit at Month 12`
+                                    {Math.max(0, (customerCount * 15) - calculateMonthlyCosts(customerCount, selectedServerOption).total) > ((customerCount * 15) - (customerCount * 12))
+                                        ? Math.round(Math.max(0, ((customerCount * 15) - calculateMonthlyCosts(customerCount, selectedServerOption).total) / ((customerCount * 15) - (customerCount * 12)) * 100)) + '% more profit immediately'
                                         : 'Better economics with scale'}
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Specs Comparison */}
+                    <div className="bg-white rounded-lg shadow p-6 mb-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Resources: Cloud vs Hetzner (per customer)</h3>
+                        <div className="space-y-4">
+                            {getSpecsComparison(customerCount).map((spec, idx) => (
+                                <div key={idx}>
+                                    <div className="flex justify-between mb-1">
+                                        <span className="text-sm font-medium text-gray-700">{spec.metric}</span>
+                                        <span className="text-sm text-gray-600">
+                                            <span className="text-red-600">{spec.cloud}</span> vs <span className="text-green-600 font-bold">{spec.home}</span>
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1 bg-red-200 rounded-full h-3" style={{width: Math.min((spec.cloud / spec.home) * 100, 100) + '%'}}>
+                                            <div className="bg-red-500 h-3 rounded-full" style={{width: '100%'}}></div>
+                                        </div>
+                                        <div className="flex-1 bg-green-200 rounded-full h-3">
+                                            <div className="bg-green-500 h-3 rounded-full" style={{width: '100%'}}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-700">
+                                <strong>Hetzner Advantage:</strong> Professional datacenter with 99.9% uptime SLA, DDoS protection, and 24/7 support included
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Pros and Cons */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h3 className="text-lg font-bold text-green-700 mb-4 flex items-center">
+                                <svg className="mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Advantages
+                            </h3>
+                            <ul className="space-y-3">
+                                <li className="flex items-start">
+                                    <span className="text-green-500 mr-2 mt-1">✓</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">97% Profit Margin</p>
+                                        <p className="text-sm text-gray-600">vs 20% in cloud</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-green-500 mr-2 mt-1">✓</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">No Upfront Cost</p>
+                                        <p className="text-sm text-gray-600">Pay monthly, no hardware investment</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-green-500 mr-2 mt-1">✓</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Fixed Costs Scale</p>
+                                        <p className="text-sm text-gray-600">More customers = lower per-customer cost</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-green-500 mr-2 mt-1">✓</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Professional Infrastructure</p>
+                                        <p className="text-sm text-gray-600">99.9% uptime SLA, DDoS protection</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-green-500 mr-2 mt-1">✓</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">GDPR Compliant</p>
+                                        <p className="text-sm text-gray-600">German datacenters, EU privacy</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h3 className="text-lg font-bold text-red-700 mb-4 flex items-center">
+                                <svg className="mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                Disadvantages
+                            </h3>
+                            <ul className="space-y-3">
+                                <li className="flex items-start">
+                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Single Region</p>
+                                        <p className="text-sm text-gray-600">Germany/Finland only (for hobby tier)</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Self-Managed</p>
+                                        <p className="text-sm text-gray-600">You handle OS updates and security</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Backup Responsibility</p>
+                                        <p className="text-sm text-gray-600">Need to configure your own backup strategy</p>
+                                    </div>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="text-red-500 mr-2 mt-1">⚠</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Limited Support</p>
+                                        <p className="text-sm text-gray-600">Hardware support only, not application</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {/* Hybrid Strategy */}
+                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg shadow-lg p-6 text-white mb-6">
+                        <h3 className="text-xl font-bold mb-4 flex items-center">
+                            <svg className="mr-2 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            Recommended Hetzner + Fly.io Strategy
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <div className="font-bold mb-2">🖥️ Hetzner</div>
+                                <div className="text-sm">
+                                    <p className="mb-1"><strong>Hobby Tier</strong> ($15/mo)</p>
+                                    <p className="text-purple-100">• 80-400 customers (scalable)</p>
+                                    <p className="text-purple-100">• 95-97% margin</p>
+                                    <p className="text-purple-100">• German datacenter (GDPR)</p>
+                                </div>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <div className="font-bold mb-2">✈️ Cloud (Fly.io)</div>
+                                <div className="text-sm">
+                                    <p className="mb-1"><strong>Starter+ Tiers</strong> ($49+/mo)</p>
+                                    <p className="text-purple-100">• Global edge deployment</p>
+                                    <p className="text-purple-100">• 85-92% margin</p>
+                                    <p className="text-purple-100">• Enterprise customers</p>
+                                </div>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <div className="font-bold mb-2">📊 Expected Results</div>
+                                <div className="text-sm">
+                                    <p className="text-purple-100"><strong>50 Hobby + 20 Starter</strong></p>
+                                    <p className="text-purple-100">• Revenue: $1,730/mo</p>
+                                    <p className="text-purple-100">• Costs: $145/mo</p>
+                                    <p className="text-purple-100">• Profit: $1,585/mo</p>
+                                    <p className="text-green-300 font-bold">• Margin: 92%!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Risk Mitigation */}
+                    <div className="bg-white rounded-lg shadow p-6 mb-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Risk Mitigation Strategies</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                    <svg className="text-blue-500 mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                                    </svg>
+                                    Hetzner Redundancy Setup
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex items-start">
+                                        <span className="text-blue-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Network:</strong> 1 Gbit/s unlimited traffic included</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-blue-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>RAID 1:</strong> 2x 512GB/1.92TB NVMe mirrors</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-blue-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Backup:</strong> Storage Box 1TB (€3/mo)</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-blue-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Monitoring:</strong> Hetzner Cloud Console + custom alerts</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-blue-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Support:</strong> 24/7 hardware support included</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-blue-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Expansion:</strong> Add second AX52 for load balancing</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                    <svg className="text-yellow-500 mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    Disaster Recovery
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex items-start">
+                                        <span className="text-yellow-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Automated Backups:</strong> Daily snapshots to Storage Box</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-yellow-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>DR Site:</strong> Fly.io regions for Starter+ tiers</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-yellow-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>Monitoring:</strong> UptimeRobot + PagerDuty integration</span>
+                                    </div>
+                                    <div className="flex items-start">
+                                        <span className="text-yellow-500 mr-2">•</span>
+                                        <span className="text-gray-700"><strong>SLA:</strong> 99.9% uptime guarantee with compensation</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1338,30 +824,30 @@
                         <h3 className="text-2xl font-bold mb-4">🎯 Final Verdict: STRONGLY RECOMMENDED</h3>
                         <div className="space-y-3">
                             <p className="text-green-100">
-                                Home datacenter transforms the Hobby tier from <strong>unprofitable to highly profitable</strong>,
+                                Hetzner transforms the Hobby tier from <strong>barely profitable to incredibly profitable</strong>,
                                 while the Starter+ tiers remain in the cloud for reliability.
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                                 <div className="bg-white bg-opacity-20 rounded p-3">
-                                    <div className="text-2xl font-bold">${Math.max(0, (customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total).toLocaleString()}/mo</div>
+                                    <div className="text-2xl font-bold">${((customerCount * 15) - calculateMonthlyCosts(customerCount, selectedServerOption).total).toLocaleString()}/mo</div>
                                     <div className="text-sm text-green-100">Profit at {customerCount} Hobby customers</div>
                                 </div>
                                 <div className="bg-white bg-opacity-20 rounded p-3">
-                                    <div className="text-2xl font-bold">{Math.ceil(selectedHardwareOption.upfront / Math.max(1, (customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total))} months</div>
-                                    <div className="text-sm text-green-100">Break-even on ${selectedHardwareOption.upfront.toLocaleString()} investment</div>
+                                    <div className="text-2xl font-bold">Month 1</div>
+                                    <div className="text-sm text-green-100">Break-even (no upfront!)</div>
                                 </div>
                                 <div className="bg-white bg-opacity-20 rounded p-3">
-                                    <div className="text-2xl font-bold">{Math.round(Math.max(0, ((customerCount * 15) - calculateMonthlyCosts(customerCount, selectedHardwareOption).total) / (customerCount * 15) * 100))}%</div>
+                                    <div className="text-2xl font-bold">{Math.round(((customerCount * 15) - calculateMonthlyCosts(customerCount, selectedServerOption).total) / (customerCount * 15) * 100)}%</div>
                                     <div className="text-sm text-green-100">Profit margin per customer</div>
                                 </div>
                             </div>
                             <div className="bg-white bg-opacity-20 rounded p-4 mt-4">
                                 <p className="text-sm text-green-100 mb-2"><strong>Action Plan:</strong></p>
                                 <ol className="text-sm text-green-100 space-y-1 list-decimal list-inside">
-                                    <li>Start with cloud-only to validate demand (Months 1-2)</li>
-                                    <li>Build Ryzen AI Max+ node once you hit 15 Hobby customers (Month 3)</li>
-                                    <li>Migrate Hobby tier to home, scale up to 4 nodes as needed</li>
-                                    <li>Achieve profitability by Month 4 with superior hardware</li>
+                                    <li>Start with Hetzner CAX41 (€32/month) immediately</li>
+                                    <li>Upgrade to AX52 when you hit 40 customers</li>
+                                    <li>Add Fly.io regions for Starter+ tiers</li>
+                                    <li>Achieve 92%+ margins by Month 2</li>
                                 </ol>
                             </div>
                             <div className="bg-indigo-600 bg-opacity-50 rounded p-3 mt-3">
@@ -1376,7 +862,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<HobbyTierHomeAnalysisWithCharts />);
+        root.render(<HobbyTierHetznerAnalysisWithCharts />);
     </script>
 </body>
 </html>

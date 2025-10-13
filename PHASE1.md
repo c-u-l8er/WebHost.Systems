@@ -35,6 +35,167 @@ Domains:
     └── Route (computed paths)
 ```
 
+## 🏗️ Multi-Cloud Tenant Strategy
+
+### Overview
+
+WebHost Systems uses **attribute-based multi-tenancy** combined with **intelligent infrastructure routing** to ensure optimal performance and cost efficiency:
+
+- **Hobby Tier customers**: Routed to Hetzner dedicated servers
+- **Starter+ Tier customers**: Routed to Fly.io multi-region
+- **Automatic routing**: Based on subscription plan
+- **Data isolation**: Maintained across all infrastructure
+
+### Infrastructure-Aware Multi-Tenancy
+
+```elixir
+# Every resource with customer data:
+multitenancy do
+  strategy :attribute
+  attribute :customer_id
+end
+
+# Infrastructure routing logic:
+defmodule WebHost.Infrastructure.Router do
+  def route_customer(customer) do
+    case customer.subscription.plan.name do
+      :hobby ->
+        {:ok, get_hetzner_server(customer)}
+      
+      :starter ->
+        {:ok, get_flyio_region(customer, "us-east")}
+      
+      :professional ->
+        {:ok, get_flyio_region(customer, "global")}
+      
+      :business ->
+        {:ok, get_flyio_region(customer, "multi-region")}
+    end
+  end
+end
+
+# Query syntax (same across all infrastructure):
+Resource
+|> Ash.Query.for_read(:read, tenant: customer_id)
+|> Ash.read!()
+
+# Impossible to query without tenant! Compile-time safety!
+```
+
+### Database Strategy by Tier
+
+#### Hobby Tier (Hetzner)
+```
+- Single database on Hetzner dedicated server
+- TimescaleDB hypertables for GPS data
+- PostGIS for spatial queries
+- Local backups to Hetzner Storage Box
+- Customer isolation via customer_id
+```
+
+#### Starter+ Tiers (Fly.io)
+```
+- Regional databases (primary: us-east)
+- Read replicas in fra, sin regions
+- Automatic failover between regions
+- Point-in-time recovery
+- Customer isolation via customer_id
+```
+
+### Data Synchronization Strategy
+
+```elixir
+defmodule WebHost.Infrastructure.Sync do
+  # For customers upgrading from Hobby to Starter+
+  def migrate_customer_to_flyio(customer) do
+    # 1. Export data from Hetzner
+    data = export_customer_data(customer)
+    
+    # 2. Import to Fly.io
+    import_customer_data_to_flyio(customer, data)
+    
+    # 3. Update routing configuration
+    update_customer_routing(customer, :flyio)
+    
+    # 4. Verify migration
+    verify_data_integrity(customer)
+  end
+  
+  # For customers downgrading from Starter+ to Hobby
+  def migrate_customer_to_hetzner(customer) do
+    # Similar process in reverse
+    # Only recent data (based on plan limits)
+  end
+end
+```
+
+### Performance Characteristics by Tier
+
+| Feature | Hobby (Hetzner) | Starter (Fly.io) | Professional (Fly.io) | Business (Fly.io) |
+|---------|------------------|------------------|----------------------|-------------------|
+| **Database** | Single instance | Regional + 1 replica | Regional + 2 replicas | Multi-region |
+| **GPS Points/Day** | 50K | 500K | 2M | 10M |
+| **Query Latency** | ~10ms | ~50ms | ~30ms | ~20ms |
+| **Data Retention** | 30 days | 90 days | 365 days | 730 days |
+| **Backup Frequency** | Daily | Hourly | Continuous | Continuous |
+| **Geofence Queries** | Sub-50ms | Sub-100ms | Sub-75ms | Sub-50ms |
+
+### Multi-Region Routing (Starter+)
+
+```elixir
+defmodule WebHost.Infrastructure.GeoRouter do
+  def route_request(customer, request_location) do
+    case customer.subscription.plan.name do
+      :hobby ->
+        # Always route to Hetzner
+        route_to_hetzner(customer)
+      
+      plan when plan in [:starter, :professional, :business] ->
+        # Route to nearest Fly.io region
+        nearest_region = find_nearest_region(request_location)
+        route_to_flyio_region(customer, nearest_region)
+    end
+  end
+  
+  defp find_nearest_region(location) do
+    # Geographic routing logic
+    cond do
+      location.country in ["US", "CA", "MX"] -> "us-east"
+      location.country in ["DE", "FR", "GB", "IT"] -> "fra"
+      location.country in ["SG", "JP", "AU", "IN"] -> "sin"
+      true -> "us-east"  # Default
+    end
+  end
+end
+```
+
+### Cost Optimization Strategy
+
+```elixir
+defmodule WebHost.Infrastructure.CostOptimizer do
+  def analyze_customer_usage(customer) do
+    usage_metrics = get_usage_metrics(customer)
+    plan_limits = get_plan_limits(customer.subscription.plan)
+    
+    cond do
+      # Customer is exceeding hobby limits
+      usage_metrics.gps_points_per_day > plan_limits.gps_points_per_day * 0.8 ->
+        suggest_plan_upgrade(customer, :starter)
+      
+      # Customer on expensive plan with low usage
+      usage_metrics.utilization < 0.2 and customer.subscription.plan.name != :hobby ->
+        suggest_plan_downgrade(customer, :hobby)
+      
+      # Customer is on optimal plan
+      true ->
+        :optimal
+    end
+  end
+end
+```
+
+---
+
 ## Multi-Tenancy Strategy
 
 All customer data uses **attribute-based multi-tenancy** with `customer_id`:
@@ -195,6 +356,143 @@ defmodule WebHost.Accounts.PlatformUser do
 
     mutations do
       update :update_platform_user, :update
+    end
+  end
+
+  # NEW: Infrastructure-aware calculations
+  calculations do
+    calculate :infrastructure_location, :string do
+      calculation fn records, _context ->
+        records
+        |> Ash.load!(:subscription)
+        |> Enum.map(fn customer ->
+          case customer.subscription do
+            %{plan: %{name: :hobby}} -> "Hetzner Dedicated (Germany)"
+            %{plan: %{name: :starter}} -> "Fly.io (US East)"
+            %{plan: %{name: :professional}} -> "Fly.io (Global)"
+            %{plan: %{name: :business}} -> "Fly.io (Multi-Region)"
+            _ -> "Unknown"
+          end
+        end)
+      end
+    end
+
+    calculate :can_upgrade_to_flyio, :boolean do
+      calculation fn records, _context ->
+        records
+        |> Ash.load!(:subscription)
+        |> Enum.map(fn customer ->
+          customer.subscription.plan.name == :hobby
+        end)
+      end
+    end
+
+    calculate :needs_performance_monitoring, :boolean do
+      calculation fn records, _context ->
+        records
+        |> Ash.load!(:subscription)
+        |> Enum.map(fn customer ->
+          customer.subscription.plan.name in [:professional, :business]
+        end)
+      end
+    end
+  end
+
+  # NEW: Infrastructure migration actions
+  actions do
+    defaults [:read, :destroy]
+
+    create :create do
+      accept [:name, :slug, :email, :company_name, :billing_email, :settings]
+      
+      validate present([:name, :slug, :email])
+      validate match(:slug, ~r/^[a-z0-9-]+$/)
+    end
+
+    update :update do
+      accept [:name, :company_name, :billing_email, :status, :onboarding_completed, :settings, :metadata]
+    end
+
+    read :by_slug do
+      argument :slug, :string, allow_nil?: false
+      get? true
+      filter expr(slug == ^arg(:slug))
+    end
+
+    update :complete_onboarding do
+      accept []
+      change set_attribute(:onboarding_completed, true)
+    end
+
+    update :suspend do
+      accept []
+      change set_attribute(:status, :suspended)
+    end
+
+    # NEW: Infrastructure migration actions
+    update :migrate_to_flyio do
+      accept []
+      argument :target_region, :string, default: "us-east"
+      
+      validate present([:target_region])
+      validate attribute_equals(:status, :active)
+      
+      change fn changeset, _context ->
+        customer = Ash.Changeset.get_data(changeset)
+        target_region = Ash.Changeset.get_argument(changeset, :target_region)
+        
+        # This would trigger the actual migration process
+        case WebHost.Infrastructure.Sync.migrate_customer_to_flyio(customer, target_region) do
+          :ok -> changeset
+          {:error, reason} -> Ash.Changeset.add_error(changeset, :migration, "Failed to migrate: #{reason}")
+        end
+      end
+      
+      # Update metadata to reflect new infrastructure
+      change set_attribute(:metadata, fn metadata ->
+        Map.put(metadata || %{}, "infrastructure", %{
+          "provider" => "flyio",
+          "region" => Ash.Changeset.get_argument(changeset, :target_region),
+          "migrated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+        })
+      end)
+    end
+
+    update :migrate_to_hetzner do
+      accept []
+      
+      validate attribute_equals(:status, :active)
+      
+      change fn changeset, _context ->
+        customer = Ash.Changeset.get_data(changeset)
+        
+        # This would trigger the actual migration process
+        case WebHost.Infrastructure.Sync.migrate_customer_to_hetzner(customer) do
+          :ok -> changeset
+          {:error, reason} -> Ash.Changeset.add_error(changeset, :migration, "Failed to migrate: #{reason}")
+        end
+      end
+      
+      # Update metadata to reflect new infrastructure
+      change set_attribute(:metadata, fn metadata ->
+        Map.put(metadata || %{}, "infrastructure", %{
+          "provider" => "hetzner",
+          "migrated_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+        })
+      end)
+    end
+
+    read :customers_on_infrastructure do
+      argument :provider, :string, allow_nil?: false
+      
+      prepare fn query, _context ->
+        provider = Ash.Query.get_argument(query, :provider)
+        
+        query
+        |> Ash.Query.filter(
+          fragment("(metadata->'infrastructure'->>'provider') = ?", ^provider)
+        )
+      end
     end
   end
 end

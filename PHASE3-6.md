@@ -1,13 +1,619 @@
 # Phases 3-6: WebHost Complete with Ash Framework and Yjs Sync
 
-## Phase 3: Infrastructure Provisioning with Yjs Support (10 hours)
+## Phase 3: Multi-Cloud Infrastructure Provisioning (10 hours)
 
 ### Overview
-Automate customer infrastructure provisioning using AshOban for background jobs, with specific support for Yjs CRDT synchronization.
+Automate customer infrastructure provisioning using AshOban for background jobs, with intelligent routing between Hetzner and Fly.io based on subscription plans. This phase implements the hybrid cloud strategy for optimal cost-efficiency and performance.
+
+### 🏗️ Multi-Cloud Provisioning Strategy
+
+#### Infrastructure Decision Matrix
+
+```elixir
+defmodule WebHost.Infrastructure.Provisioner do
+  @moduledoc """
+  Intelligent provisioning router that determines optimal infrastructure
+  based on customer's subscription plan and requirements
+  """
+
+  def determine_infrastructure(customer) do
+    plan = customer.subscription.plan.name
+    
+    cond do
+      plan == :hobby ->
+        {:ok, :hetzner, get_hetzner_config(customer)}
+      
+      plan in [:starter, :professional, :business] ->
+        {:ok, :flyio, get_flyio_config(customer, plan)}
+      
+      true ->
+        {:error, :unknown_plan}
+    end
+  end
+
+  defp get_hetzner_config(customer) do
+    %{
+      server_type: determine_hetzner_server(customer),
+      location: "nbg1",  # Nuremberg, Germany
+      database: %{
+        type: "postgresql",
+        version: "15",
+        extensions: ["timescaledb", "postgis"]
+      },
+      redis: %{
+        type: "redis",
+        version: "7",
+        shared: true
+      },
+      storage: %{
+        backup: "hetzner_storage_box",
+        retention_days: 30
+      },
+      monitoring: %{
+        enabled: true,
+        alerts: ["cpu", "memory", "disk"]
+      }
+    }
+  end
+
+  defp get_flyio_config(customer, plan) do
+    %{
+      app_name: "whs-#{customer.slug}-#{:rand.uniform(9999)}",
+      regions: determine_flyio_regions(plan),
+      database: %{
+        type: "postgres",
+        version: "15",
+        extensions: ["timescaledb", "postgis"],
+        read_replicas: get_replica_count(plan)
+      },
+      redis: %{
+        type: "upstash_redis",
+        tier: get_redis_tier(plan)
+      },
+      cdn: %{
+        provider: "cloudflare",
+        caching: "aggressive"
+      },
+      monitoring: %{
+        enabled: true,
+        alerts: ["response_time", "error_rate", "throughput"]
+      }
+    }
+  end
+
+  defp determine_hetzner_server(customer) do
+    # Estimate resource requirements based on plan
+    case customer.subscription.plan.name do
+      :hobby -> "cax11"  # ~€4/month, 2 vCPU, 4GB RAM
+      _ -> "cax21"      # ~€17/month, 4 vCPU, 8GB RAM
+    end
+  end
+
+  defp determine_flyio_regions(plan) do
+    case plan do
+      :starter -> ["iad"]  # US East
+      :professional -> ["iad", "fra"]  # US East + Europe
+      :business -> ["iad", "fra", "sin"]  # US East + Europe + Asia
+    end
+  end
+
+  defp get_replica_count(plan) do
+    case plan do
+      :starter -> 0
+      :professional -> 1
+      :business -> 2
+    end
+  end
+
+  defp get_redis_tier(plan) do
+    case plan do
+      :starter -> "free"
+      :professional -> "standard"
+      :business -> "premium"
+    end
+  end
+end
+```
+
+#### Hetzner Provisioning Worker
+
+```elixir
+defmodule WebHost.Workers.HetznerProvisioningWorker do
+  use Oban.Worker,
+    queue: :hetzner_provisioning,
+    max_attempts: 3
+
+  alias WebHost.External.{HetznerClient, CloudflareClient}
+  alias WebHost.Infrastructure.{Deployment, HetznerServer}
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"customer_id" => customer_id}}) do
+    customer = WebHost.Accounts.Customer |> Ash.get!(customer_id)
+    
+    with {:ok, config} <- WebHost.Infrastructure.Provisioner.determine_infrastructure(customer),
+         {:ok, server} <- provision_hetzner_server(config),
+         {:ok, deployment} <- create_deployment(customer, server, config),
+         {:ok, deployment} <- setup_database(deployment, config),
+         {:ok, deployment} <- setup_redis(deployment, config),
+         {:ok, deployment} <- deploy_application(deployment, config),
+         {:ok, deployment} <- configure_dns(deployment, config),
+         {:ok, deployment} -> mark_provisioned(deployment) do
+      
+      send_welcome_email(customer, deployment)
+      :ok
+    else
+      {:error, reason} ->
+        cleanup_failed_provisioning(customer_id)
+        {:error, reason}
+    end
+  end
+
+  defp provision_hetzner_server(config) do
+    server_config = %{
+      name: "whs-#{:rand.uniform(9999)}",
+      server_type: config.server_type,
+      image: "ubuntu-22.04",
+      location: config.location,
+      ssh_keys: [get_default_ssh_key()]
+    }
+
+    case HetznerClient.create_server(server_config) do
+      {:ok, server} ->
+        # Wait for server to be ready
+        wait_for_server_ready(server["id"])
+        
+        # Create HetznerServer resource
+        HetznerServer
+        |> Ash.Changeset.for_create(:create, %{
+          hetzner_id: server["id"],
+          name: server["name"],
+          ip_address: server["public_net"]["ipv4"]["ip"],
+          status: "initializing"
+        })
+        |> Ash.create()
+      
+      error -> error
+    end
+  end
+
+  defp setup_database(deployment, config) do
+    # TimescaleDB + PostGIS setup on Hetzner
+    commands = [
+      "docker run -d --name postgres -e POSTGRES_PASSWORD=#{generate_password()} -e POSTGRES_DB=webhost_#{deployment.customer_id} timescale/timescaledb-ha:pg16-latest",
+      "docker run -d --name redis redis:7-alpine",
+      "ufw allow 22",
+      "ufw allow 80",
+      "ufw allow 443",
+      "ufw --force enable"
+    ]
+
+    case execute_remote_commands(deployment.server.ip_address, commands) do
+      :ok ->
+        deployment
+        |> Ash.Changeset.for_update(:update, %{
+          database_url: build_database_url(deployment.customer_id),
+          redis_url: "redis://#{deployment.server.ip_address}:6379",
+          status: "configured"
+        })
+        |> Ash.update()
+      
+      error -> error
+    end
+  end
+
+  defp deploy_application(deployment, config) do
+    # Deploy WebHost application to Hetzner server
+    app_config = %{
+      database_url: deployment.database_url,
+      redis_url: deployment.redis_url,
+      secret_key_base: generate_secret(),
+      live_key: generate_live_key(),
+      hetzner_mode: true
+    }
+
+    deployment_script = generate_deployment_script(app_config)
+    
+    case upload_and_execute_script(deployment.server.ip_address, deployment_script) do
+      :ok ->
+        deployment
+        |> Ash.Changeset.for_update(:update, %{
+          api_url: "https://#{deployment.server.ip_address}",
+          status: "deployed"
+        })
+        |> Ash.update()
+      
+      error -> error
+    end
+  end
+
+  defp configure_dns(deployment, config) do
+    # Configure Cloudflare DNS
+    dns_record = %{
+      name: "#{deployment.customer.slug}.webhost.systems",
+      type: "A",
+      content: deployment.server.ip_address,
+      ttl: 300
+    }
+
+    case CloudflareClient.create_dns_record(dns_record) do
+      {:ok, record} ->
+        deployment
+        |> Ash.Changeset.for_update(:update, %{
+          domain_name: record["name"],
+          ssl_enabled: true
+        })
+        |> Ash.update()
+      
+      error -> error
+    end
+  end
+
+  defp wait_for_server_ready(server_id, timeout \\ 300) do
+    # Poll Hetzner API until server is ready
+    # Implementation details...
+  end
+
+  defp execute_remote_commands(ip, commands) do
+    # Execute commands via SSH on Hetzner server
+    # Implementation details...
+  end
+
+  defp generate_deployment_script(config) do
+    """
+    #!/bin/bash
+    set -e
+
+    # Install Docker
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+
+    # Create app directory
+    mkdir -p /opt/webhost
+    cd /opt/webhost
+
+    # Download and extract application
+    wget https://releases.webhost.systems/latest.tar.gz
+    tar -xzf latest.tar.gz
+
+    # Create environment file
+    cat > .env << EOF
+    DATABASE_URL=#{config.database_url}
+    REDIS_URL=#{config.redis_url}
+    SECRET_KEY_BASE=#{config.secret_key_base}
+    LIVE_KEY=#{config.live_key}
+    HETZNER_MODE=true
+    EOF
+
+    # Start services
+    docker-compose up -d
+
+    # Setup SSL with Let's Encrypt
+    certbot --nginx -d #{config.domain_name}
+    """
+  end
+end
+```
+
+#### Fly.io Provisioning Worker
+
+```elixir
+defmodule WebHost.Workers.FlyioProvisioningWorker do
+  use Oban.Worker,
+    queue: :flyio_provisioning,
+    max_attempts: 3
+
+  alias WebHost.External.{FlyClient, UpstashClient}
+  alias WebHost.Infrastructure.{Deployment, FlyioApp}
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"customer_id" => customer_id}}) do
+    customer = WebHost.Accounts.Customer |> Ash.get!(customer_id)
+    
+    with {:ok, config} <- WebHost.Infrastructure.Provisioner.determine_infrastructure(customer),
+         {:ok, app} <- create_flyio_app(config),
+         {:ok, deployment} <- create_deployment(customer, app, config),
+         {:ok, deployment} <- provision_database(deployment, config),
+         {:ok, deployment} <- provision_redis(deployment, config),
+         {:ok, deployment} <- deploy_application(deployment, config),
+         {:ok, deployment} -> mark_provisioned(deployment) do
+      
+      send_welcome_email(customer, deployment)
+      :ok
+    else
+      {:error, reason} ->
+        cleanup_failed_flyio_provisioning(customer_id)
+        {:error, reason}
+    end
+  end
+
+  defp create_flyio_app(config) do
+    app_config = %{
+      name: config.app_name,
+      org_id: Application.get_env(:webhost, :fly_org_id),
+      regions: config.regions
+    }
+
+    case FlyClient.create_app(app_config) do
+      {:ok, app} ->
+        FlyioApp
+        |> Ash.Changeset.for_create(:create, %{
+          fly_id: app["id"],
+          name: app["name"],
+          regions: config.regions,
+          status: "initializing"
+        })
+        |> Ash.create()
+      
+      error -> error
+    end
+  end
+
+  defp provision_database(deployment, config) do
+    db_config = %{
+      name: "#{deployment.app.name}-db",
+      region: hd(deployment.app.regions),
+      vm_size: "shared-cpu-1x",
+      volume_size_gb: get_db_size(config)
+    }
+
+    case FlyClient.create_postgres(db_config) do
+      {:ok, db} ->
+        # Wait for database to be ready
+        wait_for_database_ready(db["id"])
+        
+        # Enable extensions
+        enable_database_extensions(db["id"])
+        
+        deployment
+        |> Ash.Changeset.for_update(:update, %{
+          database_id: db["id"],
+          database_url: extract_db_url(db),
+          status: "database_ready"
+        })
+        |> Ash.update()
+      
+      error -> error
+    end
+  end
+
+  defp provision_redis(deployment, config) do
+    redis_config = %{
+      name: "#{deployment.app.name}-redis",
+      region: hd(deployment.app.regions),
+      tier: config.redis.tier
+    }
+
+    case UpstashClient.create_redis(redis_config) do
+      {:ok, redis} ->
+        deployment
+        |> Ash.Changeset.for_update(:update, %{
+          redis_id: redis["id"],
+          redis_url: redis["rest_url"],
+          redis_token: redis["token"],
+          status: "redis_ready"
+        })
+        |> Ash.update()
+      
+      error -> error
+    end
+  end
+
+  defp deploy_application(deployment, config) do
+    # Configure environment variables
+    env_vars = %{
+      "DATABASE_URL" => deployment.database_url,
+      "REDIS_URL" => deployment.redis_url,
+      "SECRET_KEY_BASE" => generate_secret(),
+      "LIVE_KEY" => generate_live_key(),
+      "FLYIO_MODE" => "true",
+      "PRIMARY_REGION" => hd(deployment.app.regions),
+      "REGIONS" => Enum.join(deployment.app.regions, ",")
+    }
+
+    # Deploy using Fly.io machines API
+    machine_config = %{
+      name: "#{deployment.app.name}-machine",
+      region: hd(deployment.app.regions),
+      config: %{
+        image: "webhost/webhost:latest",
+        env: env_vars,
+        services: [
+          %{
+            protocol: "tcp",
+            internal_port: 4000,
+            ports: [%{port: 443, handlers: ["tls"]}]
+          }
+        ]
+      }
+    }
+
+    case FlyClient.create_machine(deployment.app.fly_id, machine_config) do
+      {:ok, machine} ->
+        deployment
+        |> Ash.Changeset.for_update(:update, %{
+          machine_id: machine["id"],
+          api_url: "https://#{deployment.app.name}.fly.dev",
+          status: "deployed"
+        })
+        |> Ash.update()
+      
+      error -> error
+    end
+  end
+
+  defp enable_database_extensions(db_id) do
+    extensions = ["timescaledb", "postgis", "uuid-ossp"]
+    
+    Enum.each(extensions, fn ext ->
+      FlyClient.execute_postgres_query(db_id, "CREATE EXTENSION IF NOT EXISTS #{ext};")
+    end)
+  end
+
+  defp get_db_size(config) do
+    case config.regions do
+      [_] -> 10      # Single region: 10GB
+      [_ | _] -> 20  # Multi-region: 20GB
+    end
+  end
+end
+```
+
+#### Cross-Infrastructure Migration Worker
+
+```elixir
+defmodule WebHost.Workers.InfrastructureMigrationWorker do
+  use Oban.Worker,
+    queue: :infrastructure_migration,
+    max_attempts: 1
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{
+    "customer_id" => customer_id,
+    "target_infrastructure" => target_infrastructure
+  }}) do
+    customer = WebHost.Accounts.Customer |> Ash.get!(customer_id)
+    
+    with {:ok, current_deployment} <- get_current_deployment(customer),
+         {:ok, target_config} <- get_target_infrastructure_config(customer, target_infrastructure),
+         {:ok, new_deployment} <- provision_target_infrastructure(customer, target_config),
+         {:ok, _} -> migrate_data(current_deployment, new_deployment),
+         {:ok, _} -> update_customer_routing(customer, target_infrastructure),
+         {:ok, _} -> cleanup_old_infrastructure(current_deployment) do
+      
+      send_migration_success_email(customer)
+      :ok
+    else
+      {:error, reason} ->
+        send_migration_failure_email(customer, reason)
+        {:error, reason}
+    end
+  end
+
+  defp migrate_data(from_deployment, to_deployment) do
+    # Export data from source infrastructure
+    export_script = generate_export_script(from_deployment)
+    
+    # Import data to target infrastructure
+    import_script = generate_import_script(to_deployment)
+    
+    # Execute migration with minimal downtime
+    case execute_data_migration(export_script, import_script) do
+      :ok -> {:ok, :migrated}
+      error -> error
+    end
+  end
+
+  defp generate_export_script(deployment) do
+    """
+    #!/bin/bash
+    pg_dump #{deployment.database_url} > /tmp/export.sql
+    redis-cli -u #{deployment.redis_url} --rdb /tmp/redis.rdb
+    tar -czf /tmp/data.tar.gz /tmp/export.sql /tmp/redis.rdb
+    """
+  end
+
+  defp generate_import_script(deployment) do
+    """
+    #!/bin/bash
+    curl -L https://storage.webhost.systems/migrations/data.tar.gz | tar -xz
+    psql #{deployment.database_url} < /tmp/export.sql
+    redis-cli -u #{deployment.redis_url} --rdb /tmp/redis.rdb
+    """
+  end
+end
+```
+
+#### Infrastructure Monitoring
+
+```elixir
+defmodule WebHost.Infrastructure.Monitor do
+  use GenServer
+  require Logger
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_opts) do
+    # Schedule periodic checks
+    :timer.send_interval(300_000, :check_infrastructure_health)  # Every 5 minutes
+    
+    {:ok, %{}}
+  end
+
+  @impl true
+  def handle_info(:check_infrastructure_health, state) do
+    check_all_infrastructures()
+    {:noreply, state}
+  end
+
+  defp check_all_infrastructures() do
+    # Check Hetzner servers
+    check_hetzner_servers()
+    
+    # Check Fly.io apps
+    check_flyio_apps()
+    
+    # Check database health
+    check_database_health()
+  end
+
+  defp check_hetzner_servers() do
+    HetznerServer
+    |> Ash.Query.filter(status == :active)
+    |> Ash.read!()
+    |> Enum.each(&check_hetzner_server/1)
+  end
+
+  defp check_hetzner_server(server) do
+    case HetznerClient.get_server_status(server.hetzner_id) do
+      {:ok, %{"status" => "running"}} ->
+        Logger.info("Hetzner server #{server.name} is healthy")
+      
+      {:ok, %{"status" => status}} when status in ["off", "stopped"] ->
+        Logger.warn("Hetzner server #{server.name} is #{status}")
+        send_alert("Hetzner server #{server.name} is #{status}")
+      
+      {:error, reason} ->
+        Logger.error("Failed to check Hetzner server #{server.name}: #{reason}")
+        send_alert("Hetzner server #{server.name} check failed: #{reason}")
+    end
+  end
+
+  defp check_flyio_apps() do
+    FlyioApp
+    |> Ash.Query.filter(status == :active)
+    |> Ash.read!()
+    |> Enum.each(&check_flyio_app/1)
+  end
+
+  defp check_flyio_app(app) do
+    case FlyClient.get_app_status(app.fly_id) do
+      {:ok, %{"status" => "running"}} ->
+        Logger.info("Fly.io app #{app.name} is healthy")
+      
+      {:ok, %{"status" => status}} when status in ["stopped", "crashed"] ->
+        Logger.warn("Fly.io app #{app.name} is #{status}")
+        send_alert("Fly.io app #{app.name} is #{status}")
+      
+      {:error, reason} ->
+        Logger.error("Failed to check Fly.io app #{app.name}: #{reason}")
+        send_alert("Fly.io app #{app.name} check failed: #{reason}")
+    end
+  end
+
+  defp send_alert(message) do
+    # Send alert to monitoring system
+    # Could integrate with PagerDuty, Slack, etc.
+    Logger.error("INFRASTRUCTURE ALERT: #{message}")
+  end
+end
+```
 
 ### Key Components
 
-**1. Provisioning Worker with AshOban**
+**1. Infrastructure-Aware Provisioning Worker with AshOban**
 
 Create `lib/webhost/infrastructure/actions/provision.ex`:
 

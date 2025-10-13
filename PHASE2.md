@@ -1,7 +1,7 @@
 # Phase 2: Authentication & Yjs Sync Integration (Revised)
 
 ## Overview
-Implement comprehensive authentication using AshAuthentication for platform users and API key authentication for customers. Integrate Yjs CRDT sync engine for conflict-free offline-first synchronization. This phase establishes the foundation for bulletproof multi-device sync.
+Implement comprehensive authentication using AshAuthentication for platform users and API key authentication for customers. Integrate Yjs CRDT sync engine for conflict-free offline-first synchronization. This phase establishes the foundation for bulletproof multi-device sync with **infrastructure-aware routing** for Hetzner + Fly.io deployment.
 
 ## Goals
 - Set up AshAuthentication for platform users (staff/admin)
@@ -23,6 +23,380 @@ These are already in `mix.exs` from Phase 0, but ensure they're present:
 {:jason, "~> 1.4"},        # JSON encoding
 {:cors_plug, "~> 3.0"}     # CORS for web clients
 ```
+
+## 🏗️ Infrastructure-Aware Authentication
+
+### Overview
+
+WebHost Systems implements **intelligent authentication routing** that directs customers to the appropriate infrastructure based on their subscription plan:
+
+- **Hobby Tier**: Routes to Hetzner dedicated servers (single region)
+- **Starter+ Tiers**: Routes to Fly.io multi-region (global distribution)
+- **Automatic failover**: Seamless migration between infrastructures
+- **Consistent auth**: Same API keys work across all infrastructures
+
+### Authentication Flow by Infrastructure
+
+```elixir
+defmodule WebHostWeb.Plugs.InfrastructureRouter do
+  @moduledoc """
+  Routes authentication requests to appropriate infrastructure
+  based on customer's subscription plan
+  """
+
+  def route_auth_request(conn, api_key) do
+    with {:ok, key_record} <- find_api_key(api_key),
+         {:ok, customer} <- load_customer(key_record),
+         {:ok, infrastructure} <- determine_infrastructure(customer) do
+      
+      # Route to appropriate infrastructure
+      case infrastructure do
+        :hetzner -> route_to_hetzner(conn, customer, key_record)
+        :flyio -> route_to_flyio(conn, customer, key_record)
+      end
+    else
+      {:error, :not_found} -> {:error, :invalid_key}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp determine_infrastructure(customer) do
+    case customer.subscription.plan.name do
+      :hobby -> {:ok, :hetzner}
+      plan when plan in [:starter, :professional, :business] -> {:ok, :flyio}
+      _ -> {:error, :unknown_plan}
+    end
+  end
+
+  defp route_to_hetzner(conn, customer, api_key) do
+    # Route to Hetzner server (single region)
+    conn
+    |> assign(:infrastructure, :hetzner)
+    |> assign(:infrastructure_region, "nbg1")  # Nuremberg, Germany
+    |> assign(:database_url, get_hetzner_database_url())
+    |> assign(:current_customer, customer)
+    |> assign(:api_key, api_key)
+    |> assign(:actor, customer)
+    |> assign(:tenant, customer.id)
+  end
+
+  defp route_to_flyio(conn, customer, api_key) do
+    # Route to Fly.io (multi-region)
+    region = determine_optimal_region(conn, customer)
+    
+    conn
+    |> assign(:infrastructure, :flyio)
+    |> assign(:infrastructure_region, region)
+    |> assign(:database_url, get_flyio_database_url(region))
+    |> assign(:current_customer, customer)
+    |> assign(:api_key, api_key)
+    |> assign(:actor, customer)
+    |> assign(:tenant, customer.id)
+  end
+
+  defp determine_optimal_region(conn, _customer) do
+    # Geo-routing based on client location
+    case get_client_region(conn) do
+      "NA" -> "iad"  # Washington DC
+      "EU" -> "fra"  # Frankfurt
+      "AS" -> "sin"  # Singapore
+      _ -> "iad"     # Default to US East
+    end
+  end
+
+  defp get_client_region(conn) do
+    # Extract from Cloudflare headers or IP geolocation
+    case get_req_header(conn, "cf-ipcountry") do
+      [country] when country in ["US", "CA", "MX"] -> "NA"
+      [country] when country in ["DE", "FR", "GB", "IT", "ES"] -> "EU"
+      [country] when country in ["SG", "JP", "AU", "IN", "CN"] -> "AS"
+      _ -> "UNKNOWN"
+    end
+  end
+end
+```
+
+### WebSocket Infrastructure Routing
+
+```elixir
+defmodule WebHostWeb.UserSocket do
+  use Phoenix.Socket
+
+  ## Channels
+  channel "sync:*", WebHostWeb.SyncChannel
+
+  @impl true
+  def connect(%{"token" => api_key, "type" => "api_key"} = params, socket, connect_info) do
+    # Determine infrastructure before authentication
+    infrastructure = determine_infrastructure_from_params(params, connect_info)
+    
+    case authenticate_for_infrastructure(api_key, infrastructure) do
+      {:ok, customer, api_key_record} ->
+        # Connect to appropriate infrastructure
+        socket = configure_socket_for_infrastructure(socket, customer, api_key_record, infrastructure)
+        
+        {:ok, socket}
+
+      {:error, reason} ->
+        :error
+    end
+  end
+
+  defp determine_infrastructure_from_params(params, connect_info) do
+    # Allow client to specify preferred infrastructure (for testing)
+    case params["infrastructure"] do
+      "hetzner" -> :hetzner
+      "flyio" -> :flyio
+      nil ->
+        # Auto-determine based on customer plan
+        :auto_detect
+    end
+  end
+
+  defp authenticate_for_infrastructure(api_key, :auto_detect) do
+    # First authenticate, then determine infrastructure
+    case WebHostWeb.Plugs.AuthenticateApiKey.authenticate_socket(api_key) do
+      {:ok, customer, api_key_record} ->
+        infrastructure = determine_customer_infrastructure(customer)
+        authenticate_with_infrastructure(customer, api_key_record, infrastructure)
+      
+      error ->
+        error
+    end
+  end
+
+  defp authenticate_for_infrastructure(api_key, infrastructure) do
+    # Authenticate against specific infrastructure
+    case WebHostWeb.Plugs.AuthenticateApiKey.authenticate_socket(api_key) do
+      {:ok, customer, api_key_record} ->
+        authenticate_with_infrastructure(customer, api_key_record, infrastructure)
+      
+      error ->
+        error
+    end
+  end
+
+  defp authenticate_with_infrastructure(customer, api_key_record, infrastructure) do
+    # Verify customer can access this infrastructure
+    case validate_infrastructure_access(customer, infrastructure) do
+      :ok ->
+        {:ok, customer, api_key_record}
+      
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp validate_infrastructure_access(customer, infrastructure) do
+    case customer.subscription.plan.name do
+      :hobby when infrastructure == :hetzner -> :ok
+      plan when plan in [:starter, :professional, :business] and infrastructure == :flyio -> :ok
+      _ -> {:error, :infrastructure_not_allowed}
+    end
+  end
+
+  defp configure_socket_for_infrastructure(socket, customer, api_key_record, infrastructure) do
+    socket
+    |> assign(:customer_id, customer.id)
+    |> assign(:customer, customer)
+    |> assign(:api_key, api_key_record)
+    |> assign(:auth_type, :api_key)
+    |> assign(:infrastructure, infrastructure)
+    |> assign(:actor, customer)
+    |> assign(:tenant, customer.id)
+    |> assign(:database_url, get_database_url_for_infrastructure(infrastructure))
+  end
+
+  defp get_database_url_for_infrastructure(:hetzner) do
+    Application.get_env(:webhost, :hetzner_database_url)
+  end
+
+  defp get_database_url_for_infrastructure(:flyio) do
+    Application.get_env(:webhost, :flyio_database_url)
+  end
+
+  @impl true
+  def id(socket) do
+    infrastructure = socket.assigns.infrastructure
+    customer_id = socket.assigns.customer_id
+    
+    "#{infrastructure}_customer_socket:#{customer_id}"
+  end
+end
+```
+
+### Cross-Infrastructure API Key Validation
+
+```elixir
+defmodule WebHostWeb.Plugs.CrossInfrastructureAuth do
+  @moduledoc """
+  Validates API keys across Hetzner and Fly.io infrastructures
+  Ensures seamless authentication during customer migrations
+  """
+
+  def call(conn, _opts) do
+    case extract_api_key(conn) do
+      {:ok, api_key} ->
+        validate_api_key_across_infrastructures(conn, api_key)
+      
+      {:error, :no_key} ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{error: "API key required"})
+        |> halt()
+    end
+  end
+
+  defp extract_api_key(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Bearer " <> api_key] -> {:ok, api_key}
+      _ -> {:error, :no_key}
+    end
+  end
+
+  defp validate_api_key_across_infrastructures(conn, api_key) do
+    # Try local infrastructure first
+    case authenticate_locally(api_key) do
+      {:ok, customer, api_key_record} ->
+        conn
+        |> assign(:current_customer, customer)
+        |> assign(:api_key, api_key_record)
+        |> assign(:actor, customer)
+        |> assign(:tenant, customer.id)
+        |> assign(:infrastructure, :local)
+      
+      {:error, :not_found} ->
+        # Try remote infrastructures
+        case authenticate_remotely(api_key) do
+          {:ok, customer, api_key_record, infrastructure} ->
+            conn
+            |> assign(:current_customer, customer)
+            |> assign(:api_key, api_key_record)
+            |> assign(:actor, customer)
+            |> assign(:tenant, customer.id)
+            |> assign(:infrastructure, infrastructure)
+          
+          {:error, reason} ->
+            conn
+            |> put_status(:unauthorized)
+            |> json(%{error: "Invalid API key"})
+            |> halt()
+        end
+    end
+  end
+
+  defp authenticate_locally(api_key) do
+    WebHostWeb.Plugs.AuthenticateApiKey.authenticate_socket(api_key)
+  end
+
+  defp authenticate_remotely(api_key) do
+    # Try Hetzner if we're on Fly.io
+    case authenticate_with_hetzner(api_key) do
+      {:ok, customer, api_key_record} ->
+        {:ok, customer, api_key_record, :hetzner}
+      
+      {:error, _} ->
+        # Try Fly.io if we're on Hetzner
+        case authenticate_with_flyio(api_key) do
+          {:ok, customer, api_key_record} ->
+            {:ok, customer, api_key_record, :flyio}
+          
+          error ->
+            error
+        end
+    end
+  end
+
+  defp authenticate_with_hetzner(api_key) do
+    # Make API call to Hetzner infrastructure
+    hetzner_url = Application.get_env(:webhost, :hetzner_api_url)
+    
+    case HTTPoison.get("#{hetzner_url}/api/auth/validate", [{"authorization", "Bearer #{api_key}"}]) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        Jason.decode(body)
+      
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  defp authenticate_with_flyio(api_key) do
+    # Make API call to Fly.io infrastructure
+    flyio_url = Application.get_env(:webhost, :flyio_api_url)
+    
+    case HTTPoison.get("#{flyio_url}/api/auth/validate", [{"authorization", "Bearer #{api_key}"}]) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        Jason.decode(body)
+      
+      _ ->
+        {:error, :not_found}
+    end
+  end
+end
+```
+
+### Infrastructure-Specific Configuration
+
+#### Hetzner Configuration
+```elixir
+# config/hetzner.exs
+import Config
+
+# Database configuration for Hetzner
+config :webhost, WebHost.Repo,
+  url: System.get_env("HETZNER_DATABASE_URL"),
+  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "20"),
+  ssl: true
+
+# Redis configuration for Hetzner
+config :webhost, :redis,
+  host: System.get_env("HETZNER_REDIS_HOST") || "localhost",
+  port: String.to_integer(System.get_env("HETZNER_REDIS_PORT") || "6379"),
+  ssl: true
+
+# WebSocket configuration for Hetzner
+config :webhost, WebHostWeb.Endpoint,
+  url: [host: "api.webhost.systems", port: 443],
+  cache_static_manifest: "priv/static/cache_manifest.json",
+  server: true,
+  secret_key_base: System.get_env("SECRET_KEY_BASE")
+
+# Cross-infrastructure URLs
+config :webhost,
+  hetzner_api_url: "https://api.webhost.systems",
+  flyio_api_url: "https://flyio.webhost.systems"
+```
+
+#### Fly.io Configuration
+```elixir
+# config/flyio.exs
+import Config
+
+# Database configuration for Fly.io
+config :webhost, WebHost.Repo,
+  url: System.get_env("DATABASE_URL"),
+  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+  ssl: true
+
+# Redis configuration for Fly.io
+config :webhost, :redis,
+  url: System.get_env("REDIS_URL"),
+  ssl: true
+
+# WebSocket configuration for Fly.io
+config :webhost, WebHostWeb.Endpoint,
+  url: [host: "flyio.webhost.systems", port: 443],
+  cache_static_manifest: "priv/static/cache_manifest.json",
+  server: true,
+  secret_key_base: System.get_env("SECRET_KEY_BASE")
+
+# Cross-infrastructure URLs
+config :webhost,
+  hetzner_api_url: "https://api.webhost.systems",
+  flyio_api_url: "https://flyio.webhost.systems"
+```
+
+---
 
 ## Architecture Overview
 

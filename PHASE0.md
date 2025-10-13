@@ -201,7 +201,7 @@ mix deps.compile
 
 ## Step 3: Configure PostgreSQL with Extensions
 
-### docker-compose.yml
+### docker-compose.yml (Local Development)
 
 ```yaml
 version: '3.8'
@@ -218,7 +218,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./priv/repo/init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: 
+    command:
       - "postgres"
       - "-c"
       - "shared_preload_libraries=timescaledb,pg_stat_statements"
@@ -239,6 +239,202 @@ services:
 volumes:
   postgres_data:
   redis_data:
+```
+
+### Dockerfile (Hetzner Deployment)
+
+```dockerfile
+# Dockerfile for Hetzner deployment
+FROM elixir:1.15-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache build-base npm git python3
+
+# Prepare build directory
+WORKDIR /app
+
+# Install hex + rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Install dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only prod
+RUN mkdir config
+COPY config/config.exs config/prod.exs config/
+RUN mix deps.compile
+
+# Build assets
+COPY assets/package.json assets/package-lock.json ./assets/
+RUN npm --prefix ./assets ci
+COPY priv priv
+COPY assets assets
+RUN npm run --prefix assets deploy
+RUN mix phx.digest
+
+# Compile release
+COPY . .
+RUN mix release
+
+# Prepare release image
+FROM alpine:3.18 AS app
+
+RUN apk add --no-cache openssl ncurses-libs
+
+WORKDIR /app
+
+RUN chown nobody:nobody /app
+
+USER nobody:nobody
+
+COPY --from=builder --chown=nobody:nobody /app/_build/prod/rel/webhost ./
+
+ENV HOME=/app
+
+CMD ["bin/webhost", "start"]
+```
+
+### fly.toml (Fly.io Deployment)
+
+```toml
+# fly.toml for Fly.io multi-region deployment
+app = "webhost-prod"
+
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[env]
+  PHX_HOST = "webhost-prod.fly.dev"
+  PORT = "8080"
+
+[experimental]
+  allowed_public_ports = [8080]
+  auto_rollback = true
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 1000
+
+  [[services.tcp_checks]]
+    interval = 15000
+    timeout = 2000
+    grace_period = "5s"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 4000
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[deploy]
+  strategy = "rolling"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
+
+# Multi-region setup
+[[metrics]]
+  port = 9091
+  path = "/metrics"
+
+[http_service]
+  internal_port = 4000
+  protocol = "tcp"
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 1000
+
+  [[http_service.checks]]
+    interval = 15000
+    timeout = 2000
+    grace_period = "5s"
+    method = "get"
+    path = "/health"
+    protocol = "http"
+```
+
+### .github/workflows/deploy.yml (CI/CD)
+
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-hetzner:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy-hetzner]')
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: webhost/systems:latest
+      - name: Deploy to Hetzner
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: root
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            docker pull webhost/systems:latest
+            docker stop webhost || true
+            docker rm webhost || true
+            docker run -d --name webhost \
+              -p 4000:4000 \
+              -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+              -e SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }} \
+              webhost/systems:latest
+
+  deploy-flyio:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy-flyio]')
+    steps:
+      - uses: actions/checkout@v3
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --remote-only
 ```
 
 ### priv/repo/init.sql
@@ -737,7 +933,7 @@ mix run -e "WebHost.Repo.verify_extensions()"
 
 ## Step 10: Environment Variables
 
-### .env.example
+### .env.example (Local Development)
 
 ```bash
 # Database
@@ -764,6 +960,112 @@ STRIPE_WEBHOOK_SECRET=
 # Email (Development)
 SMTP_HOST=localhost
 SMTP_PORT=1025
+```
+
+### .env.hetzner (Hetzner Production)
+
+```bash
+# Database (Hetzner Cloud or external)
+DATABASE_URL=postgresql://webhost:password@hetzner-db:5432/webhost_prod
+
+# Redis (Hetzner or external)
+REDIS_URL=redis://hetzner-redis:6379
+
+# Token signing
+TOKEN_SIGNING_SECRET=prod_token_secret_min_64_chars_long_for_jwt_signing_replace_in_prod
+SECRET_KEY_BASE=prod_secret_key_base_minimum_64_characters_long_required_here
+
+# Hetzner Configuration
+HETZNER_API_TOKEN=your_hetzner_api_token
+HETZNER_SERVER_ID=your_server_id
+HETZNER_FIREWALL_ID=your_firewall_id
+
+# External APIs
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+
+# Email
+POSTMARK_API_TOKEN=your_postmark_api_token
+
+# Monitoring
+SENTRY_DSN=your_sentry_dsn
+HETZNER_MONITORING_WEBHOOK=your_monitoring_webhook_url
+
+# Backup Configuration
+BACKUP_ENABLED=true
+BACKUP_SCHEDULE="0 2 * * *"  # Daily at 2 AM
+BACKUP_RETENTION_DAYS=30
+```
+
+### .env.flyio (Fly.io Production)
+
+```bash
+# Database (Fly.io Postgres)
+DATABASE_URL=postgresql://webhost:password@webhost-db.internal:5432/webhost_prod
+
+# Redis (Fly.io Redis)
+REDIS_URL=redis://webhost-redis.internal:6379
+
+# Token signing
+TOKEN_SIGNING_SECRET=prod_token_secret_min_64_chars_long_for_jwt_signing_replace_in_prod
+SECRET_KEY_BASE=prod_secret_key_base_minimum_64_characters_long_required_here
+
+# Fly.io Configuration
+FLY_APP_NAME=webhost-prod
+FLY_REGION=us-east
+FLY_API_TOKEN=your_fly_api_token
+
+# Multi-region Configuration
+PRIMARY_REGION=us-east
+REPLICA_REGIONS=fra,sin
+
+# External APIs
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+
+# Email
+POSTMARK_API_TOKEN=your_postmark_api_token
+
+# Monitoring
+SENTRY_DSN=your_sentry_dsn
+FLIO_METRICS_ENABLED=true
+
+# Scaling Configuration
+AUTOSCALING_ENABLED=true
+MIN_INSTANCES=1
+MAX_INSTANCES=10
+CPU_THRESHOLD=70
+MEMORY_THRESHOLD=80
+```
+
+### GitHub Secrets (CI/CD)
+
+```bash
+# Required for automated deployments
+DOCKER_USERNAME=your_dockerhub_username
+DOCKER_PASSWORD=your_dockerhub_password
+HETZNER_HOST=your_hetzner_server_ip
+HETZNER_SSH_KEY=-----BEGIN OPENSSH PRIVATE KEY-----
+your_private_key_content_here
+-----END OPENSSH PRIVATE KEY-----
+
+# Database credentials
+DATABASE_URL=postgresql://webhost:password@db_host:5432/webhost_prod
+
+# Application secrets
+SECRET_KEY_BASE=prod_secret_key_base_minimum_64_characters_long_required_here
+TOKEN_SIGNING_SECRET=prod_token_secret_min_64_chars_long_for_jwt_signing_replace_in_prod
+
+# Third-party services
+FLY_API_TOKEN=your_fly_api_token
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+POSTMARK_API_TOKEN=your_postmark_api_token
+SENTRY_DSN=your_sentry_dsn
 ```
 
 Generate secrets:
@@ -830,4 +1132,114 @@ Once Phase 0 is complete, proceed to **Phase 1: Core Resources with Multi-Tenanc
 ✅ **Yjs + Dexie.js** - CRDT-based sync for offline-first capability
 ✅ **Home + Cloud Hybrid** - Best economics (83% margin on hobby tier)
 
-**This foundation supports 80-150 hobby tier customers on a single home server while maintaining professional architecture for enterprise customers in the cloud.**
+**This foundation supports 80-150 hobby tier customers on a Hetzner dedicated server while maintaining professional architecture for enterprise customers on Fly.io multi-region.**
+
+---
+
+## 🏗️ New Infrastructure Strategy: Hetzner + Fly.io
+
+### Overview
+WebHost Systems now uses a **hybrid multi-cloud approach** that dramatically improves economics and reduces risk:
+
+- **Hobby Tier ($15/mo)**: Hetzner dedicated servers (95%+ margin)
+- **Starter+ Tiers ($49+/mo)**: Fly.io multi-region (75-85% margin)
+- **Break-even**: 5 customers (vs 15+ on Fly.io-only)
+- **No upfront hardware investment**
+
+### Infrastructure Options
+
+#### Hetzner (Hobby Tier)
+```
+Option 1: Hetzner AX52 (Launch)
+- CPU: AMD Ryzen 9 5950X (16 cores, 32 threads)
+- RAM: 128GB DDR4 ECC
+- Storage: 2x 512GB NVMe (RAID 1)
+- Network: 1 Gbit/s (unlimited traffic)
+- Price: €59/month (~$65/month)
+- Capacity: 150-200 hobby customers
+
+Option 2: Hetzner Cloud CAX41 (Flex)
+- CPU: 16 vCPUs Ampere Altra (ARM)
+- RAM: 32GB
+- Storage: 320GB NVMe
+- Network: 20TB traffic/month
+- Price: €28.69/month (~$32/month)
+- Capacity: 80-100 hobby customers
+```
+
+#### Fly.io (Starter+ Tiers)
+```
+- Global Edge Network (20+ regions)
+- Automatic scaling based on load
+- Geographic routing for performance
+- Built-in DDoS protection
+- Automatic TLS certificates
+- Pricing: $25-50/customer/month based on tier
+```
+
+### Economic Benefits
+
+| Tier | Old Approach (Home DC) | New Approach (Hetzner) | Improvement |
+|------|----------------------|------------------------|-------------|
+| **Hobby** | 76% margin, $2,300 upfront | 95%+ margin, $0 upfront | +19% margin, no risk |
+| **Starter** | Not feasible on home | 85% margin on Fly.io | New revenue stream |
+| **Break-even** | 6-8 months | 4-8 weeks | 3x faster |
+
+### Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    WebHost Systems                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────┐    ┌─────────────────────────────┐    │
+│  │   Hobby Tier    │    │     Starter+ Tiers           │    │
+│  │    ($15/mo)     │    │      ($49+/mo)               │    │
+│  │                 │    │                             │    │
+│  │  ┌───────────┐  │    │  ┌─────────────────────────┐ │    │
+│  │  │ Hetzner   │  │    │  │     Fly.io Multi-Region │ │    │
+│  │  │ Dedicated │  │    │  │   (Global Edge Network)  │ │    │
+│  │  │  Servers  │  │    │  │                         │ │    │
+│  │  └───────────┘  │    │  └─────────────────────────┘ │    │
+│  └─────────────────┘    └─────────────────────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Updated Prerequisites
+
+**Additional Requirements for Hetzner + Fly.io:**
+- Hetzner Cloud account (for server provisioning)
+- Fly.io account (for production deployments)
+- Docker experience (for containerized deployments)
+- CI/CD knowledge (GitHub Actions for automated deployments)
+
+### Technology Stack Updates
+
+The core technology stack remains the same, but deployment methods change:
+
+**Backend & Database**: Same (Phoenix, Ash, TimescaleDB, PostGIS)
+**Deployment**:
+- Hobby: Docker on Hetzner dedicated servers
+- Starter+: Fly.io platform with automatic scaling
+**Monitoring**: Hetzner monitoring + Fly.io metrics
+**Backups**: Hetzner Storage Box + Fly.io automated backups
+
+### Next Steps
+
+1. **Choose your starting infrastructure:**
+   - Start with Hetzner Cloud CAX41 ($32/month) for MVP
+   - Upgrade to Hetzner AX52 ($65/month) at 50 customers
+   - Add Fly.io for starter+ tiers when needed
+
+2. **Update deployment configuration:**
+   - Add Docker configuration for Hetzner
+   - Add fly.toml for Fly.io deployments
+   - Set up GitHub Actions for CI/CD
+
+3. **Review economic projections:**
+   - See `HETZNER-FLY-STRATEGY.md` for detailed analysis
+   - Updated break-even and profitability calculations
+   - New risk assessment and mitigation strategies
+
+**This new approach eliminates the biggest risks of home hosting while providing superior economics and professional infrastructure from day one.**
