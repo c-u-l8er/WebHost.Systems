@@ -1,14 +1,15 @@
-# Phase 0: WebHost Foundation with Ash Framework
+# Phase 0: WebHost Foundation with Ash Framework (Revised)
 
 ## Overview
-Set up the foundational infrastructure for WebHost using Ash Framework. This establishes the core technologies, development environment, and project structure optimized for Ash's declarative resource approach.
+Set up the foundational infrastructure for WebHost using Ash Framework, optimized for GPS tracking with TimescaleDB and PostGIS. This phase establishes the core technologies and project structure for a multi-tenant, offline-first GPS platform.
 
 ## Goals
 - Initialize Phoenix project with Ash Framework
-- Set up PostgreSQL with TimescaleDB and PostGIS via Ash extensions
+- Set up PostgreSQL with TimescaleDB and PostGIS
 - Configure Ash domains and resources
-- Establish project architecture for multi-tenancy
+- Establish multi-tenancy architecture
 - Set up GraphQL and JSON:API
+- **NEW:** Prepare for Yjs CRDT sync integration
 
 ## Prerequisites
 - Elixir 1.15+
@@ -22,20 +23,25 @@ Set up the foundational infrastructure for WebHost using Ash Framework. This est
 ### Backend
 - **Elixir 1.15+** - Functional programming language
 - **Phoenix 1.7+** - Web framework
-- **Ash 3.0+** - Resource-based framework
+- **Ash 3.0+** - Resource-based framework with built-in multi-tenancy
 - **AshPostgres** - PostgreSQL data layer
 - **AshGraphql** - Auto-generated GraphQL API
 - **AshJsonApi** - Auto-generated REST API
-- **AshAuthentication** - Authentication system
+- **AshAuthentication** - Authentication system with multi-tenancy
 - **AshOban** - Background jobs
 - **PostgreSQL 14+** - Primary database
-- **TimescaleDB Extension** - Time-series optimization via Ash
-- **PostGIS Extension** - Spatial data via AshPostgis
+- **TimescaleDB Extension** - Time-series optimization for GPS data (REQUIRED)
+- **PostGIS Extension** - Spatial data for geofencing (REQUIRED)
 - **Redis** - Caching and real-time state
 
 ### Frontend (Dashboard)
 - **Phoenix LiveView** - Real-time admin dashboard
 - **TailwindCSS** - Styling
+
+### Sync Layer (NEW)
+- **Yjs** - CRDT sync engine for conflict resolution
+- **y-websocket** - Yjs WebSocket provider
+- **Dexie.js** - IndexedDB wrapper for client storage
 
 ## Project Structure
 
@@ -53,28 +59,35 @@ webhost/
 │   │   │   ├── customer.ex
 │   │   │   ├── platform_user.ex
 │   │   │   ├── customer_user.ex
+│   │   │   ├── token.ex
 │   │   │   └── api_key.ex
 │   │   ├── billing/
 │   │   │   ├── plan.ex
 │   │   │   └── subscription.ex
-│   │   ├── infrastructure/
-│   │   │   ├── deployment.ex
-│   │   │   └── frontend_app.ex
+│   │   ├── fleet/                 # GPS tracking resources
+│   │   │   ├── vehicle.ex
+│   │   │   └── driver.ex
 │   │   ├── tracking/              # TimescaleDB resources
 │   │   │   ├── gps_position.ex
 │   │   │   └── usage_metric.ex
 │   │   ├── spatial/               # PostGIS resources
-│   │   │   ├── geo_point.ex
-│   │   │   └── geo_polygon.ex
+│   │   │   ├── geofence.ex
+│   │   │   └── route.ex
+│   │   ├── sync/                  # NEW: Yjs sync
+│   │   │   ├── yjs_server.ex
+│   │   │   └── sync_channel.ex
 │   │   ├── accounts.ex            # Ash Domain
 │   │   ├── billing.ex             # Ash Domain
-│   │   ├── infrastructure.ex      # Ash Domain
+│   │   ├── fleet.ex               # Ash Domain
 │   │   ├── tracking.ex            # Ash Domain
 │   │   ├── spatial.ex             # Ash Domain
 │   │   ├── repo.ex
 │   │   └── application.ex
 │   │
 │   └── webhost_web/
+│       ├── channels/
+│       │   ├── user_socket.ex
+│       │   └── sync_channel.ex    # NEW: Yjs sync channel
 │       ├── controllers/
 │       ├── live/
 │       ├── graphql/
@@ -87,6 +100,15 @@ webhost/
 │   │   ├── migrations/
 │   │   └── seeds.exs
 │   └── resource_snapshots/        # Ash snapshots
+│
+├── assets/                         # NEW: Frontend assets
+│   ├── js/
+│   │   ├── app.js
+│   │   └── sync/
+│   │       ├── yjs_client.js
+│   │       └── dexie_provider.js
+│   ├── css/
+│   └── package.json
 │
 ├── docker-compose.yml
 ├── mix.exs
@@ -114,24 +136,24 @@ cd webhost
 defp deps do
   [
     # Phoenix
-    {:phoenix, "~> 1.7.10"},
-    {:phoenix_ecto, "~> 4.4"},
+    {:phoenix, "~> 1.7.14"},
+    {:phoenix_ecto, "~> 4.5"},
     {:phoenix_html, "~> 4.0"},
-    {:phoenix_live_reload, "~> 1.2", only: :dev},
-    {:phoenix_live_view, "~> 0.20.0"},
+    {:phoenix_live_reload, "~> 1.4", only: :dev},
+    {:phoenix_live_view, "~> 0.20.2"},
     {:phoenix_live_dashboard, "~> 0.8"},
     {:floki, ">= 0.30.0", only: :test},
     {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
     {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
-    {:telemetry_metrics, "~> 0.6"},
+    {:telemetry_metrics, "~> 1.0"},
     {:telemetry_poller, "~> 1.0"},
-    {:gettext, "~> 0.20"},
-    {:jason, "~> 1.2"},
+    {:gettext, "~> 0.24"},
+    {:jason, "~> 1.4"},
     {:dns_cluster, "~> 0.1.1"},
-    {:plug_cowboy, "~> 2.5"},
+    {:plug_cowboy, "~> 2.7"},
     
     # Database
-    {:ecto_sql, "~> 3.10"},
+    {:ecto_sql, "~> 3.11"},
     {:postgrex, ">= 0.0.0"},
     
     # Ash Framework
@@ -145,10 +167,6 @@ defp deps do
     {:ash_oban, "~> 0.2"},
     {:ash_paper_trail, "~> 0.1"},  # Audit logging
     
-    # Ash Extensions
-    {:ash_postgres_timescale, "~> 0.1"},  # TimescaleDB support
-    {:ash_postgis, "~> 0.1"},              # PostGIS support
-    
     # Background Jobs
     {:oban, "~> 2.17"},
     
@@ -158,14 +176,18 @@ defp deps do
     
     # External APIs
     {:tesla, "~> 1.8"},
-    {:hackney, "~> 1.18"},
+    {:hackney, "~> 1.20"},
     
     # Redis
-    {:redix, "~> 1.3"},
+    {:redix, "~> 1.5"},
     
     # Utilities
     {:cors_plug, "~> 3.0"},
-    {:nanoid, "~> 2.1"}
+    {:nanoid, "~> 2.1"},
+    
+    # GraphQL
+    {:absinthe, "~> 1.7"},
+    {:absinthe_plug, "~> 1.5"}
   ]
 end
 ```
@@ -228,6 +250,11 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 CREATE EXTENSION IF NOT EXISTS citext;  -- Case-insensitive text
+CREATE EXTENSION IF NOT EXISTS btree_gist;  -- For time+space indexes
+
+-- Verify extensions
+SELECT extname, extversion FROM pg_extension 
+WHERE extname IN ('timescaledb', 'postgis', 'uuid-ossp');
 ```
 
 Start services:
@@ -248,7 +275,7 @@ config :webhost,
   ash_domains: [
     WebHost.Accounts,
     WebHost.Billing,
-    WebHost.Infrastructure,
+    WebHost.Fleet,
     WebHost.Tracking,
     WebHost.Spatial
   ]
@@ -262,7 +289,8 @@ config :webhost, Oban,
   queues: [
     provisioning: 5,
     monitoring: 10,
-    cleanup: 2
+    cleanup: 2,
+    sync: 20  # NEW: For sync operations
   ],
   repo: WebHost.Repo
 
@@ -307,7 +335,7 @@ config :esbuild,
 
 # Configure tailwind
 config :tailwind,
-  version: "3.3.2",
+  version: "3.4.0",
   default: [
     args: ~w(
       --config=tailwind.config.js
@@ -334,9 +362,7 @@ config :webhost, WebHost.Repo,
   database: "webhost_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10,
-  # Enable TimescaleDB and PostGIS
-  after_connect: {WebHost.Repo, :set_extensions, []}
+  pool_size: 10
 
 # Endpoint configuration
 config :webhost, WebHostWeb.Endpoint,
@@ -344,7 +370,7 @@ config :webhost, WebHostWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "development_secret_key_base_minimum_64_characters_long_required",
+  secret_key_base: "development_secret_key_base_minimum_64_characters_long_required_here",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
@@ -362,6 +388,10 @@ config :webhost, :redis,
   host: "localhost",
   port: 6379
 
+# Token signing
+config :webhost, :token_signing_secret, 
+  "dev_token_secret_min_64_chars_long_for_jwt_signing_replace_in_prod"
+
 # Do not include metadata in development logs
 config :logger, :console, format: "[$level] $message\n"
 
@@ -373,6 +403,9 @@ config :phoenix, :plug_init_mode, :runtime
 
 # Disable swoosh api client for dev
 config :swoosh, :api_client, false
+
+# Enable dev routes for dashboard and mailbox
+config :webhost, dev_routes: true
 ```
 
 ### config/test.exs
@@ -392,14 +425,21 @@ config :webhost, WebHost.Repo,
 # Endpoint for tests
 config :webhost, WebHostWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "test_secret_key_base_minimum_64_characters_long_required_for_testing",
+  secret_key_base: "test_secret_key_base_minimum_64_characters_long_required_for_testing_here",
   server: false
+
+# Token signing for tests
+config :webhost, :token_signing_secret, 
+  "test_token_secret_min_64_chars_long_for_jwt_signing_in_tests_only"
 
 # Print only warnings and errors during test
 config :logger, level: :warning
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+# Disable swoosh in tests
+config :swoosh, :api_client, false
 ```
 
 ### config/runtime.exs
@@ -412,6 +452,7 @@ if config_env() == :prod do
     System.get_env("DATABASE_URL") ||
       raise """
       environment variable DATABASE_URL is missing.
+      For example: ecto://USER:PASS@HOST/DATABASE
       """
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
@@ -425,6 +466,7 @@ if config_env() == :prod do
     System.get_env("SECRET_KEY_BASE") ||
       raise """
       environment variable SECRET_KEY_BASE is missing.
+      You can generate one by calling: mix phx.gen.secret
       """
 
   host = System.get_env("PHX_HOST") || "example.com"
@@ -439,6 +481,11 @@ if config_env() == :prod do
       port: port
     ],
     secret_key_base: secret_key_base
+
+  # Token signing secret
+  config :webhost, :token_signing_secret,
+    System.get_env("TOKEN_SIGNING_SECRET") ||
+      raise("TOKEN_SIGNING_SECRET environment variable is missing")
 
   # External APIs
   config :webhost,
@@ -461,20 +508,41 @@ defmodule WebHost.Repo do
     otp_app: :webhost
 
   @doc """
-  Called after database connection is established.
-  Enables extensions if needed.
-  """
-  def set_extensions(conn) do
-    # Extensions are already enabled in init.sql
-    # This is just for reference if you need runtime checks
-    {:ok, conn}
-  end
-
-  @doc """
   Dynamically loads the repository url from the DATABASE_URL environment variable.
   """
   def init(_, opts) do
     {:ok, Keyword.put(opts, :url, System.get_env("DATABASE_URL"))}
+  end
+
+  @doc """
+  Verifies that TimescaleDB and PostGIS extensions are loaded.
+  Run this in dev/staging to verify setup.
+  """
+  def verify_extensions do
+    result = query!("""
+      SELECT extname, extversion 
+      FROM pg_extension 
+      WHERE extname IN ('timescaledb', 'postgis', 'uuid-ossp')
+    """)
+
+    extensions = Enum.map(result.rows, fn [name, version] -> {name, version} end)
+    
+    required = ["timescaledb", "postgis", "uuid-ossp"]
+    loaded = Enum.map(extensions, fn {name, _} -> name end)
+    
+    case required -- loaded do
+      [] -> 
+        IO.puts("✓ All required extensions loaded:")
+        Enum.each(extensions, fn {name, version} ->
+          IO.puts("  - #{name} (#{version})")
+        end)
+        :ok
+      
+      missing ->
+        IO.puts("✗ Missing extensions: #{Enum.join(missing, ", ")}")
+        IO.puts("Run: docker-compose down -v && docker-compose up -d")
+        {:error, :missing_extensions}
+    end
   end
 end
 ```
@@ -546,6 +614,7 @@ defmodule WebHost.Accounts do
     resource WebHost.Accounts.Customer
     resource WebHost.Accounts.CustomerUser
     resource WebHost.Accounts.ApiKey
+    resource WebHost.Accounts.Token
   end
 end
 ```
@@ -563,15 +632,18 @@ defmodule WebHost.Billing do
 end
 ```
 
-### lib/webhost/infrastructure.ex
+### lib/webhost/fleet.ex (NEW)
 
 ```elixir
-defmodule WebHost.Infrastructure do
+defmodule WebHost.Fleet do
+  @moduledoc """
+  Domain for fleet management (vehicles, drivers)
+  """
   use Ash.Domain
 
   resources do
-    resource WebHost.Infrastructure.Deployment
-    resource WebHost.Infrastructure.FrontendApp
+    resource WebHost.Fleet.Vehicle
+    resource WebHost.Fleet.Driver
   end
 end
 ```
@@ -582,7 +654,7 @@ end
 defmodule WebHost.Tracking do
   @moduledoc """
   Domain for time-series tracking data (GPS, usage metrics)
-  Uses TimescaleDB via AshPostgres
+  Uses TimescaleDB via AshPostgres for high-frequency GPS data
   """
   use Ash.Domain
 
@@ -599,130 +671,71 @@ end
 defmodule WebHost.Spatial do
   @moduledoc """
   Domain for spatial/GIS data
-  Uses PostGIS via AshPostgis
+  Uses PostGIS via AshPostgres for geofencing and spatial queries
   """
   use Ash.Domain
 
   resources do
-    resource WebHost.Spatial.GeoPoint
-    resource WebHost.Spatial.GeoPolygon
+    resource WebHost.Spatial.Geofence
+    resource WebHost.Spatial.Route
   end
 end
 ```
 
-## Step 8: GraphQL and JSON:API Setup
+## Step 8: Setup NPM for Client-Side Sync (NEW)
 
-### lib/webhost_web/graphql/schema.ex
+### assets/package.json
 
-```elixir
-defmodule WebHostWeb.GraphQL.Schema do
-  use Absinthe.Schema
-
-  @domains [
-    WebHost.Accounts,
-    WebHost.Billing,
-    WebHost.Infrastructure,
-    WebHost.Tracking,
-    WebHost.Spatial
-  ]
-
-  use AshGraphql, domains: @domains
-
-  query do
-    # Custom queries can be added here
-  end
-
-  mutation do
-    # Custom mutations can be added here
-  end
-end
+```json
+{
+  "name": "webhost-assets",
+  "version": "1.0.0",
+  "description": "WebHost frontend assets with Yjs sync",
+  "scripts": {
+    "deploy": "cd .. && mix assets.deploy && rm -f _build/esbuild*"
+  },
+  "dependencies": {
+    "phoenix": "file:../deps/phoenix",
+    "phoenix_html": "file:../deps/phoenix_html",
+    "phoenix_live_view": "file:../deps/phoenix_live_view",
+    "yjs": "^13.6.10",
+    "y-websocket": "^1.5.0",
+    "y-indexeddb": "^9.0.12",
+    "dexie": "^3.2.4",
+    "lib0": "^0.2.94"
+  },
+  "devDependencies": {
+    "@types/phoenix": "^1.6.0",
+    "esbuild": "~0.17.11"
+  }
+}
 ```
 
-### lib/webhost_web/router.ex (initial)
+Install:
 
-```elixir
-defmodule WebHostWeb.Router do
-  use WebHostWeb, :router
-  use AshAuthentication.Phoenix.Router
-
-  pipeline :browser do
-    plug :accepts, ["html"]
-    plug :fetch_session
-    plug :fetch_live_flash
-    plug :put_root_layout, html: {WebHostWeb.Layouts, :root}
-    plug :protect_from_forgery
-    plug :put_secure_browser_headers
-    plug :load_from_session
-  end
-
-  pipeline :api do
-    plug :accepts, ["json"]
-    plug :load_from_bearer
-  end
-
-  pipeline :graphql do
-    plug :accepts, ["json"]
-    plug AshGraphql.Plug
-  end
-
-  scope "/", WebHostWeb do
-    pipe_through :browser
-
-    get "/", PageController, :home
-    
-    # Auth routes
-    sign_in_route()
-    sign_out_route AuthController
-    auth_routes_for WebHost.Accounts.PlatformUser, to: AuthController
-    reset_route []
-  end
-
-  # JSON API routes (auto-generated by AshJsonApi)
-  scope "/api/json" do
-    pipe_through :api
-
-    forward "/", AshJsonApi.Router,
-      domains: [
-        WebHost.Accounts,
-        WebHost.Billing,
-        WebHost.Infrastructure
-      ]
-  end
-
-  # GraphQL API
-  scope "/api/graphql" do
-    pipe_through :graphql
-
-    forward "/", Absinthe.Plug, schema: WebHostWeb.GraphQL.Schema
-
-    if Mix.env() == :dev do
-      forward "/graphiql", Absinthe.Plug.GraphiQL,
-        schema: WebHostWeb.GraphQL.Schema,
-        interface: :playground
-    end
-  end
-
-  # Health check
-  scope "/api" do
-    pipe_through :api
-
-    get "/health", WebHostWeb.HealthController, :index
-  end
-
-  # LiveDashboard
-  if Application.compile_env(:webhost, :dev_routes) do
-    import Phoenix.LiveDashboard.Router
-
-    scope "/dev" do
-      pipe_through :browser
-
-      live_dashboard "/dashboard", metrics: WebHostWeb.Telemetry
-    end
-  end
-end
+```bash
+cd assets
+npm install
+cd ..
 ```
 
-## Step 9: Environment Variables
+## Step 9: Initialize Database
+
+```bash
+# Create database
+mix ecto.create
+
+# Verify extensions
+mix run -e "WebHost.Repo.verify_extensions()"
+
+# Should output:
+# ✓ All required extensions loaded:
+#   - timescaledb (2.x.x)
+#   - postgis (3.x.x)
+#   - uuid-ossp (1.x)
+```
+
+## Step 10: Environment Variables
 
 ### .env.example
 
@@ -736,11 +749,13 @@ REDIS_PORT=6379
 
 # Phoenix
 SECRET_KEY_BASE=generate_with_mix_phx_gen_secret
+TOKEN_SIGNING_SECRET=generate_with_mix_phx_gen_secret
 PHX_HOST=localhost
 PORT=4000
 
 # External APIs (for production)
 FLY_API_TOKEN=
+FLY_ORG_ID=
 CLOUDFLARE_API_TOKEN=
 CLOUDFLARE_ACCOUNT_ID=
 STRIPE_SECRET_KEY=
@@ -751,20 +766,11 @@ SMTP_HOST=localhost
 SMTP_PORT=1025
 ```
 
-## Step 10: Initialize Database
+Generate secrets:
 
 ```bash
-# Create database
-mix ecto.create
-
-# Generate initial Ash resource snapshots
-mix ash.codegen initial_snapshots
-
-# This creates migration files based on your Ash resources
-mix ash_postgres.generate_migrations --name initial_setup
-
-# Run migrations
-mix ecto.migrate
+mix phx.gen.secret 64  # For SECRET_KEY_BASE
+mix phx.gen.secret 64  # For TOKEN_SIGNING_SECRET
 ```
 
 ## Step 11: Verification
@@ -777,20 +783,19 @@ mix phx.server
 
 Visit:
 - **App:** http://localhost:4000
-- **GraphiQL:** http://localhost:4000/api/graphql/graphiql
 - **LiveDashboard:** http://localhost:4000/dev/dashboard
 
 ## Verification Checklist
 
 - [ ] Phoenix server starts without errors
 - [ ] PostgreSQL connection successful
-- [ ] TimescaleDB extension loaded
-- [ ] PostGIS extension loaded
+- [ ] TimescaleDB extension loaded (verify_extensions)
+- [ ] PostGIS extension loaded (verify_extensions)
 - [ ] Redis connection successful
-- [ ] GraphiQL playground accessible
 - [ ] No compilation warnings
 - [ ] Docker services running
 - [ ] Ash domains configured
+- [ ] NPM packages installed
 
 ## Common Issues & Solutions
 
@@ -800,29 +805,29 @@ Visit:
 ### Issue: TimescaleDB extension not found
 **Solution:** Ensure you're using timescale/timescaledb-ha Docker image
 
-### Issue: GraphQL schema errors
-**Solution:** Ensure all domains are listed in schema.ex @domains
+### Issue: PostGIS functions not working
+**Solution:** Run `mix run -e "WebHost.Repo.verify_extensions()"` to check
 
-### Issue: Migration generation fails
-**Solution:** Run `mix ash.codegen initial_snapshots` before generating migrations
+### Issue: NPM packages not installing
+**Solution:** Node 18+ required. Run `node --version` to check
 
 ## Next Steps
 
-Once Phase 0 is complete, proceed to Phase 1: Core Resources with Ash Framework.
+Once Phase 0 is complete, proceed to **Phase 1: Core Resources with Multi-Tenancy**.
 
 ## Estimated Time
 - Installation & setup: 1-2 hours
-- Configuration: 1-2 hours  
+- Configuration: 1-2 hours
+- NPM setup: 30 minutes
 - Verification: 1 hour
-- **Total: 3-5 hours**
+- **Total: 3.5-5.5 hours**
 
-## Benefits of Ash Setup
+## Key Architecture Decisions
 
-✅ **80% less boilerplate** than vanilla Phoenix
-✅ **GraphQL API** auto-generated
-✅ **REST API** auto-generated  
-✅ **Multi-tenancy** built-in
-✅ **PostGIS support** via AshPostgis
-✅ **TimescaleDB support** via AshPostgresTimescale
-✅ **Type-safe** resource definitions
-✅ **Authorization** declarative policies
+✅ **Ash Framework** - Provides built-in multi-tenancy, auto-generated APIs, declarative authorization
+✅ **TimescaleDB** - Essential for GPS data (millions of points/day)
+✅ **PostGIS** - Required for geofencing and spatial queries
+✅ **Yjs + Dexie.js** - CRDT-based sync for offline-first capability
+✅ **Home + Cloud Hybrid** - Best economics (83% margin on hobby tier)
+
+**This foundation supports 80-150 hobby tier customers on a single home server while maintaining professional architecture for enterprise customers in the cloud.**

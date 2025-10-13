@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebHost.Systems Architecture - GPS Tracking Platform</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Additional styles if needed */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .code-block {
+            background: #1a1a1a;
+            color: #10b981;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+        }
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        
+        // Simple SVG icons
+        const CheckCircle = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        );
+        
+        const AlertTriangle = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        );
+        
+        const Zap = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+        );
+        
+        const Database = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+        );
+        
+        const Layers = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+        );
+        
+        const Navigation = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+        );
+        
+        const Shield = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+        );
+        
+        const Clock = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        );
+        
+        const DollarSign = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        );
+        
+        const Users = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
+        
+        const WebHostArchitecture = () => {
+            const [activeTab, setActiveTab] = useState('overview');
+
+            // Technology Stack
+            const techStack = {
+                frontend: [
+                    { name: 'Yjs', purpose: 'CRDT sync engine', size: '~40KB', critical: true },
+                    { name: 'Dexie.js', purpose: 'IndexedDB wrapper', size: '~50KB', critical: true },
+                    { name: 'y-indexeddb', purpose: 'Yjs persistence', size: '~5KB', critical: true },
+                    { name: 'y-websocket', purpose: 'Yjs networking', size: '~8KB', critical: true }
+                ],
+                backend: [
+                    { name: 'Ash Framework 3.0', purpose: 'Resource-based framework', critical: true },
+                    { name: 'AshPostgres', purpose: 'PostgreSQL data layer', critical: true },
+                    { name: 'AshAuthentication', purpose: 'Multi-tenant auth', critical: true },
+                    { name: 'Phoenix Channels', purpose: 'WebSocket server', critical: true },
+                    { name: 'AshOban', purpose: 'Background jobs', critical: false }
+                ],
+                database: [
+                    { name: 'PostgreSQL 14+', purpose: 'Primary database', critical: true },
+                    { name: 'TimescaleDB', purpose: 'Time-series optimization', critical: true },
+                    { name: 'PostGIS', purpose: 'Spatial operations', critical: true },
+                    { name: 'Redis', purpose: 'Caching & real-time', critical: false }
+                ]
+            };
+
+            // Use Cases
+            const useCases = [
+                {
+                    title: 'GPS Fleet Management',
+                    description: 'Track vehicle locations, routes, and status in real-time',
+                    features: ['Live GPS tracking', 'Route optimization', 'Geofencing alerts', 'Historical reports'],
+                    icon: <Navigation size={24} />,
+                    color: 'blue'
+                },
+                {
+                    title: 'Asset Tracking',
+                    description: 'Monitor valuable assets across multiple locations',
+                    features: ['Real-time location', 'Movement alerts', 'Battery monitoring', 'Maintenance scheduling'],
+                    icon: <Database size={24} />,
+                    color: 'green'
+                },
+                {
+                    title: 'Field Service Management',
+                    description: 'Coordinate field teams and optimize service routes',
+                    features: ['Technician tracking', 'Job scheduling', 'Time tracking', 'Customer notifications'],
+                    icon: <Users size={24} />,
+                    color: 'purple'
+                },
+                {
+                    title: 'Supply Chain Visibility',
+                    description: 'Track shipments and inventory across the supply chain',
+                    features: ['Shipment tracking', 'ETA predictions', 'Temperature monitoring', 'Delivery confirmations'],
+                    icon: <Layers size={24} />,
+                    color: 'orange'
+                }
+            ];
+
+            // Pricing Tiers
+            const pricingTiers = [
+                {
+                    name: 'Hobby',
+                    price: '$15',
+                    period: '/month',
+                    features: [
+                        '5 vehicles',
+                        '50K GPS points/day',
+                        '30-day retention',
+                        '10 geofences',
+                        'Email support',
+                        'Home datacenter hosting'
+                    ],
+                    highlighted: false,
+                    margin: '83%'
+                },
+                {
+                    name: 'Starter',
+                    price: '$49',
+                    period: '/month',
+                    features: [
+                        '25 vehicles',
+                        '500K GPS points/day',
+                        '90-day retention',
+                        '50 geofences',
+                        'Priority email support',
+                        'Cloud hosting'
+                    ],
+                    highlighted: true,
+                    margin: '78%'
+                },
+                {
+                    name: 'Professional',
+                    price: '$149',
+                    period: '/month',
+                    features: [
+                        '100 vehicles',
+                        '2M GPS points/day',
+                        '365-day retention',
+                        '200 geofences',
+                        'Slack support',
+                        'API access',
+                        'Cloud hosting'
+                    ],
+                    highlighted: false,
+                    margin: '75%'
+                },
+                {
+                    name: 'Business',
+                    price: '$399',
+                    period: '/month',
+                    features: [
+                        '500 vehicles',
+                        '10M GPS points/day',
+                        '730-day retention',
+                        '1000 geofences',
+                        'Phone support',
+                        'Dedicated account manager',
+                        'Cloud hosting'
+                    ],
+                    highlighted: false,
+                    margin: '72%'
+                }
+            ];
+
+            // Implementation Timeline
+            const implementationPhases = [
+                {
+                    phase: 'Phase 0',
+                    title: 'Foundation Setup',
+                    duration: '3-5 hours',
+                    tasks: [
+                        'Initialize Phoenix project with Ash Framework',
+                        'Set up PostgreSQL with TimescaleDB and PostGIS',
+                        'Configure Ash domains and resources',
+                        'Set up NPM for client-side sync'
+                    ],
+                    status: 'complete'
+                },
+                {
+                    phase: 'Phase 1',
+                    title: 'Core Resources',
+                    duration: '8 hours',
+                    tasks: [
+                        'Define multi-tenant Ash resources',
+                        'Configure TimescaleDB hypertables',
+                        'Set up PostGIS for geofencing',
+                        'Implement authorization policies'
+                    ],
+                    status: 'complete'
+                },
+                {
+                    phase: 'Phase 2',
+                    title: 'Authentication & Sync',
+                    duration: '9 hours',
+                    tasks: [
+                        'Implement AshAuthentication',
+                        'Set up API key authentication',
+                        'Integrate Yjs sync server',
+                        'Configure WebSocket channels'
+                    ],
+                    status: 'complete'
+                },
+                {
+                    phase: 'Phase 3',
+                    title: 'Infrastructure',
+                    duration: '10 hours',
+                    tasks: [
+                        'Automate provisioning with AshOban',
+                        'Set up Fly.io integration',
+                        'Configure Cloudflare CDN',
+                        'Implement deployment pipelines'
+                    ],
+                    status: 'complete'
+                },
+                {
+                    phase: 'Phase 4',
+                    title: 'Sync Server',
+                    duration: '8 hours',
+                    tasks: [
+                        'Build deployable sync server',
+                        'Dockerize application',
+                        'Configure Yjs persistence',
+                        'Set up monitoring'
+                    ],
+                    status: 'complete'
+                },
+                {
+                    phase: 'Phase 5',
+                    title: 'JavaScript SDK',
+                    duration: '8 hours',
+                    tasks: [
+                        'Create NPM package structure',
+                        'Implement Yjs + Dexie integration',
+                        'Add TypeScript definitions',
+                        'Publish to NPM'
+                    ],
+                    status: 'complete'
+                },
+                {
+                    phase: 'Phase 6',
+                    title: 'Dashboard & Launch',
+                    duration: '12 hours',
+                    tasks: [
+                        'Build customer dashboard',
+                        'Integrate Stripe billing',
+                        'Set up webhooks',
+                        'Launch preparation'
+                    ],
+                    status: 'complete'
+                }
+            ];
+
+            // Architecture Benefits
+            const architectureBenefits = [
+                {
+                    title: 'Multi-Tenancy by Default',
+                    description: 'Built-in customer isolation prevents data leaks',
+                    icon: <Shield size={24} />,
+                    color: 'purple'
+                },
+                {
+                    title: 'Real-Time CRDT Sync',
+                    description: 'Conflict-free synchronization with Yjs',
+                    icon: <Zap size={24} />,
+                    color: 'yellow'
+                },
+                {
+                    title: 'GPS at Scale',
+                    description: 'TimescaleDB handles millions of points daily',
+                    icon: <Database size={24} />,
+                    color: 'blue'
+                },
+                {
+                    title: 'Geofencing Ready',
+                    description: 'PostGIS provides sub-50ms spatial queries',
+                    icon: <Navigation size={24} />,
+                    color: 'green'
+                },
+                {
+                    title: 'Offline-First',
+                    description: 'Dexie.js + IndexedDB for local storage',
+                    icon: <Clock size={24} />,
+                    color: 'orange'
+                },
+                {
+                    title: 'Cost Effective',
+                    description: 'Hybrid hosting model maximizes margins',
+                    icon: <DollarSign size={24} />,
+                    color: 'emerald'
+                }
+            ];
+
+            return (
+                <div className="w-full max-w-7xl mx-auto p-6 bg-gray-50">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 mb-8 text-white">
+                        <h1 className="text-4xl font-bold mb-4">WebHost.Systems Architecture</h1>
+                        <p className="text-xl text-blue-100 mb-6">
+                            Complete GPS Tracking Platform with Real-Time Sync
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <p className="text-2xl font-bold">56-86 hours</p>
+                                <p className="text-blue-100">Total Implementation Time</p>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <p className="text-2xl font-bold">72-83%</p>
+                                <p className="text-blue-100">Profit Margins</p>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <p className="text-2xl font-bold">7-8 days</p>
+                                <p className="text-blue-100">Time to Launch</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Navigation */}
+                    <div className="bg-white rounded-lg shadow mb-8">
+                        <div className="flex flex-wrap border-b">
+                            {['overview', 'technology', 'use-cases', 'implementation', 'pricing', 'benefits'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`px-6 py-3 font-medium capitalize transition-colors ${
+                                        activeTab === tab
+                                            ? 'border-b-2 border-blue-500 text-blue-600'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                    }`}
+                                >
+                                    {tab.replace('-', ' ')}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Overview Tab */}
+                    {activeTab === 'overview' && (
+                        <div className="space-y-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-4">What is WebHost.Systems?</h2>
+                                <p className="text-lg text-gray-700 mb-6">
+                                    A complete, production-ready GPS tracking platform built with modern technologies. 
+                                    Provides real-time synchronization, multi-tenancy, and scalable infrastructure 
+                                    for fleet management, asset tracking, and field service applications.
+                                </p>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-blue-50 rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold text-blue-900 mb-3">Core Features</h3>
+                                        <ul className="space-y-2 text-blue-800">
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-blue-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Real-time GPS tracking with sub-second updates</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-blue-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Geofencing with instant alerts</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-blue-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Offline-first mobile apps</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-blue-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Multi-tenant architecture</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-blue-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>REST + GraphQL APIs</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div className="bg-purple-50 rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold text-purple-900 mb-3">Technical Highlights</h3>
+                                        <ul className="space-y-2 text-purple-800">
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-purple-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Yjs CRDT for conflict-free sync</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-purple-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>TimescaleDB for time-series data</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-purple-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>PostGIS for spatial queries</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-purple-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Ash Framework for rapid development</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <CheckCircle className="text-purple-600 mr-2 mt-0.5 flex-shrink-0" size={20} />
+                                                <span>Hybrid home/cloud deployment</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-green-500 to-teal-500 rounded-lg p-8 text-white">
+                                <h2 className="text-2xl font-bold mb-4">Why Choose WebHost.Systems?</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                        <h3 className="text-lg font-semibold mb-2">Build in Days, Not Months</h3>
+                                        <p className="text-green-100">
+                                            Complete platform in 7-8 days with our comprehensive implementation guide
+                                        </p>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                        <h3 className="text-lg font-semibold mb-2">Enterprise-Grade Architecture</h3>
+                                        <p className="text-green-100">
+                                            Multi-tenancy, real-time sync, and scalable infrastructure built-in
+                                        </p>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                        <h3 className="text-lg font-semibold mb-2">Profitable from Day One</h3>
+                                        <p className="text-green-100">
+                                            72-83% margins with hybrid hosting model
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Technology Tab */}
+                    {activeTab === 'technology' && (
+                        <div className="space-y-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Technology Stack</h2>
+                                
+                                <div className="space-y-8">
+                                    <div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold mr-3">1</div>
+                                            Client Layer - ~100KB Total
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            {techStack.frontend.map((tech, idx) => (
+                                                <div key={idx} className="bg-gray-50 rounded-lg p-4 feature-card">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-semibold text-gray-900">{tech.name}</h4>
+                                                        {tech.critical && (
+                                                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">Critical</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 mb-2">{tech.purpose}</p>
+                                                    <p className="text-xs text-gray-500 font-mono">{tech.size}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold mr-3">2</div>
+                                            Server Layer
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {techStack.backend.map((tech, idx) => (
+                                                <div key={idx} className="bg-gray-50 rounded-lg p-4 feature-card">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-semibold text-gray-900">{tech.name}</h4>
+                                                        {tech.critical && (
+                                                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">Critical</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-gray-600">{tech.purpose}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-3">3</div>
+                                            Database Layer
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            {techStack.database.map((tech, idx) => (
+                                                <div key={idx} className="bg-gray-50 rounded-lg p-4 feature-card">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-semibold text-gray-900">{tech.name}</h4>
+                                                        {tech.critical && (
+                                                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">Critical</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-gray-600">{tech.purpose}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Data Flow Architecture</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">1</div>
+                                        <div className="flex-1 bg-gray-50 p-4 rounded">
+                                            <p className="font-semibold">GPS Device</p>
+                                            <p className="text-sm text-gray-600">Sends location data via HTTP/WebSocket</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">2</div>
+                                        <div className="flex-1 bg-gray-50 p-4 rounded">
+                                            <p className="font-semibold">Client (Yjs + Dexie)</p>
+                                            <p className="text-sm text-gray-600">Stores locally, syncs via CRDT</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">3</div>
+                                        <div className="flex-1 bg-gray-50 p-4 rounded">
+                                            <p className="font-semibold">Phoenix Channel</p>
+                                            <p className="text-sm text-gray-600">WebSocket server for real-time sync</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">4</div>
+                                        <div className="flex-1 bg-gray-50 p-4 rounded">
+                                            <p className="font-semibold">Ash Resources</p>
+                                            <p className="text-sm text-gray-600">Validates, authorizes, persists</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <div className="bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">5</div>
+                                        <div className="flex-1 bg-gray-50 p-4 rounded">
+                                            <p className="font-semibold">TimescaleDB + PostGIS</p>
+                                            <p className="text-sm text-gray-600">Time-series storage + spatial queries</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Use Cases Tab */}
+                    {activeTab === 'use-cases' && (
+                        <div className="space-y-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Perfect For These Scenarios</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {useCases.map((useCase, idx) => (
+                                        <div key={idx} className={`bg-${useCase.color}-50 rounded-lg p-6 feature-card border-2 border-${useCase.color}-200`}>
+                                            <div className={`text-${useCase.color}-600 mb-4`}>
+                                                {useCase.icon}
+                                            </div>
+                                            <h3 className="text-xl font-semibold text-gray-900 mb-3">{useCase.title}</h3>
+                                            <p className="text-gray-700 mb-4">{useCase.description}</p>
+                                            <div className="space-y-2">
+                                                {useCase.features.map((feature, fidx) => (
+                                                    <div key={fidx} className="flex items-center text-sm text-gray-600">
+                                                        <CheckCircle className={`text-${useCase.color}-500 mr-2`} size={16} />
+                                                        {feature}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-8 text-white">
+                                <h2 className="text-2xl font-bold mb-4">Not Just For GPS!</h2>
+                                <p className="text-lg text-purple-100 mb-6">
+                                    While optimized for GPS tracking, WebHost.Systems architecture works for any real-time data scenario:
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                        <h3 className="font-semibold mb-2">IoT Sensor Networks</h3>
+                                        <p className="text-purple-100 text-sm">Temperature, humidity, pressure monitoring</p>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                        <h3 className="font-semibold mb-2">Collaborative Apps</h3>
+                                        <p className="text-purple-100 text-sm">Real-time document editing, whiteboards</p>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                        <h3 className="font-semibold mb-2">Event Management</h3>
+                                        <p className="text-purple-100 text-sm">Conference tracking, attendee monitoring</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Implementation Tab */}
+                    {activeTab === 'implementation' && (
+                        <div className="space-y-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Implementation Timeline</h2>
+                                <div className="space-y-6">
+                                    {implementationPhases.map((phase, idx) => (
+                                        <div key={idx} className="border-l-4 border-green-500 pl-6">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-gray-900">{phase.title}</h3>
+                                                    <p className="text-sm text-gray-600">{phase.phase} • {phase.duration}</p>
+                                                </div>
+                                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                                    phase.status === 'complete' 
+                                                        ? 'bg-green-100 text-green-800' 
+                                                        : 'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                    {phase.status}
+                                                </span>
+                                            </div>
+                                            <ul className="space-y-2">
+                                                {phase.tasks.map((task, tidx) => (
+                                                    <li key={tidx} className="flex items-start text-sm text-gray-700">
+                                                        <CheckCircle className="text-green-500 mr-2 mt-0.5 flex-shrink-0" size={16} />
+                                                        {task}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Start Guide</h3>
+                                <div className="bg-gray-900 rounded-lg p-6">
+                                    <div className="code-block">
+                                        <p># 1. Clone and setup</p>
+                                        <p>git clone https://github.com/your-org/webhost.systems</p>
+                                        <p>cd webhost</p>
+                                        <p>docker-compose up -d</p>
+                                        <p></p>
+                                        <p># 2. Initialize database</p>
+                                        <p>mix deps.get</p>
+                                        <p>mix ecto.create</p>
+                                        <p>mix ash.codegen initial_resources</p>
+                                        <p>mix ash_postgres.generate_migrations --name initial</p>
+                                        <p>mix ecto.migrate</p>
+                                        <p></p>
+                                        <p># 3. Start server</p>
+                                        <p>mix phx.server</p>
+                                        <p></p>
+                                        <p># 4. Visit dashboard</p>
+                                        <p>open http://localhost:4000</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pricing Tab */}
+                    {activeTab === 'pricing' && (
+                        <div className="space-y-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Pricing & Profit Margins</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {pricingTiers.map((tier, idx) => (
+                                        <div key={idx} className={`rounded-lg p-6 ${
+                                            tier.highlighted 
+                                                ? 'border-2 border-blue-500 shadow-lg transform -translate-y-2' 
+                                                : 'border border-gray-200'
+                                        }`}>
+                                            {tier.highlighted && (
+                                                <div className="bg-blue-500 text-white text-sm font-semibold px-3 py-1 rounded-full text-center mb-4">
+                                                    Most Popular
+                                                </div>
+                                            )}
+                                            <h3 className="text-xl font-bold text-gray-900 mb-2">{tier.name}</h3>
+                                            <div className="mb-4">
+                                                <span className="text-3xl font-bold">{tier.price}</span>
+                                                <span className="text-gray-600">{tier.period}</span>
+                                            </div>
+                                            <div className="mb-4">
+                                                <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-medium ${
+                                                    tier.margin === '83%' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                    {tier.margin} margin
+                                                </span>
+                                            </div>
+                                            <ul className="space-y-3 mb-6">
+                                                {tier.features.map((feature, fidx) => (
+                                                    <li key={fidx} className="flex items-start text-sm">
+                                                        <CheckCircle className="text-green-500 mr-2 mt-0.5 flex-shrink-0" size={16} />
+                                                        {feature}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-green-500 to-teal-500 rounded-lg p-8 text-white">
+                                <h2 className="text-2xl font-bold mb-4">Hybrid Hosting Model</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold mb-3">Hobby Tier - Home Datacenter</h3>
+                                        <ul className="space-y-2 text-green-100">
+                                            <li>• $3/month server cost</li>
+                                            <li>• $12/month profit</li>
+                                            <li>• 83% margin</li>
+                                            <li>• Self-hosted control</li>
+                                        </ul>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-6">
+                                        <h3 className="text-xl font-semibold mb-3">Starter+ - Cloud Hosting</h3>
+                                        <ul className="space-y-2 text-green-100">
+                                            <li>• Fly.io infrastructure</li>
+                                            <li>• Automatic scaling</li>
+                                            <li>• 72-80% margins</li>
+                                            <li>• Managed operations</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Benefits Tab */}
+                    {activeTab === 'benefits' && (
+                        <div className="space-y-8">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Key Architecture Benefits</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {architectureBenefits.map((benefit, idx) => (
+                                        <div key={idx} className={`bg-${benefit.color}-50 rounded-lg p-6 feature-card`}>
+                                            <div className={`text-${benefit.color}-600 mb-4`}>
+                                                {benefit.icon}
+                                            </div>
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-3">{benefit.title}</h3>
+                                            <p className="text-gray-700">{benefit.description}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Code Reduction with Ash Framework</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-green-50 rounded-lg p-6">
+                                        <h4 className="font-semibold text-green-900 mb-3">With Ash Framework</h4>
+                                        <ul className="space-y-2 text-green-800">
+                                            <li>• 67% less backend code</li>
+                                            <li>• 100% less controller boilerplate</li>
+                                            <li>• 100% less JSON serializers</li>
+                                            <li>• 90% less GraphQL resolvers</li>
+                                            <li>• 50% less test code</li>
+                                        </ul>
+                                    </div>
+                                    <div className="bg-blue-50 rounded-lg p-6">
+                                        <h4 className="font-semibold text-blue-900 mb-3">Development Time Savings</h4>
+                                        <ul className="space-y-2 text-blue-800">
+                                            <li>• APIs auto-generated</li>
+                                            <li>• Multi-tenancy built-in</li>
+                                            <li>• Authorization declarative</li>
+                                            <li>• Migrations automated</li>
+                                            <li>• Type-safe by default</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-8 text-white">
+                                <h2 className="text-2xl font-bold mb-4">Ready to Build Your GPS Platform?</h2>
+                                <p className="text-lg text-purple-100 mb-6">
+                                    Complete implementation guide with all phases documented. Start building today!
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                                        <p className="text-3xl font-bold">7-8</p>
+                                        <p className="text-purple-100">Days to Launch</p>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                                        <p className="text-3xl font-bold">56-86</p>
+                                        <p className="text-purple-100">Total Hours</p>
+                                    </div>
+                                    <div className="bg-white bg-opacity-20 rounded-lg p-4 text-center">
+                                        <p className="text-3xl font-bold">100%</p>
+                                        <p className="text-purple-100">Production Ready</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Render component
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<WebHostArchitecture />);
+    </script>
+</body>
+</html>
