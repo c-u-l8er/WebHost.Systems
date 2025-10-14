@@ -41,12 +41,10 @@ This document provides a comprehensive index and navigation guide for all WebHos
 | [DATABASE-SCHEMA-DESIGN.md](documentation.html#DATABASE-SCHEMA-DESIGN.md) | Database schema for single and multi-tenant modes | Architects | ✅ Complete |
 | [DEPLOYMENT-CONFIGURATION.md](documentation.html#DEPLOYMENT-CONFIGURATION.md) | Configuration differences between deployment modes | DevOps | ✅ Complete |
 | [DEPLOYMENT-MODE-IMPLEMENTATION.md](documentation.html#DEPLOYMENT-MODE-IMPLEMENTATION.md) | Implementation details for deployment mode selection | Developers | ✅ Complete |
-| [architecture.html](http://127.0.0.1:8080/architecture.html) | Interactive architecture visualization | All | ✅ Complete |
 
 ### Analysis & Reports
 | Document | Description | Audience | Status |
 |----------|-------------|----------|--------|
-| [hobby-tier-analysis.html](http://127.0.0.1:8080/hobby-tier-analysis.html) | Detailed hobby tier economic analysis | Business | ✅ Complete |
 | [documentation.html](documentation.html) | Documentation overview and status | All | ✅ Complete |
 
 ## 🚀 Quick Start Guide
