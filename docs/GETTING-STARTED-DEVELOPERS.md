@@ -424,17 +424,17 @@ end
 
 ### Essential Reading
 
-1. **[PHASE0.md](PHASE0.md)** - Project foundation and setup
-2. **[PHASE1.md](PHASE1.md)** - Core resources and multi-tenancy
-3. **[PHASE2.md](PHASE2.md)** - Authentication and sync
+1. **[PHASE0.md](docs/PHASE0.md)** - Project foundation and setup
+2. **[PHASE1.md](docs/PHASE1.md)** - Core resources and multi-tenancy
+3. **[PHASE2.md](docs/PHASE2.md)** - Authentication and sync
 4. **[ASH Framework Docs](https://ash-hq.org/)** - Framework documentation
 5. **[Phoenix Docs](https://hexdocs.pm/phoenix/)** - Web framework
 
 ### Advanced Topics
 
-1. **[ARCHITECTURE-UPDATE.md](ARCHITECTURE-UPDATE.md)** - Infrastructure decisions
-2. **[ECONOMIC-ANALYSIS.md](ECONOMIC-ANALYSIS.md)** - Business context
-3. **[DISASTER-RECOVERY.md](DISASTER-RECOVERY.md)** - Operations procedures
+1. **[ARCHITECTURE-UPDATE.md](docs/ARCHITECTURE-UPDATE.md)** - Infrastructure decisions
+2. **[ECONOMIC-ANALYSIS.md](docs/ECONOMIC-ANALYSIS.md)** - Business context
+3. **[DISASTER-RECOVERY.md](docs/DISASTER-RECOVERY.md)** - Operations procedures
 
 ### External Resources
 
