@@ -201,7 +201,7 @@ This document provides a comprehensive index and navigation guide for all WebHos
 ### URL Formatting Requirements
 **IMPORTANT**: All internal documentation links MUST use the following format:
 - **Markdown files**: `documentation.html#FILENAME.md`
-- **HTML files**: `http://127.0.0.1:8080/filename.html`
+- **HTML files**: `http://127.0.0.1:8080/filename.html` or `https://webhost.systems/filename.html`
 
 **Examples:**
 - ✅ Correct: `[PHASE0.md](documentation.html#PHASE0.md)`
