@@ -918,20 +918,40 @@ defmodule WebHostWeb.SyncChannel do
     # Load Yjs updates from database that client doesn't have
     # state_vector is a binary that represents what the client already has
     
-    # For now, return empty - will implement persistence in next phase
-    # In production, query sync_updates table filtered by document_id and tenant
-    
     Logger.debug("Loading missing updates for document: #{document_id}")
-    {:ok, <<>>}  # Empty update means "client is up to date"
+    
+    # Query sync_updates table for updates client doesn't have
+    case WebHost.Repo.query("""
+      SELECT update_data, update_version
+      FROM sync_updates
+      WHERE document_id = $1
+        AND customer_id = $2
+        AND update_version > COALESCE(
+          (SELECT MAX(update_version)
+           FROM sync_updates
+           WHERE document_id = $1
+             AND customer_id = $2
+             AND update_data = $3), 0)
+      ORDER BY update_version ASC
+    """, [document_id, tenant, state_vector]) do
+      {:ok, %Postgrex.Result{rows: rows}} when length(rows) > 0 ->
+        # Concatenate all missing updates
+        updates = Enum.map(rows, fn [update_data, _version] -> update_data end)
+        {:ok, IO.iodata_to_binary(updates)}
+      
+      {:ok, %Postgrex.Result{rows: []}} ->
+        # No missing updates
+        {:ok, <<>>}
+      
+      {:error, reason} ->
+        Logger.error("Failed to load updates: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
   defp persist_update(document_id, update, tenant, assigns) do
     # Persist Yjs update to database
     # This allows offline clients to catch up later
-    
-    # Decode Yjs update to extract changes
-    # Apply changes to Ash resources (Vehicle, GpsPosition, etc.)
-    # Store raw update in sync_updates table for replay
     
     Logger.debug("""
     Persisting update:
@@ -941,9 +961,71 @@ defmodule WebHostWeb.SyncChannel do
       Auth type: #{assigns.auth_type}
     """)
     
-    # TODO: Implement actual persistence
-    # This will be covered in Phase 4
+    # Get next version number
+    version = case WebHost.Repo.query("""
+      SELECT COALESCE(MAX(update_version), 0) + 1
+      FROM sync_updates
+      WHERE document_id = $1 AND customer_id = $2
+    """, [document_id, tenant]) do
+      {:ok, %Postgrex.Result{rows: [[next_version]]}} -> next_version
+      {:error, _reason} -> 1  # Fallback to version 1
+    end
+    
+    # Insert the update
+    case WebHost.Repo.query("""
+      INSERT INTO sync_updates (id, document_id, customer_id, update_data, update_version, created_at, metadata)
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW(), $5)
+    """, [
+      document_id,
+      tenant,
+      update,
+      version,
+      %{
+        "auth_type" => assigns.auth_type,
+        "ip_address" => get_ip_address(assigns),
+        "user_agent" => get_user_agent(assigns)
+      }
+    ]) do
+      :ok ->
+        # Try to apply changes to Ash resources if applicable
+        apply_yjs_changes_to_resources(document_id, update, tenant)
+        :ok
+      
+      {:error, reason} ->
+        Logger.error("Failed to persist update: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+  
+  defp apply_yjs_changes_to_resources(document_id, update, tenant) do
+    # This is a placeholder for applying Yjs changes to Ash resources
+    # In a full implementation, you would:
+    # 1. Decode the Yjs update
+    # 2. Extract structured changes
+    # 3. Apply them to the appropriate Ash resources
+    # 4. Handle conflicts if any
+    
+    Logger.debug("Applying Yjs changes to resources for document: #{document_id}")
     :ok
+  end
+  
+  defp get_ip_address(assigns) do
+    # Extract IP address from connection info if available
+    case assigns do
+      %{connect_info: %{peer_data: %{address: address}}} -> address
+      _ -> "unknown"
+    end
+  end
+  
+  defp get_user_agent(assigns) do
+    # Extract User-Agent from connection info if available
+    case assigns do
+      %{connect_info: %{req_headers: headers}} ->
+        Enum.find_value(headers, fn {key, value} ->
+          if String.downcase(key) == "user-agent", do: value
+        end) || "unknown"
+      _ -> "unknown"
+    end
   end
 end
 ```

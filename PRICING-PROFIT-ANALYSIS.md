@@ -40,7 +40,7 @@ The Hetzner + Fly.io hybrid strategy dramatically improves WebHost Systems' prof
 | Component | Monthly Cost | Customer Capacity | Cost per Customer |
 |-----------|--------------|------------------|-------------------|
 | **AX52 Server** | €65 ($70) | 150 customers | $0.47 |
-| **Storage Box** | €3 ($3) | 150 customers | $0.02 |
+| **Storage Box** | €3.81 (~$4.15) | 150 customers | $0.03 |
 | **Domain & SSL** | €10 ($11) | 150 customers | $0.07 |
 | **Monitoring** | €5 ($5) | 150 customers | $0.03 |
 | **Total** | **€83 ($89)** | **150 customers** | **$0.59** |

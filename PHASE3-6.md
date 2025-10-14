@@ -258,6 +258,87 @@ defmodule WebHost.Workers.HetznerProvisioningWorker do
     # Implementation details...
   end
 
+  defp cleanup_failed_provisioning(customer_id) do
+    Logger.warn("Cleaning up failed provisioning for customer: #{customer_id}")
+    
+    # Find any partially created resources
+    case WebHost.Infrastructure.Deployment
+         |> Ash.Query.filter(customer_id == ^customer_id)
+         |> Ash.read_one() do
+      {:ok, deployment} ->
+        # Delete any created resources
+        cleanup_deployment_resources(deployment)
+        
+        # Update deployment status to failed
+        deployment
+        |> Ash.Changeset.for_update(:mark_failed, %{
+          error_message: "Provisioning failed during setup"
+        })
+        |> Ash.update()
+      
+      {:error, _} ->
+        # No deployment found, nothing to clean
+        :ok
+    end
+    
+    # Send failure notification
+    send_provisioning_failure_notification(customer_id)
+    
+    :ok
+  end
+  
+  defp cleanup_deployment_resources(deployment) do
+    # Clean up Hetzner server if created
+    if deployment.server_id do
+      case HetznerClient.delete_server(deployment.server_id) do
+        :ok -> Logger.info("Deleted Hetzner server: #{deployment.server_id}")
+        {:error, reason} -> Logger.error("Failed to delete server: #{reason}")
+      end
+    end
+    
+    # Clean up DNS records if created
+    if deployment.domain_name do
+      case CloudflareClient.delete_dns_record(deployment.domain_name) do
+        :ok -> Logger.info("Deleted DNS record: #{deployment.domain_name}")
+        {:error, reason} -> Logger.error("Failed to delete DNS record: #{reason}")
+      end
+    end
+    
+    # Clean up Fly.io app if created
+    if deployment.fly_app_id do
+      case FlyClient.delete_app(deployment.fly_app_id) do
+        :ok -> Logger.info("Deleted Fly.io app: #{deployment.fly_app_id}")
+        {:error, reason} -> Logger.error("Failed to delete Fly.io app: #{reason}")
+      end
+    end
+    
+    # Clean up database if created
+    if deployment.database_id do
+      case FlyClient.delete_postgres(deployment.database_id) do
+        :ok -> Logger.info("Deleted database: #{deployment.database_id}")
+        {:error, reason} -> Logger.error("Failed to delete database: #{reason}")
+      end
+    end
+  end
+  
+  defp send_provisioning_failure_notification(customer_id) do
+    # Send email or notification about provisioning failure
+    customer = WebHost.Accounts.Customer |> Ash.get!(customer_id)
+    
+    # Implementation would depend on your notification system
+    Logger.warn("Provisioning failed for customer: #{customer.email}")
+    
+    :ok
+  end
+  
+  defp cleanup_failed_flyio_provisioning(customer_id) do
+    # Similar to cleanup_failed_provisioning but specific to Fly.io
+    Logger.warn("Cleaning up failed Fly.io provisioning for customer: #{customer_id}")
+    
+    # Implementation similar to above but Fly.io specific
+    cleanup_failed_provisioning(customer_id)
+  end
+  
   defp generate_deployment_script(config) do
     """
     #!/bin/bash

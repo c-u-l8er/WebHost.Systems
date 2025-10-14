@@ -1132,7 +1132,7 @@ Once Phase 0 is complete, proceed to **Phase 1: Core Resources with Multi-Tenanc
 ✅ **Yjs + Dexie.js** - CRDT-based sync for offline-first capability
 ✅ **Home + Cloud Hybrid** - Best economics (83% margin on hobby tier)
 
-**This foundation supports 80-150 hobby tier customers on a Hetzner dedicated server while maintaining professional architecture for enterprise customers on Fly.io multi-region.**
+**This foundation supports 150 hobby tier customers per AX52 dedicated server while maintaining professional architecture for enterprise customers on Fly.io multi-region.**
 
 ---
 

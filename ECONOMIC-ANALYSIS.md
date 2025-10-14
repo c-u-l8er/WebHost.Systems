@@ -4,7 +4,7 @@
 
 The switch from a home datacenter to a hybrid Hetzner + Fly.io infrastructure **dramatically improves the economic model** for WebHost Systems:
 
-- **Profit margins increase from 76% to 97%** on hobby tier
+- **Profit margins increase from 76% (server-level) to 97% (per-customer)** on hobby tier
 - **Break-even point drops from 13 customers to 5 customers**
 - **Year 1 profit potential increases by 150%**
 - **Risk profile significantly reduced**
@@ -22,19 +22,19 @@ The switch from a home datacenter to a hybrid Hetzner + Fly.io infrastructure **
 | **Monthly Server** | $178/month | $65/month | $400-1,200/month | **$113/month** |
 | **Electricity** | $50/month | $0 | $0 | **$50/month** |
 | **Internet** | $80/month | $0 | $0 | **$80/month** |
-| **Backup Storage** | $20/month | $3/month | Included | **$17/month** |
+| **Backup Storage** | $20/month | $3.81/month (~$4.15) | Included | **$16.19/month** |
 | **Maintenance** | $40/month | $0 | $0 | **$40/month** |
-| **Total Monthly** | **$368/month** | **$68/month** | **$400-1,200/month** | **$300/month** |
+| **Total Monthly** | **$368/month** | **$68.81/month** | **$400-1,200/month** | **$299.19/month** |
 
 ### Customer Capacity Analysis
 
 | Metric | Home Datacenter | Hetzner AX52 | Fly.io Regional |
 |--------|-----------------|---------------|-----------------|
-| **Server Cost** | $368/month | $68/month | $400/month |
+| **Server Cost** | $368/month | $68.81/month | $400/month |
 | **Hobby Customers** | 50 | 150 | 100 |
 | **Starter Customers** | 10 | 20 | 50 |
 | **Total Capacity** | 60 customers | 170 customers | 150 customers |
-| **Cost per Customer** | $6.13 | $0.40 | $2.67 |
+| **Cost per Customer** | $6.13 | $0.46 | $2.67 |
 
 ---
 
