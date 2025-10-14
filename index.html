@@ -923,7 +923,7 @@
                     </p>
                     <div class="hero-buttons">
                         <a href="#" class="btn btn-primary"><span>Start Free Trial →</span></a>
-                        <a href="#" class="btn btn-outline">View Demo</a>
+                        <a href="https://gpscoord.com" class="btn btn-outline">GPS Coord</a>
                     </div>
                     <div class="hero-proof">
                         <div class="proof-item">
@@ -1415,17 +1415,21 @@
         // Handle trial and demo button clicks
         function handleDevelopmentPrompt(event) {
             event.preventDefault();
-            const message = "WebHost.Systems is still in development! 🚧\n\nTrack our progress on GitHub:\ngithub.com/c-u-l8er/WebHost.Systems\n\nWe're working hard to bring you production-ready GPS tracking infrastructure!";
+            const message = "GPSCoord & WebHost.Systems are still in development! 🚧\n\nTrack our progress on GitHub:\ngithub.com/c-u-l8er/GPSCoord\ngithub.com/c-u-l8er/WebHost.Systems\n\nWe're working hard to bring you production-ready GPS tracking infrastructure!";
             alert(message);
             // Optional: Open GitHub in a new tab after user clicks OK
-            window.open('https://github.com/c-u-l8er/WebHost.Systems', '_blank');
+            window.open('https://gpscoord.com', '_blank');
         }
         
         // Add click handlers to all trial and demo buttons
         document.addEventListener('DOMContentLoaded', function() {
-            // Hero section buttons
+            // Hero section buttons (excluding GPS Coord button)
             const heroButtons = document.querySelectorAll('.hero-buttons .btn');
             heroButtons.forEach(button => {
+                // Skip the GPS Coord button
+                if (button.href && button.href.includes('gpscoord.com')) {
+                    return;
+                }
                 button.addEventListener('click', handleDevelopmentPrompt);
             });
             
