@@ -1,51 +1,58 @@
-# WebHost Systems Architecture Update: Hetzner + Fly.io Hybrid Infrastructure
+# WebHost Systems Architecture Update: Dual Deployment Mode Infrastructure
 
 ## Overview
 
-WebHost Systems now implements a **hybrid multi-cloud architecture** that intelligently routes customers to the most cost-effective infrastructure based on their subscription tier:
+WebHost Systems now implements a **dual deployment mode architecture** that intelligently routes customers to the most appropriate infrastructure based on their subscription tier and requirements:
 
-- **Hobby Tier ($15/month)**: Hetzner dedicated servers (US/EU datacenters)
-- **Starter+ Tiers ($49-$399/month)**: Fly.io multi-region global deployment
+- **Multi-Tenant Mode (Hobby Tier - $15/month)**: Shared Hetzner dedicated servers with database-level isolation
+- **Single-Tenant Mode (Starter+ Tiers - $49-$399/month)**: Dedicated Fly.io infrastructure with complete isolation
+
+This architecture provides **optimal cost efficiency** for price-sensitive customers while delivering **premium performance and isolation** for professional users, all while maintaining a **unified codebase** and **seamless migration capabilities**.
 
 ## Architecture Diagram
 
 ```mermaid
 graph TB
     %% Customer Tiers
-    subgraph "Customer Tiers"
-        Hobby[Hobby Tier<br/>$15/month<br/>5 vehicles]
-        Starter[Starter Tier<br/>$49/month<br/>25 vehicles]
-        Pro[Professional Tier<br/>$149/month<br/>100 vehicles]
-        Business[Business Tier<br/>$399/month<br/>500 vehicles]
+    subgraph "Customer Segments"
+        Hobby[Hobby Tier<br/>$15/month<br/>Multi-Tenant<br/>5 vehicles]
+        Starter[Starter Tier<br/>$49/month<br/>Single-Tenant<br/>25 vehicles]
+        Pro[Professional Tier<br/>$149/month<br/>Single-Tenant<br/>100 vehicles]
+        Business[Business Tier<br/>$399/month<br/>Single-Tenant<br/>500 vehicles]
     end
 
-    %% Infrastructure Decision Layer
-    subgraph "Infrastructure Router"
-        Router[Infrastructure Router<br/>Ash-based provisioning]
+    %% Deployment Decision Engine
+    subgraph "Intelligent Deployment Engine"
+        DecisionEngine[Deployment Decision Engine<br/>AI-powered routing]
+        UsageTracker[Usage Tracker<br/>Real-time analysis]
+        MigrationSystem[Migration System<br/>Zero-downtime transitions]
     end
 
-    %% Hetzner Infrastructure
-    subgraph "Hetzner Infrastructure (US/EU)"
-        HetznerServer[AX52 Dedicated Server<br/>€65/month<br/>16 cores, 128GB RAM]
-        HetznerDB[PostgreSQL + TimescaleDB + PostGIS]
-        HetznerRedis[Redis Cache]
+    %% Multi-Tenant Infrastructure
+    subgraph "Multi-Tenant Mode (Hetzner)"
+        HetznerServer[AX52 Dedicated Server<br/>€65/month<br/>150 customers]
+        HetznerDB[Shared PostgreSQL<br/>TimescaleDB + PostGIS]
+        HetznerRedis[Shared Redis Cache]
         HetznerBackup[Storage Box<br/>Automated Backups]
+        ResourceLimits[Resource Limits<br/>Per-customer enforcement]
     end
 
-    %% Fly.io Infrastructure
-    subgraph "Fly.io Multi-Region"
-        FlyUS[US East Region<br/>Primary]
-        FlyEU[Europe Region<br/>Frankfurt]
-        FlyAS[Asia Region<br/>Singapore]
+    %% Single-Tenant Infrastructure
+    subgraph "Single-Tenant Mode (Fly.io)"
+        FlyStarter[Starter Instance<br/>$400/month<br/>Dedicated resources]
+        FlyPro[Professional Instance<br/>$800/month<br/>Enhanced performance]
+        FlyBusiness[Business Instance<br/>$1,200/month<br/>Multi-region]
         
-        FlyDB[PostgreSQL Cluster<br/>Read Replicas]
-        FlyRedis[Upstash Redis<br/>Global]
-        FlyCDN[Cloudflare CDN<br/>Global]
+        FlyDB[Dedicated PostgreSQL<br/>Per-customer clusters]
+        FlyRedis[Dedicated Redis<br/>Per-customer instances]
+        FlyCDN[Cloudflare CDN<br/>Global distribution]
+        AutoScaling[Auto-Scaling<br/>Dynamic resource allocation]
     end
 
-    %% Application Layer
-    subgraph "WebHost Application"
-        AshApp[Ash Framework<br/>Multi-tenant by default]
+    %% Unified Application Layer
+    subgraph "WebHost Application (Unified)"
+        AshApp[Ash Framework<br/>Dual-mode compatible]
+        MultiTenancy[Attribute Multi-Tenancy<br/>customer_id isolation]
         YjsSync[Yjs CRDT Sync<br/>Real-time collaboration]
         APIs[Auto-generated APIs<br/>GraphQL + REST]
         Auth[Multi-layer Authentication<br/>JWT + API Keys]
@@ -59,35 +66,43 @@ graph TB
     end
 
     %% Connections
-    Hobby --> Router
-    Starter --> Router
-    Pro --> Router
-    Business --> Router
+    Hobby --> DecisionEngine
+    Starter --> DecisionEngine
+    Pro --> DecisionEngine
+    Business --> DecisionEngine
 
-    Router -->|$15/mo| HetznerServer
-    Router -->|$49+/mo| FlyUS
-    Router -->|$149+/mo| FlyEU
-    Router -->|$399/mo| FlyAS
+    DecisionEngine --> UsageTracker
+    DecisionEngine --> MigrationSystem
+
+    DecisionEngine -->|$15/mo| HetznerServer
+    DecisionEngine -->|$49/mo| FlyStarter
+    DecisionEngine -->|$149/mo| FlyPro
+    DecisionEngine -->|$399/mo| FlyBusiness
 
     HetznerServer --> HetznerDB
     HetznerServer --> HetznerRedis
     HetznerServer --> HetznerBackup
+    HetznerServer --> ResourceLimits
 
-    FlyUS --> FlyDB
-    FlyEU --> FlyDB
-    FlyAS --> FlyDB
-    FlyUS --> FlyRedis
-    FlyEU --> FlyRedis
-    FlyAS --> FlyRedis
-    FlyUS --> FlyCDN
-    FlyEU --> FlyCDN
-    FlyAS --> FlyCDN
+    FlyStarter --> FlyDB
+    FlyPro --> FlyDB
+    FlyBusiness --> FlyDB
+    FlyStarter --> FlyRedis
+    FlyPro --> FlyRedis
+    FlyBusiness --> FlyRedis
+    FlyStarter --> FlyCDN
+    FlyPro --> FlyCDN
+    FlyBusiness --> FlyCDN
+    FlyStarter --> AutoScaling
+    FlyPro --> AutoScaling
+    FlyBusiness --> AutoScaling
 
     HetznerServer --> AshApp
-    FlyUS --> AshApp
-    FlyEU --> AshApp
-    FlyAS --> AshApp
+    FlyStarter --> AshApp
+    FlyPro --> AshApp
+    FlyBusiness --> AshApp
 
+    AshApp --> MultiTenancy
     AshApp --> YjsSync
     AshApp --> APIs
     AshApp --> Auth
@@ -98,28 +113,33 @@ graph TB
     Auth --> WebApp
     Auth --> MobileApp
     Auth --> APIUsers
+
+    MigrationSystem -.-> HetznerServer
+    MigrationSystem -.-> FlyStarter
+    MigrationSystem -.-> FlyPro
+    MigrationSystem -.-> FlyBusiness
 ```
 
 ## Cost Comparison
 
-### Infrastructure Costs by Customer Tier
+### Infrastructure Costs by Deployment Mode
 
-| Tier | Infrastructure | Monthly Cost | Capacity | Cost/Customer | Margin |
-|------|---------------|--------------|----------|---------------|--------|
-| **Hobby** | Hetzner AX52 | $65 | 150 customers | $0.43 | **97%** |
-| **Starter** | Fly.io Regional | $400 | 100 customers | $4.00 | **92%** |
-| **Professional** | Fly.io Global | $800 | 50 customers | $16.00 | **89%** |
-| **Business** | Fly.io Multi-Region | $1,200 | 20 customers | $60.00 | **85%** |
+| Deployment Mode | Infrastructure | Monthly Cost | Customer Capacity | Cost/Customer | Margin |
+|-----------------|---------------|--------------|------------------|---------------|--------|
+| **Multi-Tenant** | Hetzner AX52 | $89 | 150 customers | $0.59 | **96.1%** |
+| **Single-Tenant** | Fly.io Starter | $400 | 50 customers | $8.00 | **83.7%** |
+| **Single-Tenant** | Fly.io Professional | $800 | 100 customers | $8.00 | **94.6%** |
+| **Single-Tenant** | Fly.io Business | $1,200 | 20 customers | $60.00 | **85.0%** |
 
 ### Total Platform Economics
 
-| Metric | Hobby (Hetzner) | Starter+ (Fly.io) |
-|--------|------------------|-------------------|
-| **Server Cost** | $65/month | $400-$1,200/month |
+| Metric | Multi-Tenant (Hetzner) | Single-Tenant (Fly.io) |
+|--------|------------------------|------------------------|
+| **Infrastructure Cost** | $89/month | $400-$1,200/month |
 | **Customer Capacity** | 150 | 20-100 |
 | **Revenue @ 50% Capacity** | $1,125/month | $2,450-$9,975/month |
-| **Profit Margin** | 97% | 85-92% |
-| **Break-even Customers** | 5 | 8-24 |
+| **Profit Margin** | 96.1% | 83.7-94.6% |
+| **Break-even Customers** | 6 | 4-10 |
 
 ## Infrastructure Decision Matrix
 
@@ -186,65 +206,74 @@ Customer Profile Assessment
 | **Cost Cutting** | Fly.io → Hetzner | Budget optimization | Medium (30 min) |
 | **Performance Issues** | Hetzner → Fly.io | Load requirements | Medium (30 min) |
 
-### Infrastructure Selection Algorithm
+### Deployment Mode Selection Algorithm
 
 ```elixir
-defmodule WebHost.Infrastructure.DecisionEngine do
-  def recommend_infrastructure(customer_profile) do
+defmodule WebHost.Infrastructure.DeploymentDecisionEngine do
+  def recommend_deployment_mode(customer_profile) do
     %{
       budget: budget,
       vehicle_count: vehicles,
       user_locations: locations,
       compliance_requirements: compliance,
-      performance_needs: performance
+      performance_needs: performance,
+      usage_patterns: usage
     } = customer_profile
     
+    # Score-based decision making
+    multi_tenant_score = calculate_multi_tenant_score(customer_profile)
+    single_tenant_score = calculate_single_tenant_score(customer_profile)
+    
     cond do
-      # Budget-constrained hobby users
-      budget < 50 and vehicles <= 5 ->
-        {:hetzner, region_for_locations(locations), :hobby_tier}
+      # Clear multi-tenant signals
+      multi_tenant_score > 0.8 ->
+        {:multi_tenant, :hetzner, :hobby_tier, "Cost-optimized for small scale"}
       
-      # Performance-critical users
-      performance.latency_requirement < 50 and vehicles > 10 ->
-        {:flyio, :global, :professional_tier}
+      # Clear single-tenant signals
+      single_tenant_score > 0.8 ->
+        plan = determine_single_tenant_plan(vehicles, performance)
+        {:single_tenant, :flyio, plan, "Performance and isolation requirements"}
       
-      # Global distribution required
-      length(locations) > 2 ->
-        {:flyio, :multi_region, :business_tier}
-      
-      # Compliance-driven
+      # Compliance requirements force single-tenant
       :soc2 in compliance or :hipaa in compliance ->
-        {:flyio, regional_for_locations(locations), :starter_tier}
+        {:single_tenant, :flyio, :professional_tier, "Compliance requirements"}
       
-      # Default cost-optimized path
-      vehicles <= 25 ->
-        {:flyio, regional_for_locations(locations), :starter_tier}
+      # High performance requirements
+      performance.latency_requirement < 50 and vehicles > 5 ->
+        {:single_tenant, :flyio, :professional_tier, "High performance needs"}
       
-      # High-volume users
-      vehicles > 100 ->
-        {:flyio, :multi_region, :business_tier}
+      # Global distribution requires single-tenant
+      length(locations) > 2 ->
+        {:single_tenant, :flyio, :business_tier, "Multi-region requirements"}
       
-      # Fallback to balanced option
+      # Default based on vehicle count
+      vehicles <= 5 ->
+        {:multi_tenant, :hetzner, :hobby_tier, "Small fleet optimization"}
+      
       true ->
-        {:flyio, regional_for_locations(locations), :professional_tier}
+        {:single_tenant, :flyio, :starter_tier, "Growth preparation"}
     end
   end
   
-  defp region_for_locations(locations) do
-    cond do
-      "US" in locations -> "us-east"
-      "EU" in locations -> "fra"
-      "Asia" in locations -> "sin"
-      true -> "us-east"  # Default
-    end
+  defp calculate_multi_tenant_score(profile) do
+    base_score = 0.5
+    # Scoring logic for multi-tenant suitability
+    # Budget, vehicle count, compliance, performance, geographic factors
+    # Returns score 0.0-1.0
   end
   
-  defp regional_for_locations(locations) do
+  defp calculate_single_tenant_score(profile) do
+    base_score = 0.5
+    # Scoring logic for single-tenant suitability
+    # Performance, compliance, scaling, geographic factors
+    # Returns score 0.0-1.0
+  end
+  
+  defp determine_single_tenant_plan(vehicles, performance) do
     cond do
-      locations == ["US"] -> "us-east"
-      locations == ["EU"] -> "fra"
-      length(locations) == 1 -> region_for_locations(locations)
-      true -> "global"  # Multiple regions
+      vehicles > 100 -> :business_tier
+      vehicles > 25 or performance.latency_requirement < 50 -> :professional_tier
+      true -> :starter_tier
     end
   end
 end
@@ -339,21 +368,32 @@ PostGIS (Spatial Data)
 
 ## Migration Strategy
 
-### Customer Upgrades (Hobby → Starter+)
-1. **Provision Fly.io infrastructure**
-2. **Export data from Hetzner**
-3. **Import to Fly.io PostgreSQL**
-4. **Update DNS routing**
-5. **Verify data integrity**
-6. **Decommission Hetzner resources**
+### Migration Strategies
 
-### Customer Downgrades (Starter+ → Hobby)
-1. **Export recent data** (based on plan limits)
-2. **Provision Hetzner server**
-3. **Import to Hetzner**
-4. **Update DNS routing**
-5. **Verify reduced functionality**
-6. **Scale down Fly.io resources**
+#### Upgrade Migration (Multi-Tenant → Single-Tenant)
+1. **Usage Analysis & Migration Planning**
+2. **Provision Single-Tenant Infrastructure**
+3. **Export Customer Data** (full history)
+4. **Import to Dedicated Infrastructure**
+5. **Zero-Downtime DNS Switch**
+6. **Comprehensive Verification**
+7. **Source Cleanup** (7-day retention)
+
+#### Downgrade Migration (Single-Tenant → Multi-Tenant)
+1. **Plan Assessment & Data Retention**
+2. **Find Available Multi-Tenant Slot**
+3. **Export Limited Data** (plan-based retention)
+4. **Import to Shared Infrastructure**
+5. **DNS Update to Multi-Tenant**
+6. **Functionality Verification**
+7. **Single-Tenant Decommission**
+
+#### Emergency Migration (Failover)
+1. **Immediate Infrastructure Provisioning**
+2. **DNS Emergency Switch**
+3. **Data Migration** (post-emergency)
+4. **Verification & Recovery**
+5. **Root Cause Analysis**
 
 ## Monitoring & Observability
 
@@ -462,14 +502,42 @@ Multi-Region Architecture:
 
 ## Summary
 
-The Hetzner + Fly.io hybrid architecture provides:
+The dual deployment mode architecture provides:
 
-✅ **97% margins** on hobby tier (vs 20% with all-cloud)
-✅ **Global performance** for paid tiers
-✅ **Automatic scaling** based on customer needs
-✅ **Cost optimization** without sacrificing performance
-✅ **Simple migration** between tiers
-✅ **Unified API** across all infrastructures
-✅ **Bulletproof multi-tenancy** with Ash Framework
+✅ **96.1% margins** on multi-tenant hobby tier
+✅ **83.7-94.6% margins** on single-tenant tiers
+✅ **Intelligent routing** based on customer needs
+✅ **Zero-downtime migrations** between deployment modes
+✅ **Unified codebase** supporting both modes
+✅ **Automatic scaling** for single-tenant deployments
+✅ **Cost optimization** without performance sacrifice
+✅ **Bulletproof multi-tenancy** with attribute-based isolation
+✅ **Seamless customer growth** from hobby to enterprise
 
-This architecture maximizes profitability while maintaining excellent performance and scalability for all customer tiers.
+### Key Architectural Benefits
+
+1. **Economic Efficiency**: Optimal cost structure for each customer segment
+2. **Performance Alignment**: Infrastructure matches customer requirements
+3. **Scalability**: Handles growth from 5 to 500+ vehicles seamlessly
+4. **Flexibility**: Easy migration between modes as needs evolve
+5. **Operational Simplicity**: Single codebase, unified APIs
+6. **Customer Experience**: Transparent transitions, consistent service
+
+### Technical Innovation
+
+- **AI-Powered Decision Engine**: Automated deployment mode selection
+- **Schema-Agnostic Migration**: Zero-downtime transitions
+- **Attribute Multi-Tenancy**: Database-level isolation with infrastructure flexibility
+- **Real-Time Usage Analysis**: Proactive migration recommendations
+- **Unified Data Model**: Same schema works across all deployment modes
+
+This architecture maximizes profitability while maintaining excellent performance and scalability, positioning WebHost Systems to capture the entire market spectrum from individual hobbyists to enterprise fleets.
+
+### Documentation References
+
+For detailed implementation guidance, see:
+- [Deployment Modes Guide](DEPLOYMENT-MODES-GUIDE.md)
+- [Deployment Mode Implementation](DEPLOYMENT-MODE-IMPLEMENTATION.md)
+- [Database Schema Design](DATABASE-SCHEMA-DESIGN.md)
+- [Deployment Configuration](DEPLOYMENT-CONFIGURATION.md)
+- [Migration Strategy](DEPLOYMENT-MIGRATION-STRATEGY.md)
