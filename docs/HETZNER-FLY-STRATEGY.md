@@ -123,42 +123,18 @@ Capacity: 80-100 hobby customers
 
 ## 💰 Economic Analysis
 
-### Cost Comparison: Updated
+For detailed economic analysis, including cost comparisons, break-even analysis, and financial projections, please refer to:
 
-#### Hobby Tier ($15/month) - 50 Customers
+**[ECONOMIC-ANALYSIS.md](ECONOMIC-ANALYSIS.md)** - Comprehensive financial analysis with updated Hetzner + Fly.io hybrid model.
 
-| Infrastructure | Monthly Cost | Cost/Customer | Margin | Revenue | Profit |
-|----------------|--------------|---------------|--------|---------|--------|
-| **Home Datacenter** | $178 | $3.56 | 76% | $750 | $572 |
-| **Hetzner AX52** | $65 | $1.30 | **91%** | $750 | **$685** |
-| **Hetzner Cloud CAX41** | $32 | $0.64 | **96%** | $750 | **$718** |
-| **Fly.io** | $600 | $12.00 | 20% | $750 | $150 |
+### Key Economic Highlights
 
-#### Starter Tier ($49/month) - 20 Customers
+- **Hobby Tier**: 91-96% margins with Hetzner (vs 20% with Fly.io)
+- **Break-even**: 3-5 customers (vs 15+ with cloud-only)
+- **Year 1 Profit**: $30K+ (vs $12K with home datacenter)
+- **No Upfront Investment**: Professional infrastructure from day one
 
-| Infrastructure | Monthly Cost | Cost/Customer | Margin | Revenue | Profit |
-|----------------|--------------|---------------|--------|---------|--------|
-| **Hetzner AX52** | $65 | $3.25 | **93%** | $980 | **$915** |
-| **Hetzner AX102** | $165 | $8.25 | **83%** | $980 | **$815** |
-| **Fly.io** | $500 | $25.00 | 49% | $980 | $480 |
-
-### Break-Even Analysis
-
-#### Hetzner Cloud CAX41 ($32/month)
-```
-Break-even: 3 customers
-Time to break-even: 2-4 weeks (realistic)
-Profit at 50 customers: $718/month
-ROI: 2,244%
-```
-
-#### Hetzner AX52 ($65/month)
-```
-Break-even: 5 customers
-Time to break-even: 4-8 weeks (realistic)
-Profit at 100 customers: $1,435/month
-ROI: 2,208%
-```
+See ECONOMIC-ANALYSIS.md for complete financial models, projections, and ROI calculations.
 
 ---
 
@@ -416,38 +392,18 @@ end
 
 ## 📈 Financial Projections
 
-### Year 1 (Conservative)
-```
-Customers: 100 hobby + 15 starter + 3 pro
-Revenue: $2,682/month × 12 = $32,184/year
-Costs: $265/month × 12 = $3,180/year
-Profit: $28,944/year
-Margin: 90%
-Time investment: 300 hours
-Hourly rate: $96/hour (good!)
-```
+For detailed financial projections including 3-year forecasts, ROI analysis, and growth scenarios, please refer to:
 
-### Year 2 (Moderate)
-```
-Customers: 200 hobby + 40 starter + 12 pro
-Revenue: $6,408/month × 12 = $76,896/year
-Costs: $665/month × 12 = $7,980/year
-Profit: $68,916/year
-Margin: 90%
-Time investment: 200 hours (maintenance)
-Hourly rate: $345/hour (excellent!)
-```
+**[ECONOMIC-ANALYSIS.md](ECONOMIC-ANALYSIS.md)** - Complete financial models with conservative, moderate, and optimistic scenarios.
 
-### Year 3 (Optimistic)
-```
-Customers: 300 hobby + 80 starter + 30 pro + 8 business
-Revenue: $13,412/month × 12 = $160,944/year
-Costs: $1,530/month × 12 = $18,360/year
-Profit: $142,584/year
-Margin: 89%
-Time investment: 400 hours (scaling)
-Hourly rate: $356/hour (amazing!)
-```
+### Projection Summary
+
+- **Year 1**: $30K+ profit with 100+ customers
+- **Year 2**: $70K+ profit with 250+ customers
+- **Year 3**: $140K+ profit with 400+ customers
+- **5-Year Total**: $1.6M+ profit potential
+
+See ECONOMIC-ANALYSIS.md for detailed assumptions, sensitivity analysis, and risk assessment.
 
 ---
 
@@ -457,7 +413,7 @@ Hourly rate: $356/hour (amazing!)
 ```bash
 1. Register domain: webhost.systems ($15/year)
 2. Hetzner Cloud CAX41: $32/month
-3. Hetzner Storage Box: $3/month (backups)
+3. Hetzner Storage Box: €3.81/month (~$4.15) (backups)
 4. Stripe account: $0 (free)
 5. Email service: $10/month (Postmark)
 Total: ~$50 first month

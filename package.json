@@ -1,0 +1,12 @@
+{
+  "name": "webhost.systems-docs",
+  "version": "1.0.0",
+  "description": "Documentation system for WebHost.Systems",
+  "scripts": {
+    "generate-docs-index": "node scripts/generate-docs-index.js",
+    "watch-docs": "node scripts/watch-docs.js"
+  },
+  "devDependencies": {
+    "chokidar": "^3.5.3"
+  }
+}

@@ -306,15 +306,15 @@ processes = []
 
 [env]
   PHX_HOST = "webhost-prod.fly.dev"
-  PORT = "8080"
+  PORT = "4000"
 
 [experimental]
-  allowed_public_ports = [8080]
+  allowed_public_ports = [4000]
   auto_rollback = true
 
 [[services]]
   protocol = "tcp"
-  internal_port = 8080
+  internal_port = 4000
   processes = ["app"]
 
   [[services.ports]]
@@ -1032,7 +1032,7 @@ POSTMARK_API_TOKEN=your_postmark_api_token
 
 # Monitoring
 SENTRY_DSN=your_sentry_dsn
-FLIO_METRICS_ENABLED=true
+FLYIO_METRICS_ENABLED=true
 
 # Scaling Configuration
 AUTOSCALING_ENABLED=true

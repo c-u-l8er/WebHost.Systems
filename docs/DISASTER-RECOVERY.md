@@ -236,8 +236,358 @@ WebHost Systems uses a multi-cloud architecture with automated backups and redun
    # Run smoke tests
    mix test --only smoke
    ```
-
-## Backup and Recovery Procedures
+   
+   ### 6. Hetzner Storage Box Failure
+   
+   **Severity**: High
+   **Impact**: Backup storage unavailable, potential data loss
+   **RTO**: 2 hours
+   **RPO**: 24 hours (last successful backup)
+   
+   #### Recovery Steps:
+   
+   1. **Check Storage Box Status**
+      ```bash
+      # Check storage box connectivity
+      ssh backup@storage.box.hetzner.com "df -h"
+      
+      # Check backup integrity
+      ssh backup@storage.box.hetzner.com "ls -la /backups/"
+      ```
+   
+   2. **Attempt Storage Box Recovery**
+      ```bash
+      # Restart storage box services
+      ssh backup@storage.box.hetzner.com "sudo systemctl restart sshd"
+      
+      # Check disk space
+      ssh backup@storage.box.hetzner.com "du -sh /backups/*"
+      ```
+   
+   3. **Provision Replacement Storage Box if Needed**
+      ```bash
+      # Order new storage box via Hetzner API
+      curl -X POST \
+           -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+           -H "Content-Type: application/json" \
+           -d '{"name":"backup-replacement","server_type":"storage-box","location":"nbg1"}' \
+           https://api.hetzner.cloud/v1/storage_boxes
+      
+      # Transfer backups to new storage
+      rsync -av --progress old-storage:/backups/ new-storage:/backups/
+      ```
+   
+   4. **Verify Backup Chain Integrity**
+      ```bash
+      # Verify latest database backup
+      gunzip -t /backups/db_$(date +%Y%m%d).sql.gz
+      
+      # Verify sync updates backup
+      tar -tzf /backups/sync_$(date +%Y%m%d_%H).tar.gz | head -10
+      ```
+   
+   ### 7. Docker Container Failure on Hetzner
+   
+   **Severity**: Medium
+   **Impact**: Application service unavailable
+   **RTO**: 30 minutes
+   **RPO**: 0 (no data loss)
+   
+   #### Recovery Steps:
+   
+   1. **Check Container Status**
+      ```bash
+      # Check running containers
+      docker ps -a
+      
+      # Check container logs
+      docker logs webhost-app --tail 100
+      ```
+   
+   2. **Restart Failed Containers**
+      ```bash
+      # Restart all services
+      cd /var/www/webhost
+      docker-compose restart
+      
+      # Or restart specific service
+      docker-compose restart webhost-app
+      ```
+   
+   3. **Rebuild Container if Needed**
+      ```bash
+      # Pull latest image
+      docker-compose pull webhost-app
+      
+      # Rebuild and restart
+      docker-compose up -d --force-recreate webhost-app
+      ```
+   
+   4. **Verify Application Health**
+      ```bash
+      # Check health endpoint
+      curl -f http://localhost:4000/health || echo "Health check failed"
+      
+      # Check database connectivity
+      docker-compose exec webhost-app mix ecto.ping
+      ```
+   
+   ### 8. Cross-Infrastructure Failover (Hetzner → Fly.io)
+   
+   **Severity**: Critical
+   **Impact**: Emergency migration during extended Hetzner outage
+   **RTO**: 4 hours
+   **RPO**: 1 hour
+   
+   #### Recovery Steps:
+   
+   1. **Declare Emergency Failover**
+      ```bash
+      # Trigger emergency workflow
+      ./scripts/emergency-failover.sh trigger hetzner-to-flyio
+      ```
+   
+   2. **Provision Emergency Fly.io Resources**
+      ```bash
+      # Scale up Fly.io to handle hobby tier load
+      flyctl scale count 5 -a webhost-prod
+      flyctl scale memory 2048 -a webhost-prod
+      
+      # Provision temporary database
+      flyctl pg create --name webhost-emergency-db --region fra
+      ```
+   
+   3. **Export Latest Hetzner Data**
+      ```bash
+      # Export customer data
+      ./scripts/hetzner-backup.sh export-customers
+      
+      # Export GPS data (last 24 hours)
+      ./scripts/hetzner-backup.sh export-gps --since "24 hours ago"
+      
+      # Export sync updates
+      ./scripts/hetzner-backup.sh export-sync-updates
+      ```
+   
+   4. **Import to Fly.io**
+      ```bash
+      # Import to emergency database
+      flyctl pg import -a webhost-emergency-db /tmp/customer_export.sql
+      flyctl pg import -a webhost-emergency-db /tmp/gps_export.sql
+      flyctl pg import -a webhost-emergency-db /tmp/sync_export.sql
+      ```
+   
+   5. **Update DNS Configuration**
+      ```bash
+      # Update DNS to point to Fly.io
+      curl -X PUT \
+           -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+           -H "Content-Type: application/json" \
+           -d '{"type":"A","name":"@","content":"FLY_IO_IP","ttl":60}' \
+           "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID"
+      ```
+   
+   6. **Verify Emergency Operations**
+      ```bash
+      # Test API endpoints
+      curl https://webhost-prod.fly.dev/api/health
+      
+      # Verify customer access
+      curl -H "Authorization: Bearer $TEST_API_KEY" \
+           https://webhost-prod.fly.dev/api/vehicles
+      ```
+   
+   ## Hetzner-Specific Recovery Procedures
+   
+   ### Storage Box Backup & Restore
+   
+   #### Daily Backup Verification
+   ```bash
+   #!/bin/bash
+   # /scripts/verify-hetzner-backups.sh
+   
+   DATE=$(date +%Y%m%d)
+   BACKUP_DIR="/backups"
+   
+   # Verify database backup exists and is valid
+   if [ -f "$BACKUP_DIR/db_$DATE.sql.gz" ]; then
+       echo "✓ Database backup exists"
+       if gunzip -t "$BACKUP_DIR/db_$DATE.sql.gz"; then
+           echo "✓ Database backup is valid"
+       else
+           echo "✗ Database backup is corrupted"
+           exit 1
+       fi
+   else
+       echo "✗ Database backup missing"
+       exit 1
+   fi
+   
+   # Verify sync updates backup
+   SYNC_BACKUP=$(find $BACKUP_DIR -name "sync_$DATE_*.tar.gz" | sort | tail -1)
+   if [ -n "$SYNC_BACKUP" ]; then
+       echo "✓ Sync updates backup exists"
+       if tar -tzf "$SYNC_BACKUP" >/dev/null 2>&1; then
+           echo "✓ Sync updates backup is valid"
+       else
+           echo "✗ Sync updates backup is corrupted"
+           exit 1
+       fi
+   else
+       echo "✗ Sync updates backup missing"
+       exit 1
+   fi
+   
+   echo "All backups verified successfully"
+   ```
+   
+   #### Complete Storage Box Restore
+   ```bash
+   #!/bin/bash
+   # /scripts/restore-hetzner-storage.sh
+   
+   BACKUP_DATE=$1
+   if [ -z "$BACKUP_DATE" ]; then
+       BACKUP_DATE=$(date +%Y%m%d)
+   fi
+   
+   BACKUP_DIR="/backups"
+   DB_BACKUP="$BACKUP_DIR/db_$BACKUP_DATE.sql.gz"
+   SYNC_BACKUP=$(find $BACKUP_DIR -name "sync_$BACKUP_DATE_*.tar.gz" | sort | tail -1)
+   
+   echo "Restoring from backup date: $BACKUP_DATE"
+   
+   # Stop application services
+   docker-compose stop webhost-app
+   
+   # Restore database
+   if [ -f "$DB_BACKUP" ]; then
+       echo "Restoring database..."
+       gunzip -c "$DB_BACKUP" | psql -U postgres webhost_prod
+       echo "✓ Database restored"
+   else
+       echo "✗ Database backup not found: $DB_BACKUP"
+       exit 1
+   fi
+   
+   # Restore sync updates
+   if [ -f "$SYNC_BACKUP" ]; then
+       echo "Restoring sync updates..."
+       tar -xzf "$SYNC_BACKUP" -C /var/lib/postgresql/
+       chown -R postgres:postgres /var/lib/postgresql/sync_updates/
+       echo "✓ Sync updates restored"
+   else
+       echo "✗ Sync updates backup not found"
+       exit 1
+   fi
+   
+   # Restart services
+   docker-compose start webhost-app
+   
+   # Verify restoration
+   sleep 10
+   if curl -f http://localhost:4000/health; then
+       echo "✓ Application restored successfully"
+   else
+       echo "✗ Application health check failed"
+       exit 1
+   fi
+   ```
+   
+   ### Docker Container Recovery
+   
+   #### Container Health Monitoring
+   ```bash
+   #!/bin/bash
+   # /scripts/monitor-docker-health.sh
+   
+   CONTAINER_NAME="webhost-app"
+   MAX_RESTARTS=3
+   RESTART_COUNT=0
+   
+   check_container() {
+       if ! docker ps | grep -q $CONTAINER_NAME; then
+           echo "Container $CONTAINER_NAME is not running"
+           
+           if [ $RESTART_COUNT -lt $MAX_RESTARTS ]; then
+               echo "Attempting restart ($((RESTART_COUNT + 1))/$MAX_RESTARTS)"
+               docker-compose restart $CONTAINER_NAME
+               RESTART_COUNT=$((RESTART_COUNT + 1))
+               sleep 30
+               return 1
+           else
+               echo "Maximum restart attempts reached"
+               return 2
+           fi
+       fi
+       
+       # Check health endpoint
+       if curl -f http://localhost:4000/health >/dev/null 2>&1; then
+           echo "✓ Container is healthy"
+           RESTART_COUNT=0
+           return 0
+       else
+           echo "Container health check failed"
+           return 1
+       fi
+   }
+   
+   # Monitor for 5 minutes
+   for i in {1..10}; do
+       check_container
+       case $? in
+           0) echo "Container is healthy"; exit 0 ;;
+           1) echo "Retrying..." ;;
+           2) echo "Container recovery failed"; exit 1 ;;
+       esac
+       sleep 30
+   done
+   ```
+   
+   #### Complete Container Rebuild
+   ```bash
+   #!/bin/bash
+   # /scripts/rebuild-container.sh
+   
+   echo "Rebuilding WebHost container..."
+   
+   # Backup current configuration
+   docker-compose config > docker-compose.backup.yml
+   
+   # Pull latest images
+   docker-compose pull
+   
+   # Stop all services
+   docker-compose down
+   
+   # Clean up unused images and containers
+   docker system prune -f
+   
+   # Rebuild and start services
+   docker-compose up -d --build
+   
+   # Wait for services to start
+   sleep 60
+   
+   # Verify all services are running
+   if docker-compose ps | grep -q "Up"; then
+       echo "✓ Services rebuilt successfully"
+   else
+       echo "✗ Some services failed to start"
+       docker-compose logs
+       exit 1
+   fi
+   
+   # Run health checks
+   if curl -f http://localhost:4000/health; then
+       echo "✓ Application is healthy"
+   else
+       echo "✗ Application health check failed"
+       exit 1
+   fi
+   ```
+   
+   ## Backup and Recovery Procedures
 
 ### Automated Backups
 
@@ -440,4 +790,8 @@ flyctl pg backup list -a webhost-prod-db
 | Component | RTO | RPO | Notes |
 |-----------|-----|-----|-------|
 | Database (Fly.io) | 2 hours | 15 minutes | Automated backups |
-| Database (Hetzner) | 4 hours | 1 hour | Manual intervention
+| Database (Hetzner) | 4 hours | 1 hour | Manual intervention |
+| Application Server (Fly.io) | 30 minutes | 0 | Auto-scaling available |
+| Application Server (Hetzner) | 2 hours | 0 | Requires manual restart |
+| DNS/Domain | 1 hour | 0 | Cloudflare redundancy |
+| Complete Region Outage | 4 hours | 1 hour | Multi-region failover |

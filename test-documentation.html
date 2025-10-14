@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Test - WebHost.Systems</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Documentation System Test</h1>
+    <p>This page tests the dynamic document discovery functionality.</p>
+    
+    <div>
+        <button onclick="testDocumentDiscovery()">Test Document Discovery</button>
+        <button onclick="testSpecificFile()">Test Specific File</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        const docsToTest = [
+            'ARCHITECTURE-UPDATE.md',
+            'DISASTER-RECOVERY.md',
+            'DOCUMENTATION-INDEX.md',
+            'ECONOMIC-ANALYSIS.md',
+            'ENVIRONMENT-VARIABLES.md',
+            'FLYIO-DEPLOYMENT-GUIDE.md',
+            'GETTING-STARTED-DEVELOPERS.md',
+            'HETZNER-FLY-STRATEGY.md',
+            'HETZNER-SETUP-GUIDE.md',
+            'PHASE0.md',
+            'PHASE1.md',
+            'PHASE2.md',
+            'PHASE3-6.md',
+            'PRICING-PROFIT-ANALYSIS.md',
+            'TEST-DYNAMIC-DISCOVERY.md',
+            'TROUBLESHOOTING-GUIDE.md',
+            'VALIDATION-REPORT.md'
+        ];
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testDocumentDiscovery() {
+            addResult('Starting document discovery test...', 'info');
+            
+            let foundCount = 0;
+            let missingCount = 0;
+            const foundDocs = [];
+            const missingDocs = [];
+            
+            for (const doc of docsToTest) {
+                try {
+                    const response = await fetch(`docs/${doc}`, { method: 'HEAD' });
+                    if (response.ok) {
+                        foundCount++;
+                        foundDocs.push(doc);
+                        addResult(`✓ Found: ${doc}`, 'success');
+                    } else {
+                        missingCount++;
+                        missingDocs.push(doc);
+                        addResult(`✗ Missing: ${doc} (${response.status})`, 'error');
+                    }
+                } catch (error) {
+                    missingCount++;
+                    missingDocs.push(doc);
+                    addResult(`✗ Error checking ${doc}: ${error.message}`, 'error');
+                }
+            }
+            
+            addResult(`Discovery complete. Found: ${foundCount}, Missing: ${missingCount}`, 'info');
+            
+            if (foundCount > 0) {
+                addResult(`Available documents: ${foundDocs.join(', ')}`, 'success');
+            }
+            
+            if (missingCount > 0) {
+                addResult(`Missing documents: ${missingDocs.join(', ')}`, 'error');
+            }
+        }
+        
+        async function testSpecificFile() {
+            const filename = prompt('Enter a filename to test (e.g., TEST-DYNAMIC-DISCOVERY.md):');
+            if (!filename) return;
+            
+            addResult(`Testing specific file: ${filename}`, 'info');
+            
+            try {
+                const response = await fetch(`docs/${filename}`);
+                if (response.ok) {
+                    const content = await response.text();
+                    addResult(`✓ Successfully loaded ${filename} (${content.length} characters)`, 'success');
+                    addResult(`First 100 characters: ${content.substring(0, 100)}...`, 'info');
+                } else {
+                    addResult(`✗ Failed to load ${filename}: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Error loading ${filename}: ${error.message}`, 'error');
+            }
+        }
+        
+        // Run test automatically when page loads
+        window.addEventListener('load', function() {
+            addResult('Page loaded. Ready to test documentation system.', 'info');
+        });
+    </script>
+</body>
+</html>

@@ -51,7 +51,7 @@ cat ~/.ssh/id_ed25519.pub
 1. Log into Hetzner Cloud Console
 2. Click "Servers" → "Add Server"
 3. Configure:
-   - **Location**: Ashburn (ash), Hillsboro (hil), or Phoenix (phx)
+   - **Location**: Ashburn (ash), Hillsboro (hil), Phoenix (phx) for US customers; Nuremberg (nbg1), Falkenstein (fsn1), or Helsinki (hel1) for EU customers
    - **Server Type**: AX52 (recommended) or CAX21 (budget)
    - **Image**: Ubuntu 22.04
    - **SSH Key**: Add your public key
@@ -167,7 +167,7 @@ su - webhost
 
 # Clone WebHost repository
 cd /opt/webhost
-git clone https://github.com/your-org/webhost.git .
+git clone https://github.com/c-u-l8er/WebHost.Systems.git .
 
 # Create environment file
 cat > .env << EOF
@@ -790,8 +790,8 @@ ORDER BY mean_time DESC;"
 
 ### WebHost Systems Support
 
-- **Documentation**: docs.webhost.systems
-- **GitHub Issues**: github.com/your-org/webhost/issues
+- **Documentation**: webhost.systems/documentation
+- **GitHub Issues**: github.com/c-u-l8er/WebHost.Systems/issues
 - **Community**: discord.gg/webhost-systems
 
 ### Emergency Contacts
@@ -840,15 +840,16 @@ Expected performance per AX52 server:
 
 ```
 Monthly costs:
-- Server: $65
-- Backup: $3
-- Domain: $10
-- Monitoring: $5
-- Total: $83
+- Server: €65 (~$70)
+- Storage Box (BX11 1TB): €3.81 (~$4.15)
+- Domain: €10 (~$11)
+- Monitoring: €5 (~$5)
+- Total: €83.81 (~$90)
 
 Revenue at 150 customers:
 - 150 × $15 = $2,250/month
-- Profit: $2,161/month
+- Cost: $90/month
+- Profit: $2,160/month
 - Margin: 96%
 ```
 

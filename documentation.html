@@ -631,22 +631,8 @@
         // Set dynamic copyright year
         document.getElementById('current-year').textContent = new Date().getFullYear();
         
-        // Documentation data
-        const docs = [
-            'ARCHITECTURE-UPDATE.md',
-            'DISASTER-RECOVERY.md',
-            'DOCUMENTATION-FIXES-SUMMARY.md',
-            'ECONOMIC-ANALYSIS.md',
-            'ENVIRONMENT-VARIABLES.md',
-            'FLYIO-DEPLOYMENT-GUIDE.md',
-            'HETZNER-FLY-STRATEGY.md',
-            'HETZNER-SETUP-GUIDE.md',
-            'PHASE0.md',
-            'PHASE1.md',
-            'PHASE2.md',
-            'PHASE3-6.md',
-            'PRICING-PROFIT-ANALYSIS.md'
-        ];
+        // Documentation data - will be populated dynamically
+        let docs = [];
         
         let currentDoc = null;
         let allDocsContent = {};
@@ -661,6 +647,8 @@
                     console.warn('Marked.js initialization failed, continuing with basic functionality');
                 }
                 
+                // Discover documents dynamically
+                await discoverDocs();
                 await loadAllDocs();
                 console.log('Documents loaded:', Object.keys(allDocsContent));
                 renderDocList();
@@ -678,8 +666,95 @@
             }
         }
         
+        // Discover markdown files in the docs folder
+        async function discoverDocs() {
+            try {
+                console.log('Discovering documents in docs folder...');
+                
+                // Try to fetch the dynamic index first
+                try {
+                    const response = await fetch('docs/index.json');
+                    if (response.ok) {
+                        const index = await response.json();
+                        docs = index.documents.sort();
+                        console.log('Loaded documents from index.json:', docs);
+                        console.log('Index generated at:', index.generated);
+                        return;
+                    }
+                } catch (indexError) {
+                    console.log('Could not load index.json, falling back to discovery:', indexError.message);
+                }
+                
+                // Fallback: Try to discover documents by testing common patterns
+                console.log('Using fallback discovery method...');
+                const commonPatterns = [
+                    'ARCHITECTURE-UPDATE.md',
+                    'DISASTER-RECOVERY.md',
+                    'DOCUMENTATION-INDEX.md',
+                    'ECONOMIC-ANALYSIS.md',
+                    'ENVIRONMENT-VARIABLES.md',
+                    'FLYIO-DEPLOYMENT-GUIDE.md',
+                    'GETTING-STARTED-DEVELOPERS.md',
+                    'HETZNER-FLY-STRATEGY.md',
+                    'HETZNER-SETUP-GUIDE.md',
+                    'PHASE0.md',
+                    'PHASE1.md',
+                    'PHASE2.md',
+                    'PHASE3-6.md',
+                    'PRICING-PROFIT-ANALYSIS.md',
+                    'TROUBLESHOOTING-GUIDE.md',
+                    'VALIDATION-REPORT.md',
+                    'TEST-DYNAMIC-DISCOVERY.md'
+                ];
+                
+                // Test each document to see if it exists
+                const existingDocs = [];
+                for (const doc of commonPatterns) {
+                    try {
+                        const response = await fetch(`docs/${doc}`, { method: 'HEAD' });
+                        if (response.ok) {
+                            existingDocs.push(doc);
+                            console.log(`Found document: ${doc}`);
+                        }
+                    } catch (error) {
+                        console.log(`Document not found: ${doc}`);
+                    }
+                }
+                
+                // Sort documents alphabetically
+                docs = existingDocs.sort();
+                console.log('Discovered documents via fallback:', docs);
+                
+                if (docs.length === 0) {
+                    throw new Error('No documents found in the docs folder');
+                }
+            } catch (error) {
+                console.error('Error discovering documents:', error);
+                // Final fallback to a basic list if all else fails
+                docs = [
+                    'ARCHITECTURE-UPDATE.md',
+                    'DISASTER-RECOVERY.md',
+                    'ECONOMIC-ANALYSIS.md',
+                    'ENVIRONMENT-VARIABLES.md',
+                    'FLYIO-DEPLOYMENT-GUIDE.md',
+                    'HETZNER-FLY-STRATEGY.md',
+                    'HETZNER-SETUP-GUIDE.md',
+                    'PHASE0.md',
+                    'PHASE1.md',
+                    'PHASE2.md',
+                    'PHASE3-6.md',
+                    'PRICING-PROFIT-ANALYSIS.md'
+                ];
+                console.log('Using final fallback document list:', docs);
+            }
+        }
+        
         // Load all documents
         async function loadAllDocs() {
+            console.log(`Starting to load ${docs.length} documents...`);
+            let loadedCount = 0;
+            let failedCount = 0;
+            
             for (const doc of docs) {
                 try {
                     console.log(`Loading document: ${doc}`);
@@ -687,13 +762,22 @@
                     if (response.ok) {
                         const content = await response.text();
                         allDocsContent[doc] = content;
-                        console.log(`Successfully loaded ${doc}`);
+                        loadedCount++;
+                        console.log(`Successfully loaded ${doc} (${content.length} characters)`);
                     } else {
+                        failedCount++;
                         console.error(`Failed to load ${doc}: ${response.status} ${response.statusText}`);
                     }
                 } catch (error) {
+                    failedCount++;
                     console.error(`Error loading ${doc}:`, error);
                 }
+            }
+            
+            console.log(`Document loading complete. Success: ${loadedCount}, Failed: ${failedCount}`);
+            
+            if (loadedCount === 0) {
+                throw new Error('No documents could be loaded');
             }
         }
         
@@ -715,6 +799,22 @@
                     loadDocument(doc);
                     window.location.hash = doc;
                 });
+                
+                // Add "NEW" badge for recently discovered documents
+                if (doc === 'TEST-DYNAMIC-DISCOVERY.md') {
+                    const badge = document.createElement('span');
+                    badge.style.cssText = `
+                        background: #22c55e;
+                        color: white;
+                        font-size: 0.7rem;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        margin-left: 8px;
+                        font-weight: 600;
+                    `;
+                    badge.textContent = 'NEW';
+                    a.appendChild(badge);
+                }
                 
                 li.appendChild(a);
                 docList.appendChild(li);
@@ -943,6 +1043,104 @@
                 initDocs();
             }
         });
+        
+        // Function to refresh document list (for dynamic updates)
+        async function refreshDocumentList() {
+            console.log('Refreshing document list...');
+            const previousDocs = [...docs];
+            const previousContent = {...allDocsContent};
+            
+            try {
+                // Reset and rediscover documents
+                docs = [];
+                allDocsContent = {};
+                await discoverDocs();
+                await loadAllDocs();
+                renderDocList();
+                
+                console.log('Document list refreshed successfully');
+                console.log('Previous documents:', previousDocs.length);
+                console.log('Current documents:', docs.length);
+                
+                // Show notification if new documents were found
+                const newDocs = docs.filter(doc => !previousDocs.includes(doc));
+                if (newDocs.length > 0) {
+                    console.log('New documents found:', newDocs);
+                    showNotification(`Found ${newDocs.length} new document(s): ${newDocs.map(d => formatDocTitle(d)).join(', ')}`);
+                }
+                
+                // Reload current document if it still exists
+                if (currentDoc && docs.includes(currentDoc)) {
+                    loadDocument(currentDoc);
+                } else if (docs.length > 0) {
+                    loadDocument(docs[0]);
+                }
+            } catch (error) {
+                console.error('Error refreshing document list:', error);
+                // Restore previous state on error
+                docs = previousDocs;
+                allDocsContent = previousContent;
+                showNotification('Failed to refresh document list', 'error');
+            }
+        }
+        
+        // Show notification message
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'error' ? '#dc2626' : '#22c55e'};
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                z-index: 1000;
+                max-width: 400px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+        
+        // Add animation styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Add keyboard shortcut to refresh documents (Ctrl+R or Cmd+R)
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                refreshDocumentList();
+            }
+        });
+        
+        // Periodic check for new documents (every 30 seconds)
+        setInterval(() => {
+            refreshDocumentList();
+        }, 30000);
     </script>
 </body>
 </html>

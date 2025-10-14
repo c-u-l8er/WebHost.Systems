@@ -1745,6 +1745,14 @@ Run migrations:
 mix ecto.migrate
 ```
 
+### Additional Migrations for Yjs Sync
+
+After the main resource migrations, also run the sync_updates migration:
+
+See: `priv/repo/migrations/20240101000000_create_sync_updates.exs`
+
+This creates the table for Yjs CRDT update persistence.
+
 ---
 
 ## Seed Data

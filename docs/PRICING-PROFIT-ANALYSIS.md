@@ -29,7 +29,7 @@ The Hetzner + Fly.io hybrid strategy dramatically improves WebHost Systems' prof
 | **Real-time Sync** | ✓ | ✓ | ✓ | ✓ |
 | **Multi-region** | ✗ | Optional | ✓ | ✓ |
 | **Support** | Email | Priority Email | Slack | Phone + Dedicated Manager |
-| **Infrastructure** | Hetzner (Germany) | Fly.io (US East) | Fly.io (Global) | Fly.io (Multi-Region) |
+| **Infrastructure** | Hetzner (US/EU datacenters) | Fly.io (US East) | Fly.io (Global) | Fly.io (Multi-Region) |
 
 ---
 

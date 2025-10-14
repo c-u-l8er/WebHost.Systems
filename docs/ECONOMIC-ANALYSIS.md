@@ -24,17 +24,17 @@ The switch from a home datacenter to a hybrid Hetzner + Fly.io infrastructure **
 | **Internet** | $80/month | $0 | $0 | **$80/month** |
 | **Backup Storage** | $20/month | $3.81/month (~$4.15) | Included | **$16.19/month** |
 | **Maintenance** | $40/month | $0 | $0 | **$40/month** |
-| **Total Monthly** | **$368/month** | **$68.81/month** | **$400-1,200/month** | **$299.19/month** |
+| **Total Monthly** | **$368/month** | **$90/month** | **$400-1,200/month** | **$278/month** |
 
 ### Customer Capacity Analysis
 
 | Metric | Home Datacenter | Hetzner AX52 | Fly.io Regional |
 |--------|-----------------|---------------|-----------------|
-| **Server Cost** | $368/month | $68.81/month | $400/month |
+| **Server Cost** | $368/month | $90/month | $400/month |
 | **Hobby Customers** | 50 | 150 | 100 |
 | **Starter Customers** | 10 | 20 | 50 |
 | **Total Capacity** | 60 customers | 170 customers | 150 customers |
-| **Cost per Customer** | $6.13 | $0.46 | $2.67 |
+| **Cost per Customer** | $6.13 | $0.60 | $2.67 |
 
 ---
 
@@ -55,16 +55,16 @@ Break-even: Month 4 (barely)
 
 #### Hetzner + Fly.io Model
 ```
-Month 1-3:   10 customers × $15 = $150/mo - $68 = $82/mo
-Month 4-6:   25 customers × $15 = $375/mo - $68 = $307/mo
-Month 7-9:   50 customers × $15 = $750/mo - $65 = $685/mo
-Month 10-12: 100 customers × $15 = $1,500/mo - $65 = $1,435/mo
+Month 1-3:   10 customers × $15 = $150/mo - $90 = $60/mo
+Month 4-6:   25 customers × $15 = $375/mo - $90 = $285/mo
+Month 7-9:   50 customers × $15 = $750/mo - $90 = $660/mo
+Month 10-12: 100 customers × $15 = $1,500/mo - $90 = $1,410/mo
 
-Year 1 Total: $5,475 revenue - $816 costs = $4,659 profit
+Year 1 Total: $5,475 revenue - $1,080 costs = $4,395 profit
 Break-even: Month 1 (immediate)
 ```
 
-**Improvement: +$7,665 profit difference**
+**Improvement: +$7,401 profit difference**
 
 ### Scenario 2: Moderate Growth (Year 2)
 
@@ -81,12 +81,12 @@ Margin: 75%
 ```
 Customers: 150 (hobby) + 20 (starter) = 170
 Revenue: (150 × $15) + (20 × $49) = $3,230/mo = $38,760/year
-Costs: $65 (Hetzner) + $400 (Fly.io) = $465 × 12 = $5,580/year
-Profit: $33,180/year
+Costs: $90 (Hetzner) + $400 (Fly.io) = $490 × 12 = $5,880/year
+Profit: $32,880/year
 Margin: 86%
 ```
 
-**Improvement: +$19,596 profit difference (144% increase)**
+**Improvement: +$19,296 profit difference (142% increase)**
 
 ### Scenario 3: Optimistic Growth (Year 3)
 
@@ -103,12 +103,12 @@ Margin: 64%
 ```
 Customers: 300 (hobby) + 50 (starter) + 15 (pro) = 365
 Revenue: (300 × $15) + (50 × $49) + (15 × $149) = $7,480/mo = $89,760/year
-Costs: $130 (2× Hetzner) + $800 (Fly.io) = $930 × 12 = $11,160/year
-Profit: $78,600/year
+Costs: $180 (2× Hetzner) + $800 (Fly.io) = $980 × 12 = $11,760/year
+Profit: $78,000/year
 Margin: 88%
 ```
 
-**Improvement: +$67,016 profit difference (578% increase)**
+**Improvement: +$66,416 profit difference (573% increase)**
 
 ---
 
@@ -120,7 +120,7 @@ Margin: 88%
 |------|-----------------|------------------|------------|
 | **Hardware** | $2,300 | $0 | -$2,300 |
 | **Setup Time** | 40 hours | 20 hours | -20 hours |
-| **Monthly Burn** | $368 | $68 | -$300 |
+| **Monthly Burn** | $368 | $90 | -$278 |
 | **Time to Profit** | 4 months | 1 month | -3 months |
 
 ### Cash Flow Timeline (First 12 Months)
@@ -144,22 +144,22 @@ Total Year 1: -$3,006 (net loss)
 
 Hetzner + Fly.io:
 Month 0:    $0 (no hardware)
-Month 1:   +$82 (immediate profit)
-Month 2:   +$150
-Month 3:   +$200
-Month 4:   +$307
-Month 5:   +$400
-Month 6:   +$500
-Month 7:   +$685
-Month 8:   +$800
-Month 9:   +$900
-Month 10: +$1,100
-Month 11: +$1,200
-Month 12: +$1,435
-Total Year 1: +$4,659 (net profit)
+Month 1:   +$60 (immediate profit)
+Month 2:   +$130
+Month 3:   +$180
+Month 4:   +$285
+Month 5:   +$380
+Month 6:   +$480
+Month 7:   +$660
+Month 8:   +$780
+Month 9:   +$880
+Month 10: +$1,080
+Month 11: +$1,180
+Month 12: +$1,410
+Total Year 1: +$4,395 (net profit)
 ```
 
-**Cash Flow Advantage: +$7,665 in first year**
+**Cash Flow Advantage: +$7,401 in first year**
 
 ---
 
@@ -170,9 +170,9 @@ Total Year 1: +$4,659 (net profit)
 | Model | Fixed Costs/Month | Price/Customer | Break-Even Customers |
 |-------|------------------|----------------|---------------------|
 | **Home Datacenter** | $368 | $15 | **25 customers** |
-| **Hetzner Only** | $68 | $15 | **5 customers** |
+| **Hetzner Only** | $90 | $15 | **6 customers** |
 | **Fly.io Only** | $400 | $15 | **27 customers** |
-| **Hybrid Model** | $465 | $15 | **31 customers** |
+| **Hybrid Model** | $490 | $15 | **33 customers** |
 
 ### Time to Break-Even
 
@@ -191,15 +191,15 @@ Total Year 1: +$4,659 (net profit)
 | Scenario | Initial Investment | Year 1 Profit | Year 1 ROI | 3-Year ROI |
 |----------|-------------------|---------------|------------|------------|
 | **Home Datacenter** | $2,300 | -$3,006 | -231% | -159% |
-| **Hetzner + Fly.io** | $0 | +$4,659 | ∞ | 1,200%+ |
-| **Improvement** | +$2,300 | +$7,665 | ∞ | 1,359%+ |
+| **Hetzner + Fly.io** | $0 | +$4,395 | ∞ | 1,100%+ |
+| **Improvement** | +$2,300 | +$7,401 | ∞ | 1,259%+ |
 
 ### Profit Per Customer
 
 | Model | Cost/Customer | Price | Profit/Customer | Margin |
 |-------|---------------|-------|-----------------|--------|
 | **Home Datacenter** | $6.13 | $15 | $8.87 | 59% |
-| **Hetzner Hobby** | $0.43 | $15 | $14.57 | 97% |
+| **Hetzner Hobby** | $0.60 | $15 | $14.40 | 96% |
 | **Fly.io Starter** | $8.00 | $49 | $41.00 | 84% |
 | **Fly.io Pro** | $16.00 | $149 | $133.00 | 89% |
 
@@ -224,7 +224,7 @@ Total Year 1: +$4,659 (net profit)
 | Risk | Home Datacenter | Hetzner + Fly.io | Impact |
 |------|-----------------|------------------|---------|
 | **Upfront Investment** | $2,300 | $0 | Eliminated |
-| **Fixed Costs** | $368/month | $68-465/month | 20-87% reduction |
+| **Fixed Costs** | $368/month | $90-490/month | 20-75% reduction |
 | **Unexpected Costs** | High | Low | Provider absorbs |
 | **Opportunity Cost** | High (time spent) | Low | 90% reduction |
 
@@ -261,7 +261,7 @@ Total Year 1: +$4,659 (net profit)
 | Region | Home Datacenter | Hetzner + Fly.io |
 |--------|-----------------|------------------|
 | **US Market** | High latency | Fly.io US East |
-| **European Market** | Not possible | Hetzner Germany |
+| **European Market** | Not possible | Hetzner (EU datacenters) |
 | **Asian Market** | Not possible | Fly.io Singapore |
 | **Global Coverage** | No | Yes |
 
@@ -389,10 +389,10 @@ Assuming:
 
 | Year | Revenue | Costs | Profit | Margin |
 |------|---------|-------|--------|--------|
-| **Year 1** | $89,760 | $11,160 | $78,600 | 88% |
-| **Year 2** | $179,520 | $22,320 | $157,200 | 88% |
-| **Year 3** | $359,040 | $44,640 | $314,400 | 88% |
-| **3-Year Total** | $628,320 | $78,120 | $550,200 | 88% |
+| **Year 1** | $89,760 | $11,760 | $78,000 | 87% |
+| **Year 2** | $179,520 | $23,520 | $156,000 | 87% |
+| **Year 3** | $359,040 | $47,040 | $312,000 | 87% |
+| **3-Year Total** | $628,320 | $82,320 | $546,000 | 87% |
 
 ---
 
@@ -422,14 +422,14 @@ Assuming:
 
 The Hetzner + Fly.io strategy transforms WebHost Systems from a hobby project into a highly profitable SaaS business:
 
-✅ **Profit margins increase from 59% to 97%**
-✅ **Break-even point drops from 25 to 5 customers**
+✅ **Profit margins increase from 59% to 96%**
+✅ **Break-even point drops from 25 to 6 customers**
 ✅ **Initial investment eliminated ($2,300 savings)**
 ✅ **Scaling capacity increases 10x**
 ✅ **Risk profile dramatically reduced**
 ✅ **Global market access enabled**
 ✅ **Operational burden reduced 90%**
 
-**Bottom Line: This infrastructure change increases profitability by 150%+ while reducing risk and enabling scalable growth.**
+**Bottom Line: This infrastructure change increases profitability by 142%+ while reducing risk and enabling scalable growth.**
 
 The economics are clear: **implement the Hetzner + Fly.io strategy immediately**.

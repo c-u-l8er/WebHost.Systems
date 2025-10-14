@@ -158,10 +158,7 @@ RUN mix release
 FROM alpine:3.18 AS app
 
 # Install runtime dependencies
-RUN apk add --no-cache openssl ncurses-libs libstdc++ \
-  && wget -O /etc/apk/keys/sgerr.rsa.pub https://alpine-pkgs.sgerr.rsa.rsa.pub \
-  && echo "https://alpine-pkgs.sgerr.rsa.rsa.pub/alpine/v3.18/community" >> /etc/apk/repositories \
-  && apk add --no-cache postgresql-client
+RUN apk add --no-cache openssl ncurses-libs libstdc++ postgresql-client
 
 WORKDIR /app
 

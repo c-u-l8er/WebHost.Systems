@@ -1,0 +1,20 @@
+{
+  "generated": "2025-10-14T16:08:30.534Z",
+  "documents": [
+    "ARCHITECTURE-UPDATE.md",
+    "DISASTER-RECOVERY.md",
+    "DOCUMENTATION-INDEX.md",
+    "ECONOMIC-ANALYSIS.md",
+    "ENVIRONMENT-VARIABLES.md",
+    "FLYIO-DEPLOYMENT-GUIDE.md",
+    "GETTING-STARTED-DEVELOPERS.md",
+    "HETZNER-FLY-STRATEGY.md",
+    "HETZNER-SETUP-GUIDE.md",
+    "PHASE0.md",
+    "PHASE1.md",
+    "PHASE2.md",
+    "PHASE3-6.md",
+    "PRICING-PROFIT-ANALYSIS.md",
+    "TROUBLESHOOTING-GUIDE.md"
+  ]
+}

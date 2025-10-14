@@ -66,7 +66,7 @@ This document lists all environment variables required for WebHost Systems opera
 |----------|-------------|---------|----------|
 | `SENTRY_DSN` | Sentry error tracking DSN | `https://your_dsn@sentry.io/project` | No (recommended) |
 | `HETZNER_MONITORING_WEBHOOK` | Hetzner monitoring webhook URL | `https://your-webhook.url` | No |
-| `FLIO_METRICS_ENABLED` | Enable Fly.io metrics | `true` | No |
+| `FLYIO_METRICS_ENABLED` | Enable Fly.io metrics | `true` | No |
 | `LOG_LEVEL` | Application log level | `info` | No (default: info) |
 
 ### Backup Configuration
@@ -196,7 +196,7 @@ REDIS_URL=redis://webhost-redis.internal:6379
 SECRET_KEY_BASE=prod_secret_key_base_minimum_64_characters_long_required_here
 TOKEN_SIGNING_SECRET=prod_token_secret_min_64_chars_long_for_jwt_signing_replace_in_prod
 PHX_HOST=webhost-prod.fly.dev
-PORT=8080
+PORT=4000
 
 # Fly.io Configuration
 FLY_APP_NAME=webhost-prod
@@ -222,7 +222,7 @@ POSTMARK_API_TOKEN=your_postmark_api_token
 
 # Monitoring
 SENTRY_DSN=https://your_dsn@sentry.io/project
-FLIO_METRICS_ENABLED=true
+FLYIO_METRICS_ENABLED=true
 
 # Scaling
 AUTOSCALING_ENABLED=true
