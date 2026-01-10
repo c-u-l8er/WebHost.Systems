@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebHost.Systems - Real-Time Fleet Tracking Infrastructure</title>
+    <meta name="description" content="Deploy production GPS tracking in minutes. Offline-first sync, TimescaleDB, PostGIS. Built for developers who ship fast.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --accent: #ec4899;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --gray: #64748b;
+            --light: #f8fafc;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: var(--white);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 32px;
+        }
+
+        /* Animated Background */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(to right, rgba(99, 102, 241, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+            pointer-events: none;
+            animation: grid-fade 20s ease-in-out infinite;
+        }
+
+        @keyframes grid-fade {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        /* Header */
+        header {
+            padding: 1.5rem 0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            text-decoration: none;
+            letter-spacing: -0.03em;
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .logo-period {
+            color: var(--gray);
+            font-size: 1.5em;
+            font-weight: 900;
+            background: none;
+            -webkit-text-fill-color: var(--gray);
+            line-height: 0em;
+            top: -0.16em;
+            left: -0.05em;
+            position: relative;
+        }
+        
+        .logo-systems {
+            color: var(--dark);
+            background: none;
+            -webkit-text-fill-color: var(--dark);
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 3rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-menu a {
+            color: var(--gray);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s;
+        }
+
+        .nav-menu a:hover {
+            color: var(--primary);
+        }
+
+        .nav-menu a:hover::after {
+            width: 100%;
+        }
+
+        .btn {
+            padding: 0.75rem 1.75rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+        }
+
+        .nav-menu .btn-primary {
+            color: white;
+        }
+
+        .nav-menu .btn-primary:hover {
+            color: white;
+        }
+
+        .nav-menu .btn-primary::after {
+            display: none;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 120px 0 80px;
+            position: relative;
+        }
+
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .hero-text h1 {
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.03em;
+            color: var(--dark);
+        }
+
+        .hero-text .highlight {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-text p {
+            font-size: 1.25rem;
+            color: var(--gray);
+            margin-bottom: 2.5rem;
+            line-height: 1.7;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .hero-proof {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .proof-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .proof-item svg {
+            color: var(--success);
+        }
+
+        .hero-visual {
+            position: relative;
+            height: 500px;
+        }
+
+        .floating-card {
+            position: absolute;
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .card-1 {
+            top: 0;
+            right: 0;
+            animation-delay: 0s;
+        }
+
+        .card-2 {
+            top: 120px;
+            left: 0;
+            animation-delay: 0.5s;
+        }
+
+        .card-3 {
+            bottom: 0;
+            right: 50px;
+            animation-delay: 1s;
+        }
+
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .metric-data h4 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-data p {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        /* Trust Bar */
+        .trust-bar {
+            padding: 2rem 0;
+            background: var(--light);
+            border-top: 1px solid rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .trust-content {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 3rem;
+        }
+
+        .trust-stat {
+            text-align: center;
+        }
+
+        .trust-stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .trust-stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Features */
+        .features {
+            padding: 100px 0;
+        }
+
+        .features-header {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 4rem;
+        }
+
+        .tag {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+        }
+
+        .pill-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s;
+            margin-bottom: 1.5rem;
+        }
+
+        .pill-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+            color: white;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--dark);
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--gray);
+            line-height: 1.7;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .feature {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .feature:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature:hover {
+            border-color: rgba(99, 102, 241, 0.2);
+            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+
+        .feature h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+
+        .feature p {
+            color: var(--gray);
+            line-height: 1.7;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .feature-link:hover {
+            color: var(--primary-dark);
+            transform: translateX(4px);
+        }
+
+        .feature-link::after {
+            content: '→';
+            margin-left: 0.5rem;
+            transition: transform 0.2s;
+        }
+
+        .feature-link:hover::after {
+            transform: translateX(2px);
+        }
+
+        /* Tech Stack */
+        .tech-stack {
+            padding: 100px 0;
+            background: var(--dark);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tech-stack::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1), transparent 50%),
+                        radial-gradient(circle at 80% 50%, rgba(236, 72, 153, 0.1), transparent 50%);
+        }
+
+        .tech-stack .container {
+            position: relative;
+        }
+
+        .tech-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .tech-header h2 {
+            color: white;
+        }
+
+        .tech-header .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .tech-logos {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .tech-logo {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .tech-logo:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .tech-logo h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: white;
+        }
+
+        .tech-logo p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .code-example {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 3rem;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .code-line {
+            display: block;
+        }
+
+        .code-comment { color: #6b7280; }
+        .code-keyword { color: #c792ea; }
+        .code-string { color: #a5d6a7; }
+        .code-function { color: #82aaff; }
+        .code-property { color: #f78c6c; }
+
+        /* Pricing */
+        .pricing {
+            padding: 100px 0;
+            background: linear-gradient(180deg, var(--white), var(--light));
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin-top: 4rem;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid rgba(99, 102, 241, 0.1);
+            border-radius: 24px;
+            padding: 2.5rem;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .pricing-card.popular {
+            border-color: var(--primary);
+            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.2);
+            transform: scale(1.05);
+        }
+
+        .pricing-card:hover {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .pricing-card.popular:hover {
+            transform: scale(1.05) translateY(-5px);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .pricing-card .plan-desc {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .price {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 2rem;
+        }
+
+        .price-amount {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: var(--dark);
+            line-height: 1;
+        }
+
+        .price-period {
+            color: var(--gray);
+            font-size: 1rem;
+            margin-left: 0.5rem;
+        }
+
+        .pricing-features {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .pricing-features li {
+            padding: 0.75rem 0;
+            color: var(--gray);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: 900;
+            font-size: 1.25rem;
+        }
+
+        .pricing-card .btn {
+            width: 100%;
+            text-align: center;
+        }
+
+        /* CTA */
+        .cta {
+            padding: 100px 0;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+            border-radius: 50%;
+        }
+
+        .cta-content {
+            position: relative;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .cta h2 {
+            color: white;
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cta p {
+            font-size: 1.25rem;
+            margin-bottom: 3rem;
+            opacity: 0.95;
+        }
+
+        .cta .btn-primary {
+            background: white;
+            color: var(--primary);
+            font-size: 1.1rem;
+            padding: 1rem 3rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .cta .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--dark);
+            color: white;
+            padding: 80px 0 40px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            gap: 4rem;
+            margin-bottom: 4rem;
+        }
+
+        .footer-brand h3 {
+            font-size: 1.75rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .footer-brand p {
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .footer-social a {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .footer-social a:hover {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            transform: translateY(-3px);
+        }
+
+        .footer-section h4 {
+            font-size: 0.875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1200px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-visual {
+                display: none;
+            }
+
+            .tech-logos {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .pricing-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-text h1 {
+                font-size: 3rem;
+            }
+
+            h2 {
+                font-size: 2.25rem;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tech-logos {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.popular {
+                transform: scale(1);
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- Header -->
+    <header>
+        <nav class="container">
+            <a href="#" class="logo">WEBHOST<span class="logo-period">.</span><span class="logo-systems">SYSTEMS</span></a>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#tech">Technology</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#documents">Architecture</a></li>
+                <li><a href="documentation.html#DOCUMENTATION-INDEX.md">Docs</a></li>
+                <li><a href="#" class="btn btn-primary"><span>Get Started</span></a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <a href="https://wrand.cc" target="_blank" rel="noopener noreferrer" class="pill-button">Project by WrandTel</a>
+                    <h1>
+                        Ship GPS Tracking<br>
+                        <span class="highlight">In Minutes</span>
+                    </h1>
+                    <p>
+                        Production-ready infrastructure with offline-first sync, TimescaleDB, and PostGIS. 
+                        Deploy real-time fleet tracking faster than building it yourself.
+                    </p>
+                    <div class="hero-buttons">
+                        <a href="#" class="btn btn-primary"><span>Start Free Trial →</span></a>
+                        <a href="https://gpscoord.com" class="btn btn-outline">GPS Coord</a>
+                    </div>
+                    <div class="hero-proof">
+                        <div class="proof-item">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>No credit card</span>
+                        </div>
+                        <div class="proof-item">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>14-day free trial</span>
+                        </div>
+                        <div class="proof-item">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Deploy in 10 min</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-visual">
+                    <div class="floating-card card-1">
+                        <div class="metric">
+                            <div class="metric-icon" style="background: linear-gradient(135deg, #22c55e, #10b981);">⚡</div>
+                            <div class="metric-data">
+                                <h4>28ms</h4>
+                                <p>Avg Query Time</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="floating-card card-2">
+                        <div class="metric">
+                            <div class="metric-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">📍</div>
+                            <div class="metric-data">
+                                <h4>10M+</h4>
+                                <p>GPS Points/Day</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="floating-card card-3">
+                        <div class="metric">
+                            <div class="metric-icon" style="background: linear-gradient(135deg, #ec4899, #f43f5e);">🔄</div>
+                            <div class="metric-data">
+                                <h4>99.9%</h4>
+                                <p>Uptime SLA</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Bar -->
+    <section class="trust-bar">
+        <div class="container">
+            <div class="trust-content">
+                <div class="trust-stat">
+                    <div class="trust-stat-value">&lt;50ms</div>
+                    <div class="trust-stat-label">Geofence Queries</div>
+                </div>
+                <div class="trust-stat">
+                    <div class="trust-stat-value">10M+</div>
+                    <div class="trust-stat-label">Points Per Day</div>
+                </div>
+                <div class="trust-stat">
+                    <div class="trust-stat-value">99.9%</div>
+                    <div class="trust-stat-label">Uptime SLA</div>
+                </div>
+                <div class="trust-stat">
+                    <div class="trust-stat-value">Zero</div>
+                    <div class="trust-stat-label">Data Loss</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="features-header">
+                <div class="tag">Why WebHost</div>
+                <h2>Everything You Need to Ship Fast</h2>
+                <p class="subtitle">
+                    Built-in offline-first sync, real-time collaboration, and multi-tenant isolation. 
+                    Focus on your product, not infrastructure.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature">
+                    <span class="feature-icon">🔄</span>
+                    <h3>Offline-First Sync</h3>
+                    <p>Yjs CRDT handles conflict-free synchronization. Works offline, syncs automatically. Zero data loss, zero conflicts.</p>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">⚡</span>
+                    <h3>TimescaleDB</h3>
+                    <p>Automatic compression and retention for GPS data. Query millions of points in milliseconds with hypertables.</p>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🌍</span>
+                    <h3>PostGIS Spatial</h3>
+                    <p>Sub-50ms point-in-polygon queries. Real-time geofencing, route optimization, and territory management.</p>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🔒</span>
+                    <h3>Multi-Tenant Safe</h3>
+                    <p>Built-in customer isolation with compile-time safety. Customers can't access each other's data—guaranteed.</p>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🚀</span>
+                    <h3>Auto-Generated APIs</h3>
+                    <p>GraphQL and REST endpoints generated from schema. Zero boilerplate, 100% type-safe, built-in auth.</p>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">📊</span>
+                    <h3>Real-Time Updates</h3>
+                    <p>Phoenix LiveView dashboard with zero-latency updates. Track vehicles and geofences without writing JS.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section id="tech" class="tech-stack">
+        <div class="container">
+            <div class="tech-header">
+                <div class="tag">Technology</div>
+                <h2>Built on Battle-Tested Tools</h2>
+                <p class="subtitle">Modern stack designed for reliability, performance, and developer experience.</p>
+            </div>
+
+            <div class="tech-logos">
+                <div class="tech-logo">
+                    <h4>Elixir</h4>
+                    <p>Fault-tolerant</p>
+                </div>
+                <div class="tech-logo">
+                    <h4>Phoenix</h4>
+                    <p>Real-time</p>
+                </div>
+                <div class="tech-logo">
+                    <h4>Ash</h4>
+                    <p>Multi-tenant</p>
+                </div>
+                <div class="tech-logo">
+                    <h4>TimescaleDB</h4>
+                    <p>Time-series</p>
+                </div>
+                <div class="tech-logo">
+                    <h4>PostGIS</h4>
+                    <p>Spatial</p>
+                </div>
+                <div class="tech-logo">
+                    <h4>Yjs</h4>
+                    <p>CRDT Sync</p>
+                </div>
+            </div>
+
+            <div class="code-example">
+<span class="code-line"><span class="code-comment">// Deploy GPS tracking in 3 lines</span></span>
+<span class="code-line"><span class="code-keyword">import</span> { <span class="code-function">WebHostClient</span> } <span class="code-keyword">from</span> <span class="code-string">'@webhost.systems/client'</span>;</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-function">WebHostClient</span>({</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">apiUrl</span>: <span class="code-string">'https://your-app.webhost.systems'</span>,</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">apiKey</span>: <span class="code-string">'whs_live_your_key'</span></span>
+<span class="code-line">});</span>
+<span class="code-line">&nbsp;</span>
+<span class="code-line"><span class="code-keyword">const</span> { db, yjsDoc } = <span class="code-keyword">await</span> client.<span class="code-function">connect</span>({</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">vehicles</span>: <span class="code-string">'++id, name, status'</span>,</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">gpsPositions</span>: <span class="code-string">'++id, vehicleId, time, lat, lng'</span></span>
+<span class="code-line">});</span>
+<span class="code-line">&nbsp;</span>
+<span class="code-line"><span class="code-comment">// Add GPS position - syncs automatically!</span></span>
+<span class="code-line"><span class="code-keyword">await</span> db.gpsPositions.<span class="code-function">add</span>({</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">vehicleId</span>: <span class="code-string">'truck-01'</span>,</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">time</span>: <span class="code-function">Date.now</span>(),</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">latitude</span>: <span class="code-string">29.4241</span>,</span>
+<span class="code-line">&nbsp;&nbsp;<span class="code-property">longitude</span>: <span class="code-string">-98.4936</span></span>
+<span class="code-line">});</span>
+<span class="code-line">&nbsp;</span>
+<span class="code-line"><span class="code-comment">// Yjs for real-time collaboration</span></span>
+<span class="code-line"><span class="code-keyword">const</span> vehicles = yjsDoc.<span class="code-function">getMap</span>(<span class="code-string">'vehicles'</span>);</span>
+<span class="code-line">vehicles.<span class="code-function">set</span>(<span class="code-string">'truck-01'</span>, { <span class="code-property">status</span>: <span class="code-string">'active'</span> });</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="pricing">
+        <div class="container">
+            <div class="features-header">
+                <div class="tag">Pricing</div>
+                <h2>Start Free, Scale as You Grow</h2>
+                <p class="subtitle">All plans include offline-first sync, unlimited API requests, and 14-day free trial.</p>
+            </div>
+
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Hobby</h3>
+                    <p class="plan-desc">For side projects</p>
+                    <div class="price">
+                        <span class="price-amount">$15</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>5 vehicles</li>
+                        <li>50K GPS points/day</li>
+                        <li>30-day retention</li>
+                        <li>10 geofences</li>
+                        <li>Email support</li>
+                        <li>Hetzner datacenter</li>
+                    </ul>
+                    <a href="#" class="btn btn-outline">Start Free Trial</a>
+                </div>
+
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Most Popular</div>
+                    <h3>Starter</h3>
+                    <p class="plan-desc">For growing teams</p>
+                    <div class="price">
+                        <span class="price-amount">$49</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>25 vehicles</li>
+                        <li>500K GPS points/day</li>
+                        <li>90-day retention</li>
+                        <li>50 geofences</li>
+                        <li>Priority support</li>
+                        <li>Fly.io datacenter</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary"><span>Start Free Trial</span></a>
+                </div>
+
+                <div class="pricing-card">
+                    <h3>Professional</h3>
+                    <p class="plan-desc">For established fleets</p>
+                    <div class="price">
+                        <span class="price-amount">$149</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>100 vehicles</li>
+                        <li>2M GPS points/day</li>
+                        <li>365-day retention</li>
+                        <li>200 geofences</li>
+                        <li>Slack support</li>
+                        <li>Fly.io datacenter</li>
+                    </ul>
+                    <a href="#" class="btn btn-outline">Start Free Trial</a>
+                </div>
+
+                <div class="pricing-card">
+                    <h3>Business</h3>
+                    <p class="plan-desc">For enterprises</p>
+                    <div class="price">
+                        <span class="price-amount">$399</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>500 vehicles</li>
+                        <li>10M GPS points/day</li>
+                        <li>730-day retention</li>
+                        <li>1,000 geofences</li>
+                        <li>Phone support</li>
+                        <li>Fly.io datacenter</li>
+                    </ul>
+                    <a href="#" class="btn btn-outline">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documents -->
+    <section id="documents" class="features">
+        <div class="container">
+            <div class="features-header">
+                <div class="tag">Documentation</div>
+                <h2>Production-Ready Documentation Suite</h2>
+                <p class="subtitle">
+                    Comprehensive documentation with 98% production readiness. 18 documents covering implementation,
+                    deployment, operations, and business strategy. All critical issues resolved and validated.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature">
+                    <span class="feature-icon">🏗️</span>
+                    <h3>Phase 0: Foundation</h3>
+                    <p>Phoenix + Ash Framework setup with TimescaleDB and PostGIS. Multi-tenant architecture with Yjs sync preparation.</p>
+                    <a href="documentation.html#PHASE0.md" class="feature-link">View Documentation →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🔧</span>
+                    <h3>Phase 1: Core Resources</h3>
+                    <p>Multi-tenant Ash resources, TimescaleDB hypertables, PostGIS geofencing, and declarative authorization policies.</p>
+                    <a href="documentation.html#PHASE1.md" class="feature-link">View Documentation →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🔐</span>
+                    <h3>Phase 2: Authentication & Sync</h3>
+                    <p>AshAuthentication, API key auth, and Yjs CRDT sync integration with WebSocket channels for real-time collaboration.</p>
+                    <a href="documentation.html#PHASE2.md" class="feature-link">View Documentation →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">☁️</span>
+                    <h3>Phase 3-6: Full Stack</h3>
+                    <p>Infrastructure provisioning, sync server, JavaScript SDK, dashboard, billing, and launch preparation.</p>
+                    <a href="documentation.html#PHASE3-6.md" class="feature-link">View Documentation →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🚀</span>
+                    <h3>Getting Started</h3>
+                    <p>Complete developer onboarding guide with setup instructions, workflow, and best practices. Start coding in 15 minutes.</p>
+                    <a href="documentation.html#GETTING-STARTED-DEVELOPERS.md" class="feature-link">Start Building →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🔧</span>
+                    <h3>Troubleshooting Guide</h3>
+                    <p>Comprehensive troubleshooting for development, deployment, and operations. Symptom → Solution matrix with emergency procedures.</p>
+                    <a href="documentation.html#TROUBLESHOOTING-GUIDE.md" class="feature-link">Solve Issues →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🏗️</span>
+                    <h3>Hybrid Architecture</h3>
+                    <p>Hetzner + Fly.io hybrid infrastructure with decision matrix, performance benchmarks, and cost optimization strategies.</p>
+                    <a href="documentation.html#ARCHITECTURE-UPDATE.md" class="feature-link">View Architecture →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">📚</span>
+                    <h3>Documentation Index</h3>
+                    <p>Complete navigation guide for all 18 documents. Quick start, implementation roadmap, and reference materials.</p>
+                    <a href="documentation.html#DOCUMENTATION-INDEX.md" class="feature-link">Browse All Docs →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">💰</span>
+                    <h3>Economic Analysis</h3>
+                    <p>Detailed profitability analysis showing 97% margins on hobby tier. 5-year projections and ROI calculations.</p>
+                    <a href="documentation.html#ECONOMIC-ANALYSIS.md" class="feature-link">View Economics →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🛠️</span>
+                    <h3>Deployment Guides</h3>
+                    <p>Step-by-step Hetzner and Fly.io deployment. Infrastructure provisioning, migration strategies, and disaster recovery.</p>
+                    <a href="documentation.html#HETZNER-SETUP-GUIDE.md" class="feature-link">Deploy Now →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">🔒</span>
+                    <h3>Operations & Security</h3>
+                    <p>Environment variables, disaster recovery procedures, rate limiting, and security best practices for production.</p>
+                    <a href="documentation.html#DISASTER-RECOVERY.md" class="feature-link">Secure Operations →</a>
+                </div>
+
+                <div class="feature">
+                    <span class="feature-icon">✅</span>
+                    <h3>Validation Report</h3>
+                    <p>Complete validation showing 98% production readiness. All 220 validation items passed with zero broken links.</p>
+                    <a href="documentation.html#VALIDATION-REPORT.md" class="feature-link">View Validation →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="cta-content">
+            <h2>Ship Your MVP This Week</h2>
+            <p>Join developers shipping production GPS tracking in minutes, not months. Start your 14-day free trial today.</p>
+            <a href="#" class="btn btn-primary"><span>Get Started Free →</span></a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>WEBHOST.SYSTEMS</h3>
+                    <p>Production-ready GPS tracking infrastructure with offline-first sync. Built for developers who ship fast.</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="GitHub">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                            </svg>
+                        </a>
+                        <a href="#" aria-label="Twitter">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                            </svg>
+                        </a>
+                        <a href="#" aria-label="Discord">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Product</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Features</a></li>
+                        <li><a href="#">Pricing</a></li>
+                        <li><a href="#">Use Cases</a></li>
+                        <li><a href="#">Roadmap</a></li>
+                        <li><a href="#">Status</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Developers</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">API Reference</a></li>
+                        <li><a href="#">NPM Package</a></li>
+                        <li><a href="#">GitHub</a></li>
+                        <li><a href="#">Changelog</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Security</a></li>
+                        <li><a href="#">GDPR</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© <span id="current-year"></span> WebHost.Systems - Real-Time Fleet Tracking Infrastructure.</p>
+            </div>
+        </div>
+    </footer>
+    <div style="background: #000; padding: 2em 0 1em;">
+        <div style="margin: 0 auto; width: 728px;">
+            <iframe
+                src="https://ampersandboxdesign.com/advertisements/leaderboard-watermark.html"
+                width="728"
+                height="90"
+                frameborder="0"
+                scrolling="no"
+                style="border:none; overflow:hidden;"
+                title="AmperSandboxDesign Branding Design Agency Advertisement"
+            >
+            </iframe>
+            <div style="text-align: right; color: #ccc; font-size: 0.75em;">
+                ^ADVERTISEMENT
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Set dynamic copyright year
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        
+        // Handle trial and demo button clicks
+        function handleDevelopmentPrompt(event) {
+            event.preventDefault();
+            const message = "GPSCoord & WebHost.Systems are still in development! 🚧\n\nTrack our progress on GitHub:\ngithub.com/c-u-l8er/GPSCoord\ngithub.com/c-u-l8er/WebHost.Systems\n\nWe're working hard to bring you production-ready GPS tracking infrastructure!";
+            alert(message);
+            // Optional: Open GitHub in a new tab after user clicks OK
+            window.open('https://gpscoord.com', '_blank');
+        }
+        
+        // Add click handlers to all trial and demo buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hero section buttons (excluding GPS Coord button)
+            const heroButtons = document.querySelectorAll('.hero-buttons .btn');
+            heroButtons.forEach(button => {
+                // Skip the GPS Coord button
+                if (button.href && button.href.includes('gpscoord.com')) {
+                    return;
+                }
+                button.addEventListener('click', handleDevelopmentPrompt);
+            });
+            
+            // Navigation "Get Started" button
+            const navGetStarted = document.querySelector('.nav-menu .btn-primary');
+            if (navGetStarted) {
+                navGetStarted.addEventListener('click', handleDevelopmentPrompt);
+            }
+            
+            // CTA section button
+            const ctaButton = document.querySelector('.cta .btn-primary');
+            if (ctaButton) {
+                ctaButton.addEventListener('click', handleDevelopmentPrompt);
+            }
+            
+            // Pricing section buttons
+            const pricingButtons = document.querySelectorAll('.pricing-card .btn');
+            pricingButtons.forEach(button => {
+                if (button.textContent.includes('Start Free Trial') || button.textContent.includes('Get Started')) {
+                    button.addEventListener('click', handleDevelopmentPrompt);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
