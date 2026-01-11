@@ -8,7 +8,7 @@
             name="description"
             content="WebHost.Systems — a multi-tenant AI backend built in Elixir with Phoenix + Ash, designed for multi-tenant apps (one DB schema per tenant). Powered by Agentic AI."
         />
-        <title>WebHost.Systems — AI Systems for Web Hosts.</title>
+        <title>WebHost.Systems — AI Systems for Web Hosts</title>
 
         <style>
             :root {
@@ -79,6 +79,13 @@
                 position: fixed;
                 inset: 0;
                 z-index: 0;
+            }
+
+            /* Ensure the canvas always fills the viewport (prevents “half-screen” sizing) */
+            #canvas-container canvas {
+                width: 100% !important;
+                height: 100% !important;
+                display: block;
             }
 
             /* Subtle vignette + blur overlay to unify scene */
@@ -606,13 +613,14 @@
                 scene.fog = new THREE.Fog(0x070710, 12, 70);
 
                 // Camera
+                // Tighter framing so the constellation reaches the screen edges.
                 const camera = new THREE.PerspectiveCamera(
-                    55,
+                    46,
                     window.innerWidth / window.innerHeight,
                     0.1,
                     250,
                 );
-                camera.position.set(1.8, 0.2, 23.0);
+                camera.position.set(1.2, 0.15, 16.5);
 
                 // Renderer
                 const renderer = new THREE.WebGLRenderer({
@@ -643,16 +651,34 @@
 
                 // Group that holds the whole "constellation"
                 const root = new THREE.Group();
-                // Bias the cluster toward the right so the hero copy stays readable,
-                // but keep the full 12-node graph in view.
-                root.position.set(6.4, 0.1, -4.4);
-                root.rotation.y = 0.65;
                 scene.add(root);
+
+                // Fit/position the constellation so it "bleeds" to the viewport edges.
+                // (Keeps it slightly right-biased on wide screens so the headline stays readable.)
+                function applyLayout() {
+                    const isNarrow = window.innerWidth < 940;
+                    const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+
+                    // Slightly more right bias on desktop, but centered-ish on mobile.
+                    root.position.set(isNarrow ? 0.9 : 5.4, 0.1, isNarrow ? -4.2 : -3.4);
+                    root.rotation.y = isNarrow ? 0.35 : 0.55;
+
+                    // Make the constellation fill the viewport.
+                    // On ultra-wide screens we scale it up a touch more so it reaches the edges.
+                    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+                    const desktopScale = clamp(1.75 + (aspect - 1.6) * 0.35, 1.75, 2.2);
+                    root.scale.setScalar(isNarrow ? 1.55 : desktopScale);
+
+                    // Keep camera framing consistent across aspect ratios.
+                    camera.position.set(isNarrow ? 0.7 : 1.2, 0.15, isNarrow ? 18.5 : 16.5);
+                }
+
+                applyLayout();
 
                 // Orb layout: 12 nodes on a sphere (constellation / multi-tenant graph)
                 const ORB_COUNT = 12;
-                const ORB_RADIUS = 1.55;
-                const LAYOUT_RADIUS = 6.9;
+                const ORB_RADIUS = 1.7;
+                const LAYOUT_RADIUS = 8.2;
 
                 const orbBasePositions = fibonacciSpherePoints(ORB_COUNT, LAYOUT_RADIUS);
 
@@ -742,7 +768,7 @@
                         i % 2 === 0 ? 0x7c88ff : 0xff7bd6,
                     );
                     halo.material.opacity = 0.36;
-                    halo.scale.setScalar(ORB_RADIUS * 6.2);
+                    halo.scale.setScalar(ORB_RADIUS * 6.8);
 
                     const core = new THREE.Mesh(coreGeom, coreBaseMat.clone());
                     core.material.color = new THREE.Color(
@@ -973,6 +999,7 @@
                         camera.updateProjectionMatrix();
                         renderer.setSize(window.innerWidth, window.innerHeight);
                         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                        applyLayout();
                     },
                     { passive: true },
                 );
