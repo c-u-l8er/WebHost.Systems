@@ -42,7 +42,7 @@ Security and operational requirements:
 
 2. **Secrets are injected into runtime providers using provider-native secret mechanisms** (where possible).
    - **Cloudflare:** Worker secret bindings (set via Cloudflare API).
-   - **AWS / AgentCore:** AWS-native secret mechanisms (e.g., Secrets Manager) or AgentCore-supported secret injection (implementation-specific), referenced by ARN/name—never stored as plaintext.
+   - **AWS / AgentCore:** **AgentCore Runtime environment variable injection** via the AgentCore Runtime API (recommended default for v1), with **AWS Secrets Manager references** as an optional enhancement for advanced rotation and centralized secret management.
 
 3. **Telemetry integrity uses deployment-scoped signing keys** injected into the runtime as secrets.
    - Each deployment gets a unique `telemetrySecret` (HMAC key).
@@ -145,8 +145,24 @@ If implementing `POST /v1/agents/{agentId}/secrets` (write-only):
 - Cloudflare adapter:
   - Use provider API to set Worker secrets per deployment or per agent, and ensure the active Worker uses the correct secrets.
 - AgentCore adapter:
-  - Prefer AWS Secrets Manager references and IAM role-based access; do not embed secrets in code.
-  - Store only secret ARNs/names as references.
+  - Use **AgentCore Runtime environment variable injection** (v1 default) to set deployment-scoped secrets (telemetry signing key, user-provided API keys) as runtime environment variables.
+  - Use **AWS Secrets Manager references** as an optional enhancement (post-v1 or enterprise hardening) to support rotation without redeploy and centralized secret governance.
+  - Store only **references/metadata** in the control plane DB (e.g., runtime env var key names and/or Secrets Manager ARNs). Never store plaintext values.
+
+#### AgentCore secret injection (implementation note)
+AgentCore supports multiple secret injection patterns. For v1, prefer environment variables because it minimizes moving parts and matches the Cloudflare deployment model (provider-managed secret injection at deploy time).
+
+- **Option 1 (v1 default): Environment variables**
+  - Control plane sets runtime environment variables as part of the deploy/create/update runtime call.
+  - Example variables:
+    - `TELEMETRY_SECRET` (deployment-scoped HMAC key)
+    - user-provided keys like `OPENAI_API_KEY`
+  - Operational note: rotation may require redeploy depending on provider behavior; document in UI.
+
+- **Option 2 (optional): AWS Secrets Manager references**
+  - Store secret values in Secrets Manager.
+  - Provide the runtime with references (ARNs) and an IAM role that permits retrieval.
+  - Operational note: enables rotation without redeploy, but increases IAM + operational complexity.
 
 ### 4) Telemetry signing requirements
 - Each deployment MUST have a unique telemetry signing secret.

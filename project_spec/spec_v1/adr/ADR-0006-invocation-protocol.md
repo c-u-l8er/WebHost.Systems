@@ -71,10 +71,26 @@ Rationale:
 
 Rules:
 - `sessionId` is opaque; clients MUST NOT parse it.
-- The control plane MUST treat it as opaque.
+- The control plane MUST treat it as opaque and MUST NOT embed meaning or routing logic in the `sessionId` string.
 - Each runtime provider maps `sessionId` to its own session primitive:
+
   - Cloudflare: Durable Object id / instance key
-  - AgentCore: runtime session id (or equivalent)
+    - Session state is stored in Durable Object storage.
+    - `sessionId` typically maps 1:1 to a DO instance identifier.
+
+  - AgentCore: AgentCore runtime session identifier (e.g., `runtimeSessionId`)
+    - AgentCore is TypeScript-capable end-to-end (control plane and runtime integration), so the adapter SHOULD use the official TypeScript AWS SDK to invoke sessions.
+    - The adapter MUST treat the `sessionId` as a provider runtime session id and pass it through to invocation calls.
+    - If `sessionId` is not provided, the adapter SHOULD create one (or let the provider return one) and return it to the client as the opaque `sessionId`.
+    - Session expiration MUST be handled gracefully and consistently:
+      - if the provider indicates “unknown/expired session”, return a normalized `RUNTIME_ERROR` with a safe message such as “Session expired” and `retryable=false` (do not leak provider internals).
+
+Implementation note (AgentCore TypeScript invocation shape, conceptual):
+- Invoke with the deployment’s AgentCore runtime reference (e.g., `agentRuntimeArn`) and a `runtimeSessionId` set to the opaque `sessionId` (or a newly generated one if absent).
+- Example fields you will typically populate via the TypeScript AWS SDK:
+  - `agentRuntimeArn: <from deployment.providerRef.agentcore.agentRuntimeArn>`
+  - `runtimeSessionId: sessionId || <new session id>`
+  - `payload: <encoded invoke/v1 request JSON>`
 
 ### 4) Canonical output: text-first
 
@@ -205,10 +221,19 @@ Rejected for v1; HTTP+JSON and SSE are simpler and adequate.
 ### 3) Session rules
 - If `sessionId` is present:
   - adapter MUST attempt to continue that session in the provider.
+  - adapter MUST treat `sessionId` as opaque and MUST NOT parse or re-encode it.
   - if the provider rejects session id as unknown/expired:
-    - return `RUNTIME_ERROR` with `retryable=false` OR `INVALID_REQUEST` (choose consistent semantics; v1 recommendation: `RUNTIME_ERROR` with safe message “Session expired”).
-- If `sessionId` absent:
+    - return `RUNTIME_ERROR` with `retryable=false` (v1 canonical behavior) and a safe message such as “Session expired”.
+    - do not leak provider error details or identifiers to the client.
+
+- If `sessionId` is absent:
   - adapter MAY start a new session and MUST return the new `sessionId` if created.
+  - AgentCore-specific guidance (TypeScript):
+    - the adapter SHOULD set `runtimeSessionId` explicitly on invocation (e.g., `sess_<generated>`), or accept a provider-returned session id if the API returns one.
+    - the adapter MUST return the session identifier to the client as the opaque `sessionId` for subsequent calls.
+
+- Session lifecycle and timeouts:
+  - adapters SHOULD document provider-specific session lifetimes and idle timeouts (in internal docs and/or UI hints) but MUST keep the external `invoke/v1` contract stable.
 
 ### 4) Streaming rules
 - Streaming endpoint MUST:

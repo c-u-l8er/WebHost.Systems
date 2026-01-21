@@ -59,6 +59,10 @@ Maintain a minimal “fixture agent” artifact that:
 - can optionally create a session and echo the session id
 - emits a telemetry event (if Pattern A is used)
 - can be deployed to both providers with minimal changes
+- includes an AgentCore-targeted variant (or feature flag) suitable for validating **TypeScript deployment** and **tool-enabled invocation** scenarios:
+  - Code Interpreter tool invocation path (expected to perform a deterministic computation)
+  - Browser tool invocation path (expected to fetch a deterministic target like `example.com` and return a stable string such as the page title)
+  - clear, test-detectable markers in output indicating tool usage occurred (e.g., “tool_used:code_interpreter”)
 
 The fixture agent MUST NOT include any real secrets; use ephemeral test secrets.
 
@@ -227,12 +231,19 @@ SHOULD test (at least in staging nightly):
   - invoke sessionful (sessionId roundtrip)
   - telemetry emitted and accepted
 - AgentCore:
-  - deploy fixture agent
-  - invoke (with and without session)
+  - deploy fixture agent to AgentCore using the **TypeScript AWS SDK** (control-plane adapter path)
+  - invoke (with and without session) and verify:
+    - the adapter correctly maps opaque `sessionId` ↔ provider session identifier
+    - session expiration/unknown session returns a normalized `RUNTIME_ERROR` with a safe message and `retryable=false`
   - telemetry produced (adapter-side or in-workload, depending on design)
+  - tool-enabled invocation tests (only if the deployment enables these capabilities; otherwise skip with a clear reason):
+    - Code Interpreter: prompt asks for a deterministic computation (e.g., fibonacci(10) or sum 1..100) and asserts the expected numeric result appears
+    - Browser tool: prompt asks to visit `https://example.com` and extract a deterministic string (e.g., page title “Example Domain”)
+    - usage asserts include `toolCalls > 0` (or provider-specific equivalent normalized into usage)
 
 Acceptance:
 - A real deploy+invoke works end-to-end for each provider in staging.
+- For AgentCore, TypeScript deployment + tool-enabled invocation scenarios pass when the tier and deployment configuration enable them.
 
 ---
 

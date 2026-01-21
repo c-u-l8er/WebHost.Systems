@@ -460,6 +460,9 @@ Response 202 (async deploy started):
 Notes:
 - Deploy is async; client polls deployment status or uses realtime subscription if available.
 - Server MUST validate runtime gating (tier) and artifact constraints before creating provider resources.
+- For `runtimeProvider=agentcore`, the deployment pipeline MAY involve a server-side build step (for example: building a container/runtime artifact from an uploaded bundle). In that case:
+  - secrets MUST be injected into the runtime using provider-supported mechanisms at deploy/update time (not embedded in artifacts), and
+  - users SHOULD set required secrets before initiating deployment so the build/deploy can succeed without retries that risk leaking sensitive values.
 
 Errors:
 - `INVALID_REQUEST`

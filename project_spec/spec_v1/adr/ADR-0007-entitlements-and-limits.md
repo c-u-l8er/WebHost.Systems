@@ -21,7 +21,14 @@ webhost.systems is a multi-runtime AI agent platform. The control plane must:
 
 The platform has heterogeneous cost profiles by runtime:
 - **Cloudflare Workers/DO** supports a broad set of use cases with favorable economics and global edge distribution, enabling acquisition tiers (including free).
+  - TypeScript-first: Workers/DO are TypeScript-friendly and support modern agent frameworks naturally.
 - **AWS Bedrock AgentCore** supports premium enterprise capabilities (long running sessions, stronger isolation, built-in tools), but has higher marginal cost and different operational constraints.
+  - TypeScript-first: AgentCore has first-class TypeScript SDK support for runtime operations and modern tooling integration:
+    - `@aws-sdk/client-bedrock-agentcore` (TypeScript) for management and invocation
+    - `bedrock-agentcore` (TypeScript) for built-in tools (e.g., Code Interpreter and Browser), with integration paths for modern agent frameworks (e.g., Vercel AI SDK)
+  - Premium value drivers beyond runtime length:
+    - built-in tool ecosystem (code execution + browser automation) that is otherwise “DIY” on many runtimes
+    - enterprise isolation posture aligned with higher-tier requirements
 
 Limits are required for:
 - preventing runaway cost and abuse,
@@ -46,8 +53,20 @@ Each tier defines (minimum):
 - `maxRequestsPerPeriod`
 - `maxTokensPerPeriod` (reported or estimated)
 - `maxComputeMsPerPeriod`
-- `agentcoreEnabled` (boolean)
-- retention policies (telemetry/logs days)
+
+Runtime access + capabilities:
+- `agentcoreEnabled` (boolean) — whether the user may deploy/invoke on AgentCore at all
+- `memoryEnabled` (boolean) — whether AgentCore Memory features may be enabled for deployments
+- `codeInterpreterEnabled` (boolean) — whether AgentCore Code Interpreter tools may be enabled for deployments
+- `browserEnabled` (boolean) — whether AgentCore Browser tools may be enabled for deployments
+
+Tool quotas (only meaningful if tools are enabled; omitted or set to 0 when disabled):
+- `maxToolCallsPerPeriod` (number, optional)
+- `maxCodeExecutionSecondsPerPeriod` (number, optional)
+- `maxBrowserSessionsPerPeriod` (number, optional)
+
+Retention policies:
+- telemetry/logs retention days
 
 Entitlements MUST be stored and evaluated in a way that can be changed without code edits (e.g., configuration file/env, DB table, or feature flag system). Exact storage choice is implementation detail, but it MUST be server-controlled and auditable.
 
@@ -58,12 +77,27 @@ Runtime access is gated by entitlements:
 - If `agentcoreEnabled=false`, then:
   - deploy to `runtimeProvider=agentcore` MUST be rejected, and
   - invoke routed to an AgentCore deployment MUST be rejected, and
-  - any attempt to switch an agent’s runtimeProvider to `agentcore` SHOULD be rejected (or allowed but deployment blocked; v1 recommendation: reject to reduce confusion).
+  - any attempt to switch an agent’s runtimeProvider to `agentcore` SHOULD be rejected (v1 recommendation: reject to reduce confusion).
+
+- If `agentcoreEnabled=true`, AgentCore capability flags MUST still be enforced:
+  - If `codeInterpreterEnabled=false`, deployments MUST NOT enable code interpreter tooling, and invocations MUST be treated as “tools unavailable” (no tool loop) even if user code requests it.
+  - If `browserEnabled=false`, deployments MUST NOT enable browser tooling, and invocations MUST be treated as “tools unavailable” for browser interactions.
+  - If `memoryEnabled=false`, deployments MUST NOT enable provider memory features.
+
+**v1 recommendation (tools): enterprise-only**
+- v1 SHOULD enable AgentCore tools (`codeInterpreterEnabled` and `browserEnabled`) only on the `enterprise` tier.
+- v1 MAY allow `agentcoreEnabled=true` on `pro` while keeping tools disabled (and optionally allowing `memoryEnabled=true` if cost/behavior is acceptable).
+- If you later enable tools for `pro`, you MUST add explicit tool quotas (`maxToolCallsPerPeriod`, `maxCodeExecutionSecondsPerPeriod`, `maxBrowserSessionsPerPeriod`) and enforce them at invoke time.
 
 This gating MUST be enforced at three layers (defense in depth):
 1. **UI layer**: hide/disable options (non-authoritative)
 2. **Control plane deploy/invoke APIs**: authoritative check before provider calls
 3. **Runtime adapter layer**: refuse deploy/invoke if not entitled (in case of misrouting or bugs)
+
+The same three-layer enforcement applies to **AgentCore capability flags** (`memoryEnabled`, `codeInterpreterEnabled`, `browserEnabled`):
+- UI MUST not present toggles the user is not entitled to.
+- Deploy APIs MUST reject configurations that attempt to enable disallowed capabilities.
+- Invoke routing MUST ensure a deployment cannot exercise disallowed capabilities (even if user code attempts to).
 
 ### 2.3 Limit enforcement strategy (v1): requests hard-stop + post-charge tokens/compute, with upgrade path to reservation
 
@@ -72,6 +106,7 @@ v1 enforcement strategy is:
 - **Post-invocation accounting for tokens/compute** via telemetry (MUST).
 - **Subsequent invocations blocked** if tokens/compute budgets exceeded (MUST).
 - **Optional predictive reservation** for expensive runtimes (SHOULD for AgentCore, MAY for Cloudflare) as an enhancement.
+  - AgentCore-specific note: because AgentCore can support longer-running workloads and built-in tools (code execution, browser automation), it may concentrate more cost into a single invocation. This makes reservation (or stricter pre-flight checks) more valuable for AgentCore tiers.
 
 This is a deliberate v1 tradeoff:
 - It protects the platform from request floods (and thus most cost/abuse).
@@ -108,8 +143,10 @@ HTTP status mapping is defined in `10_API_CONTRACTS.md`.
 
 ### 3.2 Why runtime gating is mandatory
 - AgentCore has a materially different cost and capability footprint.
-- Allowing access without gating risks unbounded cost exposure.
-- Tier-based runtime gating enables a clear product ladder (acquisition → premium).
+  - Capability: long-running sessions and built-in tools (e.g., code execution and browser automation) unlock workflows that are not “free” to operate.
+  - DX: AgentCore is viable for TypeScript-first teams via official TypeScript SDK support and tool integrations, which strengthens its premium value proposition.
+- Allowing access without gating risks unbounded cost exposure, especially for long-running or tool-heavy workloads.
+- Tier-based runtime gating enables a clear product ladder (acquisition → premium) while keeping the default path cost-efficient and globally distributed.
 
 ### 3.3 Why requests-first enforcement is acceptable for v1
 - Requests are the most immediate and reliable pre-invocation signal.

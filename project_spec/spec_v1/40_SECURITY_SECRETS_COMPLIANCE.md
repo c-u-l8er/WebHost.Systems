@@ -184,7 +184,8 @@ Cloudflare (recommended):
 - Telemetry secret injected as a Worker secret.
 
 AgentCore (recommended):
-- Prefer AWS Secrets Manager or provider-supported secret injection.
+- **v1 default:** use **AgentCore Runtime environment variable injection** via the AgentCore Runtime API to inject secrets at deploy/update time (do not store plaintext in the primary DB).
+- **optional enhancement:** use **AWS Secrets Manager references** for advanced rotation/governance needs (post-v1 or enterprise hardening).
 - Avoid embedding secrets in deployed code artifacts or configuration files.
 
 ### 4.4 Secret rotation

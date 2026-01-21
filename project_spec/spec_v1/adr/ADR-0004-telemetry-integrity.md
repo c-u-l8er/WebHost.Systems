@@ -92,6 +92,19 @@ Adopt a **deployment-scoped signed telemetry event** model with **ownership cros
    - The primary DB stores only metadata and secret references (e.g., provider secret name/id).
    - The `telemetrySecret` value MUST NOT be stored in plaintext in Convex.
 
+### Provider-specific telemetry capabilities (implementation guidance)
+This ADR standardizes telemetry ingestion on **deployment-scoped signed events** for all runtimes. Provider capabilities vary, but the v1 baseline remains consistent.
+
+**Cloudflare (Workers + Durable Objects):**
+- The runtime MUST explicitly emit telemetry to the control plane (Pattern A: in-workload emission is the preferred approach).
+- The telemetry signing secret is injected via Worker secret bindings.
+- The Worker/DO submits `POST /v1/telemetry/report` with `X-Telemetry-Deployment-Id` and `X-Telemetry-Signature`.
+
+**AgentCore (AWS Bedrock AgentCore):**
+- AgentCore may provide provider-native observability capabilities (e.g., service-level telemetry/OTel-style integrations) that can be valuable for deep debugging.
+- **v1 baseline:** use the same direct signed submission model as Cloudflare (either in-workload emission when feasible, or adapter-side emission when required by provider constraints) to keep metering, limits, and billing semantics consistent across runtimes.
+- **post-v1 enhancement:** integrate provider-native observability for richer traces while still emitting the normalized, signed metering event used for billing and limits.
+
 ## Rationale
 
 This approach satisfies the requirements with minimal complexity:

@@ -15,7 +15,7 @@ This folder is the **canonical v1 specification** for implementing webhost.syste
    - `10_API_CONTRACTS.md` — normalized request/response shapes, error envelope, idempotency, pagination, invocation gateway, telemetry ingestion, and billing/webhook contracts.
 
 3. **Implement runtime portability**
-   - `20_RUNTIME_PROVIDER_INTERFACE.md` — Runtime Provider Interface (RPI) that all runtimes must implement, plus adapter guidance.
+   - `20_RUNTIME_PROVIDER_INTERFACE.md` — Runtime Provider Interface (RPI) that all runtimes must implement, plus adapter guidance (including AgentCore TypeScript adapter guidance using `@aws-sdk/client-bedrock-agentcore`, and notes on the `bedrock-agentcore` tools SDK ecosystem).
 
 4. **Build your control-plane data layer**
    - `30_DATA_MODEL_CONVEX.md` — Convex schema, indexes, invariants, access control rules, retention and deletion semantics.
@@ -33,7 +33,7 @@ This folder is the **canonical v1 specification** for implementing webhost.syste
 
 ADRs document the “why” behind major choices and define additional constraints that implementations must satisfy.
 
-- `adr/ADR-0001-multi-runtime.md` — Multi-runtime strategy (Cloudflare default + AgentCore premium).
+- `adr/ADR-0001-multi-runtime.md` — Multi-runtime strategy (Cloudflare default + AgentCore premium), explicitly TypeScript-first across both runtimes (AgentCore SDKs: `@aws-sdk/client-bedrock-agentcore` and `bedrock-agentcore`).
 - `adr/ADR-0002-convex-control-plane.md` — Convex as control-plane backend; Convex Agents for dashboard automation only.
 - `adr/ADR-0003-secrets-strategy.md` — No plaintext secrets in DB; provider-native secret injection; write-only secrets API.
 - `adr/ADR-0004-telemetry-integrity.md` — Deployment-scoped signed telemetry events + ownership cross-check.

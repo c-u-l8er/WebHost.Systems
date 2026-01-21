@@ -59,6 +59,7 @@ Convex provides a cohesive model for data + server functions that reduces glue c
 - deployment state machines,
 - telemetry integrity verification,
 - idempotency mechanisms.
+- integration with modern TypeScript agent tooling (e.g., Vercel AI SDK and AWS AgentCore TypeScript SDKs) for control-plane orchestration and end-to-end examples.
 
 ### 3.2 Real-time UX
 webhost.systems benefits from “live” UI updates:

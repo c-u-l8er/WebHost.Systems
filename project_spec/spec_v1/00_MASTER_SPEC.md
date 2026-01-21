@@ -14,12 +14,12 @@ webhost.systems is a multi-runtime AI agent deployment and hosting platform. It 
 
 - a **control plane** (UI + APIs) for creating agents, deploying code, managing configuration/secrets, viewing logs/metrics, and billing;
 - a **data plane** for executing agents on one of multiple runtime providers:
-  - **Cloudflare Workers + Durable Objects** (default; global edge, strong economics),
-  - **AWS Bedrock AgentCore** (premium/enterprise; long-running sessions, enterprise isolation and built-in tools ecosystem).
+  - **Cloudflare Workers + Durable Objects** (default; global edge, strong economics; TypeScript-native),
+  - **AWS Bedrock AgentCore** (premium/enterprise; long-running sessions, enterprise isolation and built-in tools ecosystem; **TypeScript-native** via `@aws-sdk/client-bedrock-agentcore` (runtime/control) and `bedrock-agentcore` (tools ecosystem, incl. Code Interpreter + Browser integrations)).
 
 A third system, **Convex (DB + server functions + optional “Convex Agents”)**, is used for control plane logic and dashboard automation—not primary agent hosting.
 
-Core differentiator: **runtime portability under a single abstraction**, plus **first-class metering and limit enforcement**.
+Core differentiator: **runtime portability under a single abstraction**, plus **first-class metering and limit enforcement**, delivered with a **TypeScript-first, end-to-end developer experience**.
 
 ---
 
@@ -37,7 +37,7 @@ The platform MUST support:
 4. **Invocation**:
    - provide a stable invocation API (HTTP/SDK-ready),
    - support both stateless and sessionful invocations (session id as opaque string),
-   - optional streaming (SHOULD for Cloudflare; MAY for AgentCore depending on SDK support).
+   - optional streaming (SHOULD where feasible across both runtimes; MAY be emulated by the gateway when a provider does not support true streaming).
 5. **Observability**:
    - per-agent and per-deployment metrics (requests, tokens, compute ms, errors),
    - logs access (at least basic; better with structured events).
@@ -120,8 +120,8 @@ The platform MUST support:
    - telemetry ingestion + aggregation
    - dashboard assistant (optional)
 4. **Runtime providers**
-   - Cloudflare Workers + Durable Objects
-   - AWS Bedrock AgentCore (TypeScript SDK support)
+   - Cloudflare Workers + Durable Objects (TypeScript)
+   - AWS Bedrock AgentCore (TypeScript; AWS SDK: `@aws-sdk/client-bedrock-agentcore`; tools SDK: `bedrock-agentcore`)
 5. **Billing provider**
    - checkout sessions
    - webhooks for subscription lifecycle
@@ -274,7 +274,7 @@ Fields:
 - `envVarKeys` (string[])
 - `providerConfig`:
   - for cloudflare: `{ workerName?, workerUrl?, durableObjectNamespace?, durableObjectId? }`
-  - for agentcore: `{ agentRuntimeArn?, runtimeId?, region?, vCpu?, memoryMb? }`
+  - for agentcore: `{ agentRuntimeArn?, agentRuntimeId?, runtimeId?, region?, vCpu?, memoryMb?, memoryEnabled?, codeInterpreterEnabled?, browserEnabled? }`
 - `createdAt`
 - `lastDeployedAt?`
 
@@ -299,9 +299,13 @@ Fields:
   - `type`: `uploaded_bundle` | `repo_ref`
   - `sourceUri` or storage reference
   - `checksum`
+  - `agentcore_container?`: derived build output for AgentCore deployments (container-based artifact)
+    - `imageUri` (e.g., ECR image URI)
+    - `imageDigest?`
+    - `buildId?`
 - `providerRef`:
   - cloudflare: `{ workerUrl, durableObjectId? }`
-  - agentcore: `{ agentRuntimeArn, runtimeSessionConfig? }`
+  - agentcore: `{ agentRuntimeArn, agentRuntimeId?, region?, qualifier? }`
 - `errorMessage?`
 - `logsRef?`
 - `deployedAt`
@@ -593,13 +597,33 @@ MVP SHOULD:
 
 ## 15) Build/deploy packaging (MVP design)
 
-### 15.1 Artifact types
-- `uploaded_bundle`: zip/tar containing:
-  - `agent.config.json` (required)
-  - entrypoint file (required)
-- `repo_ref`: `{ githubUrl, ref }` (post-MVP if CI needed)
+This section defines how an **uploaded bundle** becomes a runnable deployment on each runtime provider. The v1 goal is: users upload one bundle format, and the control plane produces the correct runtime-specific artifact (Worker bundle vs AgentCore container image).
 
-### 15.2 Required manifest (`agent.config.json`)
+### 15.1 Artifact types (control-plane inputs)
+- `uploaded_bundle` (v1 primary): zip/tar containing:
+  - `agent.config.json` (required)
+  - entrypoint file (required; referenced by `agent.config.json`)
+  - source and dependencies required to build/run the agent
+- `repo_ref` (optional/post-MVP): `{ githubUrl, ref }`
+
+### 15.2 Runtime-specific build targets (what the control plane produces)
+
+#### 15.2.1 Cloudflare target (Worker bundle)
+For `runtime=cloudflare`, the control plane produces:
+- a Worker script bundle suitable for deployment to Cloudflare Workers
+- Durable Object bindings (if sessionful)
+- secret bindings (telemetry signing key + user secrets) injected via Cloudflare secret mechanisms
+
+#### 15.2.2 AgentCore target (container image pipeline)
+For `runtime=agentcore`, the control plane produces:
+- an OCI container image that implements the `invoke/v1` handler contract
+- pushes the image to a registry (e.g., ECR) and deploys AgentCore runtime referencing the container image URI
+- injects environment variables (telemetry signing key + user secrets) via AgentCore Runtime environment variable injection (v1 default)
+
+Key v1 implication:
+- Even though the user uploads a zip/tar, AgentCore deployment is container-based; the platform MUST provide a deterministic build pipeline that converts the bundle into a runnable container artifact.
+
+### 15.3 Required manifest (`agent.config.json`)
 Fields:
 - `name` (optional; informational)
 - `entrypoint` (e.g., `src/index.ts`)
@@ -611,12 +635,56 @@ Fields:
 - `capabilities`:
   - `streaming`: boolean
   - `tools`: boolean
+- `agentcore` (optional, only meaningful when `runtime=agentcore`):
+  - `container` (optional):
+    - `port` (optional; default chosen by platform)
+    - `healthcheckPath` (optional; default chosen by platform)
+  - `lifecycle` (optional):
+    - `idleTimeoutSeconds` (optional)
+    - `maxLifetimeSeconds` (optional)
+  - `network` (optional):
+    - `mode` (optional; platform-defined default)
 
-### 15.3 Validation rules
+Notes:
+- The platform MAY extend this schema over time; additive fields are allowed.
+- The platform MUST reject manifests that claim `runtime=agentcore` but also require Cloudflare-only bindings (and vice versa).
+
+### 15.4 AgentCore build pipeline (v1 normative behavior)
+When deploying `runtime=agentcore` from an `uploaded_bundle`, the control plane MUST:
+1. Validate and safely extract the archive (see security rules in the security spec).
+2. Build the user code into a Node.js 20 compatible artifact (TypeScript compile/bundle as applicable).
+3. Generate or include a thin HTTP wrapper that:
+   - accepts an `invoke/v1` request payload (messages/prompt + sessionId + metadata),
+   - calls the user entrypoint,
+   - returns a JSON response containing at least `output.text`, and optionally usage fields.
+4. Build an OCI image containing the runtime wrapper + built user artifact.
+5. Push the image to a registry and record the resulting image URI in provider deployment configuration.
+6. Create/update the AgentCore runtime referencing that container image artifact.
+7. Inject environment variables (telemetry + user secrets) at deploy/update time using provider mechanisms.
+
+The control plane MUST treat this pipeline as idempotent per deploymentId (retries must not create inconsistent provider state).
+
+### 15.5 Validation rules (MUST)
 MUST:
-- enforce max artifact size
-- enforce required files present
-- enforce runtime compatibility
+- enforce max artifact size (compressed and extracted) and max file count
+- enforce required files present:
+  - `agent.config.json` exists and parses
+  - `entrypoint` exists
+- enforce runtime compatibility:
+  - `agent.config.json.runtime` matches the selected deployment runtime
+  - `agent.config.json.protocol` is supported (`invoke/v1`)
+- enforce archive safety:
+  - reject path traversal entries and unsafe symlinks
+- enforce AgentCore container pipeline prerequisites when `runtime=agentcore`:
+  - build step succeeds deterministically
+  - produced container image includes the wrapper and built entrypoint artifact
+  - healthcheck/port expectations are satisfied (platform-defined)
+- enforce Cloudflare deployment prerequisites when `runtime=cloudflare`:
+  - bundle size and bindings are within provider constraints
+
+SHOULD:
+- produce actionable error messages on validation/build failures (sanitized, no secrets)
+- keep build outputs deterministic (same input bundle + config => same build artifact hash), where practical
 
 ---
 

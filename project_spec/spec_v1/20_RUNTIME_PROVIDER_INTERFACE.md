@@ -55,11 +55,30 @@ The control plane MUST treat `sessionId` as opaque and MUST NOT attempt to parse
 - `RuntimeProvider = "cloudflare" | "agentcore"`
 
 ### 3.2 Artifact reference
-A deployment is driven by an artifact reference. v1 supports at least uploaded bundles; repo refs are optional.
+A deployment is driven by an artifact reference. v1 supports uploaded bundles as the primary input; repo refs are optional. For some runtimes (notably AgentCore), the control plane may also produce and persist a **resolved artifact** (e.g., a container image) derived from an uploaded bundle.
 
-- `ArtifactRef.type = "uploaded_bundle" | "repo_ref"`
-- For `uploaded_bundle`: `uploadId` (opaque), `checksum`, `sizeBytes`
-- For `repo_ref`: `githubUrl`, `ref`, optional `commitHash`
+- `ArtifactRef.type = "uploaded_bundle" | "repo_ref" | "agentcore_container"`
+
+- For `uploaded_bundle`:
+  - `uploadId` (opaque)
+  - `checksum`
+  - `sizeBytes`
+
+- For `repo_ref`:
+  - `githubUrl`
+  - `ref`
+  - optional `commitHash`
+
+- For `agentcore_container` (resolved build output for AgentCore deployments):
+  - `imageUri` (container image reference, e.g., registry/ECR URI)
+  - optional `imageDigest` (immutable digest if available)
+  - optional `repository` (repository name/identifier if tracked)
+  - optional `tag` (image tag if used)
+  - optional `buildId` (build pipeline identifier)
+
+Notes:
+- `agentcore_container` artifacts are typically produced by the control plane build pipeline from an `uploaded_bundle` when deploying `runtimeProvider="agentcore"`.
+- Clients generally submit `uploaded_bundle` or `repo_ref`; `agentcore_container` is usually created by the platform as a derived/resolved artifact for deployment and repeatability.
 
 ### 3.3 Deploy input/output
 **DeployInput (MUST include):**
@@ -235,8 +254,101 @@ Adapters MUST ensure secrets are injected into the runtime using provider-native
 
 - Cloudflare:
   - Worker secrets (bound at deploy time via provider API)
+
 - AgentCore:
-  - AWS-native secret mechanisms (e.g., Secrets Manager) or AgentCore-supported injection (implementation-dependent)
+  - **v1 default:** inject secrets as **AgentCore Runtime environment variables** as part of the runtime/deployment configuration (do not store plaintext in the control plane database).
+  - **Deployment model note (critical):** treat AgentCore deployment as **artifact-based** (commonly container-based). The control plane should be prepared to deploy an artifact reference (e.g., container image URI) plus runtime configuration (lifecycle, compute, env vars), rather than assuming “inline code” deployment.
+  - **SDK/package variability note (critical):** AWS may split “control plane” vs “runtime/data plane” APIs into separate SDK clients and/or package names across versions. The adapter MUST be written to tolerate this:
+    - pin versions explicitly, and
+    - isolate AWS calls behind the adapter so any SDK renames/command shape changes are localized.
+  - **optional enhancement:** use AWS Secrets Manager references (or equivalent) for advanced rotation and centralized secret governance.
+  - The control plane MUST store only secret **key names** and/or secret **references/metadata** (never plaintext values).
+
+#### 7.2.1 AgentCore TypeScript adapter example (conceptual; container-first; SDK-agnostic)
+AgentCore is TypeScript-capable end-to-end. However, the adapter MUST be written to reflect two realities:
+1. **Deployment is artifact-based (commonly container-based)**, not necessarily “inline code”.
+2. **AWS SDK/package shapes can vary by version**, including potential separation of:
+   - “control plane” (create/update/delete runtime resources) and
+   - “runtime/data plane” (invoke runtime sessions)
+   into different clients and/or package names.
+
+A typical control-plane adapter will:
+- **Deploy** by creating/updating an AgentCore runtime using an **artifact reference** (e.g., container image URI) plus configuration:
+  - lifecycle configuration (idle/max lifetime),
+  - compute shape (vCPU/memory),
+  - environment variables (including secrets injected at deploy time),
+  - optional capability toggles (memory/code interpreter/browser) as allowed by entitlements,
+  - tags for `{userId, agentId, deploymentId, deploymentVersion}`.
+- **Invoke** by calling the AgentCore runtime invocation API with:
+  - the deployment’s runtime reference (e.g., `agentRuntimeArn` and/or runtime id),
+  - an opaque `runtimeSessionId` (mapped 1:1 from `sessionId`),
+  - a payload containing the normalized `invoke/v1` request.
+
+Example (illustrative pseudo-implementation; do not hardcode command names or assume a single SDK package name):
+
+    // PSEUDOCODE: pin actual package names and command types in implementation.
+    // Some SDK versions may expose separate clients for control vs runtime invocation.
+    const controlClient = new AgentCoreControlClient({ region, credentials });
+    const runtimeClient = new AgentCoreRuntimeClient({ region, credentials });
+
+    // Deploy/update runtime with a container artifact + env var injection
+    const deployResp = await controlClient.createOrUpdateRuntime({
+      agentRuntimeName: `agent-${agentId}-v${deploymentVersion}`,
+      agentRuntimeArtifact: {
+        // Container-based artifact reference (recommended baseline)
+        containerConfiguration: {
+          containerUri: artifact.containerUri, // e.g., ECR image URI
+        },
+      },
+      lifeCycleConfiguration: {
+        idleTimeoutInSeconds: providerConfig.idleTimeoutSeconds,
+        maxLifetimeInSeconds: providerConfig.maxLifetimeSeconds,
+      },
+      compute: {
+        vCpu: providerConfig.vCpu,
+        memoryMb: providerConfig.memoryMb,
+      },
+      environmentVariables: {
+        TELEMETRY_ENDPOINT_URL: telemetry.endpointUrl,
+        TELEMETRY_DEPLOYMENT_ID: deploymentId,
+        TELEMETRY_SECRET: "<injected-as-secret-value>",
+        // Customer-provided secrets (write-only into provider):
+        OPENAI_API_KEY: "<injected-as-secret-value>",
+      },
+      // Optional provider features gated by entitlements (only set if enabled):
+      memory: providerConfig.memoryEnabled ? { enabled: true } : undefined,
+      codeInterpreter: providerConfig.codeInterpreterEnabled ? { enabled: true } : undefined,
+      browser: providerConfig.browserEnabled ? { enabled: true } : undefined,
+      tags: [
+        { key: "userId", value: userId },
+        { key: "agentId", value: agentId },
+        { key: "deploymentId", value: deploymentId },
+        { key: "deploymentVersion", value: String(deploymentVersion) },
+      ],
+      // IAM role / network config may be required depending on provider requirements:
+      roleArn: providerConfig.roleArn,
+      networkConfiguration: providerConfig.networkConfiguration,
+    });
+
+    // Invoke with session mapping (opaque sessionId -> runtimeSessionId)
+    const runtimeSessionId = sessionId ?? `sess_${Date.now()}`;
+    const payloadBytes = new TextEncoder().encode(JSON.stringify(invokeV1Request));
+
+    const invokeResp = await runtimeClient.invokeRuntime({
+      agentRuntimeArn: deployResp.agentRuntimeArn,
+      runtimeSessionId,
+      payload: payloadBytes,
+      // Optional: qualifier/version selector if the provider supports it
+      qualifier: deployResp.qualifier,
+    });
+
+Adapter requirements (normative):
+- MUST treat `sessionId` as opaque and pass it through as the provider session identifier (or return the provider-returned session id).
+- MUST handle “unknown/expired session” as a normalized `RUNTIME_ERROR` with `retryable=false` and a safe message (no provider internals leaked).
+- MUST NOT store plaintext secrets in the control plane DB.
+- MUST ensure telemetry secrets are deployment-scoped and injected into the runtime as secrets (env vars are acceptable if injected via provider secret mechanisms; do not persist plaintext).
+- MUST tag provider resources with `{userId, agentId, deploymentId, deploymentVersion}` for cleanup and future cost reconciliation.
+- MUST pin specific AWS SDK versions and keep all AWS SDK usage isolated within the adapter to contain churn from package/command renames.
 
 ### 7.3 Secret rotation
 - Rotating a secret MAY require a redeploy depending on provider.

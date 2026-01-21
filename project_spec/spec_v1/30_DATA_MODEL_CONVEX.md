@@ -125,10 +125,14 @@ Fields:
     - `durableObjectId` (string, optional)
   - `agentcore` (nullable):
     - `agentRuntimeArn` (string, optional)
-    - `runtimeId` (string, optional)
+    - `agentRuntimeId` (string, optional) — provider runtime resource id (when distinct from ARN)
+    - `runtimeId` (string, optional) — legacy/alias field (keep for backward compatibility)
     - `region` (string, optional)
     - `vCpu` (number, optional)
     - `memoryMb` (number, optional)
+    - `memoryEnabled` (boolean, optional)
+    - `codeInterpreterEnabled` (boolean, optional)
+    - `browserEnabled` (boolean, optional)
 - `createdAtMs` (number)
 - `updatedAtMs` (number)
 - `lastDeployedAtMs` (number, optional)
@@ -187,6 +191,12 @@ Fields:
   - `repo_ref` (optional object):
     - `githubUrl` (string)
     - `ref` (string)
+  - `agentcore_container` (optional object; derived build output for AgentCore deployments):
+    - `imageUri` (string) — container image reference used for the AgentCore runtime (e.g., ECR URI)
+    - `imageDigest` (string, optional) — immutable digest if available
+    - `repository` (string, optional) — repository name/identifier if tracked
+    - `tag` (string, optional) — image tag if used
+    - `buildId` (string, optional) — build pipeline identifier (CI run id, etc.)
 - `manifest` (object, optional but recommended):
   - parsed `agent.config.json` subset: `protocol`, `entrypoint`, `capabilities`, declared env keys
 - `providerRef` (object):
@@ -195,8 +205,12 @@ Fields:
     - `durableObjectId` (string, optional)
   - `agentcore` (nullable):
     - `agentRuntimeArn` (string, optional)
-    - `runtimeId` (string, optional)
+    - `agentRuntimeId` (string, optional) — provider runtime resource id (when distinct from ARN)
+    - `runtimeId` (string, optional) — legacy/alias field (keep for backward compatibility)
     - `region` (string, optional)
+    - `memoryEnabled` (boolean, optional)
+    - `codeInterpreterEnabled` (boolean, optional)
+    - `browserEnabled` (boolean, optional)
 - `errorMessage` (string, optional; sanitized)
 - `logsRef` (object, optional):
   - pointer to external log store OR embedded small log excerpt

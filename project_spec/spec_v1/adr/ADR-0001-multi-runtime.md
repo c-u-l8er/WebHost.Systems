@@ -37,10 +37,21 @@ Adopt a **multi-runtime architecture** with a single **control plane** and multi
 - **Default runtime**: Cloudflare Workers + Durable Objects (`runtimeProvider = cloudflare`)
   - Target: the majority of workloads and tiers (including free acquisition).
   - Rationale: global edge footprint, strong economics, good latency, suitable for typical agent interactions.
+  - TypeScript: first-class TypeScript support (Workers + Durable Objects APIs are TypeScript-friendly; many agent frameworks and SDKs work naturally in this environment).
 
 - **Premium/enterprise runtime**: AWS Bedrock AgentCore (`runtimeProvider = agentcore`)
   - Target: enterprise-tier workloads and advanced/long-running tasks.
-  - Rationale: enterprise-grade isolation and runtime capabilities; TypeScript ecosystem support exists and can integrate with modern agent tooling.
+  - Rationale: enterprise-grade isolation and runtime capabilities (including long-running sessions), plus a strong TypeScript SDK ecosystem:
+    - `@aws-sdk/client-bedrock-agentcore` for TypeScript control plane + runtime invocation
+    - `bedrock-agentcore` tools SDK for TypeScript (e.g., Code Interpreter and Browser tool integrations), including modern agent tooling integrations such as Vercel AI SDK
+
+### TypeScript support across runtimes (explicit)
+webhost.systems is intended to be **TypeScript-native end-to-end**:
+- Control plane: TypeScript (Convex backend + UI types)
+- Cloudflare runtime: TypeScript (Workers/DO)
+- AgentCore runtime: TypeScript SDK support for both management/invocation and tool ecosystems
+
+This means **no Python requirement** for deploying and operating on AgentCore from webhost.systems; TypeScript can be the primary implementation language for both runtimes.
 
 ### Control plane
 - The control plane (auth, DB, deployments, billing, telemetry ingestion, aggregation, UI) remains centralized and runtime-agnostic.

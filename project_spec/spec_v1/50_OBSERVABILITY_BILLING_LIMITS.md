@@ -53,7 +53,10 @@ The platform MUST:
 
 ### 2.4 Runtime providers
 - `cloudflare`: Cloudflare Workers + Durable Objects (default tier).
+  - TypeScript-first: Workers and Durable Objects are commonly developed and deployed in TypeScript.
 - `agentcore`: AWS Bedrock AgentCore (premium/enterprise tier).
+  - TypeScript-first: AgentCore supports TypeScript end-to-end for management and invocation (e.g., via AWS SDK clients) and has a TypeScript tools ecosystem (e.g., Code Interpreter and Browser tooling integrations).
+  - Note: tool availability and “built-in services” are provider features; webhost.systems should expose them as runtime capabilities and gate them by tier where appropriate.
 
 ---
 
@@ -228,18 +231,21 @@ Important:
   - and label clearly as estimate.
 
 ### 7.4 AgentCore cost model (placeholder; configure constants)
-AgentCore cost may include:
-- runtime session duration
-- compute resources (vCPU/memory)
-- tool usage (browser/code interpreter)
-- token/model usage (if applicable)
+AgentCore cost may include (depending on how you configure and bill the runtime):
+- runtime session duration (or billed runtime execution time)
+- compute resources (vCPU/memory shape, if applicable)
+- tool usage (e.g., code execution and browser automation), which may be:
+  - billed implicitly as runtime execution time, and/or
+  - billed explicitly per tool invocation (provider-dependent; model only if applicable)
+- token/model usage (if the platform provides models; BYOK token cost is informational)
 
 v1 approach:
-- Define an `AgentCoreCostModel` with configurable constants:
+- Define an `AgentCoreCostModel` with configurable constants (do not hardcode pricing into logic):
   - `USD_PER_SESSION_MS` or `USD_PER_HOUR_BY_INSTANCE_SHAPE`
-  - `USD_PER_TOOL_INVOCATION` (optional)
-  - token cost if using a priced model
-- Compute `costUsdEstimated = f(tokens, sessionDurationMs, toolInvocations, instanceShape)`
+  - `USD_PER_TOOL_INVOCATION` (optional; only if the provider bills tools separately)
+  - optional token pricing constants only for platform-provided model billing (not BYOK)
+- Compute `costUsdEstimated = f(tokens, sessionDurationMs, toolInvocations, instanceShape)` using whichever inputs are available from telemetry.
+- Implementation note (TypeScript): AgentCore is TypeScript-capable end-to-end; the adapter can capture and normalize tool/session usage surfaced by the runtime/tooling SDKs into the telemetry schema.
 
 ### 7.5 Model/provider cost (BYOK vs platform-provided)
 There are two modes:
@@ -269,6 +275,44 @@ v1 recommendation:
 
 ### 8.2 Entitlement dimensions
 Each tier defines:
+
+#### 8.2.1 Core budgets (MUST)
+- `maxRequestsPerPeriod`
+- `maxTokensPerPeriod` (reported or estimated)
+- `maxComputeMsPerPeriod`
+
+#### 8.2.2 Runtime access (MUST)
+- `agentcoreEnabled` (boolean)
+
+#### 8.2.3 AgentCore capability flags (MUST when agentcoreEnabled=true)
+These flags control which AgentCore features the platform is allowed to enable for a user’s deployments:
+- `memoryEnabled` (boolean)
+- `codeInterpreterEnabled` (boolean)
+- `browserEnabled` (boolean)
+
+Notes:
+- These are **entitlements**, not per-request knobs. The control plane may still choose to disable a capability for a specific deployment even when entitled, but MUST NOT enable a capability when not entitled.
+- These flags SHOULD be reflected in the data model (agent/providerConfig and deployment/providerRef) to support auditing, debugging, and consistent enforcement.
+
+#### 8.2.4 Tool quotas (optional but recommended when tools are enabled)
+If you enable AgentCore tools for any tier, the tier SHOULD also define explicit monthly quotas to prevent surprise costs:
+- `maxToolCallsPerPeriod` (total tool invocations across code interpreter + browser + any future tools)
+- `maxCodeExecutionSecondsPerPeriod` (time spent in code execution sandbox)
+- `maxBrowserSessionsPerPeriod` (count of distinct browser tool sessions)
+
+If these quotas are not implemented in v1:
+- the platform MUST still emit telemetry with tool usage fields when available, and
+- the platform SHOULD gate tool enablement to only the highest tier to reduce risk.
+
+#### 8.2.5 Retention (MUST)
+- `telemetryRetentionDays`
+- `logsRetentionDays`
+
+#### 8.2.6 Optional platform caps (MAY)
+- `maxAgents`
+- `maxDeploymentsPerAgent`
+- `maxConcurrentInvocations`
+- any other operational caps required for abuse prevention and cost control
 - invocation limits per billing period:
   - maxRequests
   - maxTokens
@@ -290,28 +334,55 @@ Example entitlement table (illustrative; not pricing commitment):
   - maxTokens: Y
   - maxComputeMs: Z
   - agentcoreEnabled: false
-  - retentionDaysTelemetry: 7
-  - retentionDaysLogs: 7
+  - memoryEnabled: false
+  - codeInterpreterEnabled: false
+  - browserEnabled: false
+  - telemetryRetentionDays: 7
+  - logsRetentionDays: 7
 
 - starter:
   - higher limits
-  - agentcoreEnabled: false (or limited)
-  - retention 14 days
+  - agentcoreEnabled: false (or limited, if you explicitly want a small allocation)
+  - memoryEnabled: false
+  - codeInterpreterEnabled: false
+  - browserEnabled: false
+  - telemetryRetentionDays: 14
+  - logsRetentionDays: 14
 
 - pro:
   - higher limits
-  - agentcoreEnabled: optional (recommended: still false unless you want to include a small AgentCore allocation)
-  - retention 30 days
+  - agentcoreEnabled: optional (platform choice; if enabled, tools still SHOULD remain off by default in v1)
+  - memoryEnabled: optional (only meaningful if agentcoreEnabled=true)
+  - codeInterpreterEnabled: false (recommended v1)
+  - browserEnabled: false (recommended v1)
+  - telemetryRetentionDays: 30
+  - logsRetentionDays: 30
 
 - enterprise:
   - custom limits
   - agentcoreEnabled: true
-  - retention 90+ days (configurable)
+  - memoryEnabled: true
+  - codeInterpreterEnabled: true
+  - browserEnabled: true
+  - maxToolCallsPerPeriod: <set value>
+  - maxCodeExecutionSecondsPerPeriod: <set value>
+  - maxBrowserSessionsPerPeriod: <set value>
+  - telemetryRetentionDays: 90
+  - logsRetentionDays: 90
 
 ### 8.4 Runtime gating rules (MUST)
 - Deployments to `agentcore` MUST be rejected when `agentcoreEnabled=false`.
 - Invocations routed to `agentcore` MUST be rejected when `agentcoreEnabled=false` (defense in depth).
 - UI MUST hide or disable AgentCore options when not entitled, but backend enforcement is authoritative.
+
+Capability gating (AgentCore):
+- If `memoryEnabled=false`, the control plane MUST NOT enable AgentCore memory features for any deployment, and MUST reject deployments that request/require memory.
+- If `codeInterpreterEnabled=false`, the control plane MUST NOT enable Code Interpreter for any deployment, and MUST reject deployments that request/require it.
+- If `browserEnabled=false`, the control plane MUST NOT enable Browser tooling for any deployment, and MUST reject deployments that request/require it.
+
+Tool quota enforcement (if tool entitlements exist):
+- If a tier defines `maxToolCallsPerPeriod` / `maxCodeExecutionSecondsPerPeriod` / `maxBrowserSessionsPerPeriod`, the invocation path MUST enforce these limits (preferably pre-invocation; otherwise block subsequent invocations once exceeded).
+- Telemetry SHOULD include tool usage counters so quotas can be enforced and shown in the dashboard.
 
 ### 8.5 Plan changes
 When a user upgrades/downgrades:
