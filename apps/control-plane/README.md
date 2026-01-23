@@ -103,17 +103,50 @@ Generate a 32-byte base64 key:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
-### 3) Cloudflare deploy credentials + workers.dev subdomain
+### 3) Cloudflare deploy credentials + public invocation URL (workers.dev or custom domain)
 
-Set:
+Set (required for all Cloudflare deployments):
 
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN`
+
+#### Option A (default): workers.dev hostname (simple)
+
+Set:
+
 - `CLOUDFLARE_WORKERS_DEV_SUBDOMAIN`
 
 Notes:
-- `CLOUDFLARE_WORKERS_DEV_SUBDOMAIN` is the account subdomain used for `workers.dev` URLs.
-  - If workers resolve as `https://<script>.<subdomain>.workers.dev`, set it to `<subdomain>`.
+- This value MUST be the **subdomain only**, not the full domain.
+  - If Cloudflare shows `trabur.workers.dev`, set `CLOUDFLARE_WORKERS_DEV_SUBDOMAIN=trabur` (no `.workers.dev`).
+- The control plane will compute the invoke URL as:
+  - `https://<workerName>.<subdomain>.workers.dev/invoke`
+- The control plane attempts to publish scripts to workers.dev automatically during deploy.
+  - If Cloudflare shows the `workers.dev` route as **Inactive** for the script, workers.dev may be disabled at the account level. In that case, use Option B.
+
+#### Option B (recommended): custom domain route (workers-api subdomain)
+
+This is the preferred production setup: invoke workers via a stable hostname you own, e.g. `workers-api.example.com`, without relying on workers.dev activation state.
+
+Set:
+
+- `CLOUDFLARE_ZONE_ID`
+  - Zone ID for the domain you want to attach the Worker to (e.g. for `example.com`).
+- `CLOUDFLARE_WORKERS_CUSTOM_DOMAIN`
+  - Custom hostname (host only).
+  - Example: `workers-api.example.com`
+
+Per-deployment routing path strategy (v1):
+- The control plane creates a **per-deployment** Cloudflare Worker Route so multiple deployments can coexist on one hostname.
+- Each deployment is routed under a unique prefix:
+  - route prefix: `/dep/<deploymentId>`
+  - invoke path: `/dep/<deploymentId>/invoke`
+- The resulting invoke URL is:
+  - `https://workers-api.example.com/dep/<deploymentId>/invoke`
+
+Notes:
+- Your DNS must point `workers-api.example.com` at Cloudflare (proxied) in the same account/zone.
+- If you are migrating from workers.dev to custom domain routes, deploy a new deployment so the stored `invokeUrl` points at the custom hostname + per-deployment path.
 
 ### 4) Telemetry ingestion URL (public)
 
@@ -129,6 +162,12 @@ For Convex, HTTP endpoints are served on your deployment’s `*.convex.site` dom
 Once you run `convex dev`, you can determine the dev deployment URL and set:
 
 `CONTROL_PLANE_TELEMETRY_REPORT_URL=https://<your-dev-deployment>.convex.site/v1/telemetry/report`
+
+Notes:
+- Do not use `localhost` here; the Worker runs on Cloudflare and must reach this URL over the public internet.
+- A quick smoke test for invocation reachability is:
+  - Browser navigation (GET) should return `METHOD_NOT_ALLOWED` from the Worker template.
+  - A POST to `/invoke` should return a JSON `invoke/v1` response.
 
 ---
 

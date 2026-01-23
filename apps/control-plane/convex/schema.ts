@@ -15,7 +15,10 @@ import { v } from "convex/values";
  * - Telemetry is append-only and integrity-verified at ingestion (HMAC + ownership cross-check).
  */
 
-const runtimeProvider = v.union(v.literal("cloudflare"), v.literal("agentcore"));
+const runtimeProvider = v.union(
+  v.literal("cloudflare"),
+  v.literal("agentcore"),
+);
 
 const agentStatus = v.union(
   v.literal("draft"),
@@ -24,20 +27,20 @@ const agentStatus = v.union(
   v.literal("active"),
   v.literal("error"),
   v.literal("disabled"),
-  v.literal("deleted")
+  v.literal("deleted"),
 );
 
 const deploymentStatus = v.union(
   v.literal("deploying"),
   v.literal("active"),
   v.literal("failed"),
-  v.literal("inactive")
+  v.literal("inactive"),
 );
 
 const tier = v.union(
   v.literal("free"),
   v.literal("pro"),
-  v.literal("enterprise")
+  v.literal("enterprise"),
 );
 
 const errorClass = v.union(
@@ -45,7 +48,7 @@ const errorClass = v.union(
   v.literal("limit"),
   v.literal("runtime"),
   v.literal("tool"),
-  v.literal("unknown")
+  v.literal("unknown"),
 );
 
 export default defineSchema({
@@ -140,7 +143,7 @@ export default defineSchema({
         type: v.string(), // e.g. "bundle", "repo", "template"
         ref: v.optional(v.string()), // URL/hash/path depending on type
         checksum: v.optional(v.string()),
-      })
+      }),
     ),
 
     /**
@@ -212,7 +215,11 @@ export default defineSchema({
   })
     .index("by_deploymentId_timestampMs", ["deploymentId", "timestampMs"])
     .index("by_userId_timestampMs", ["userId", "timestampMs"])
-    .index("by_userId_agentId_timestampMs", ["userId", "agentId", "timestampMs"])
+    .index("by_userId_agentId_timestampMs", [
+      "userId",
+      "agentId",
+      "timestampMs",
+    ])
     .index("by_deploymentId_traceId", ["deploymentId", "traceId"])
     .index("by_deploymentId_eventId", ["deploymentId", "eventId"]),
 
@@ -233,6 +240,30 @@ export default defineSchema({
     computeMs: v.number(),
     toolCalls: v.optional(v.number()),
     costUsdEstimated: v.number(),
+
+    updatedAtMs: v.number(),
+  }).index("by_userId_periodKey", ["userId", "periodKey"]),
+
+  /**
+   * Fast request counters for pre-invocation limit enforcement (ADR-0007).
+   *
+   * Purpose:
+   * - Maintain a lightweight, atomic-ish per-user per-period counter for requests so the
+   *   invocation gateway can hard-stop before calling a runtime provider.
+   *
+   * Notes:
+   * - This is intentionally narrow in v1: request count only.
+   * - Tokens/compute remain post-charged via telemetry aggregation (with subsequent blocking).
+   * - This table is a "fast path"; `billingUsage` remains the canonical aggregated view.
+   */
+  requestUsageCounters: defineTable({
+    userId: v.id("users"),
+    periodKey: v.string(), // e.g. "2026-01"
+
+    /**
+     * Requests used in this period (integer, non-negative).
+     */
+    requestsUsed: v.number(),
 
     updatedAtMs: v.number(),
   }).index("by_userId_periodKey", ["userId", "periodKey"]),
@@ -277,7 +308,7 @@ export default defineSchema({
         identitySubject: v.optional(v.string()),
         ip: v.optional(v.string()),
         userAgent: v.optional(v.string()),
-      })
+      }),
     ),
 
     /**

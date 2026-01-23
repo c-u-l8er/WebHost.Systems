@@ -63,13 +63,15 @@ export const ingestMetricsEvent = internalMutation({
     assertFiniteNumber(args.computeMs, "computeMs");
     assertFiniteNumber(args.errors, "errors");
     assertFiniteNumber(args.costUsdEstimated, "costUsdEstimated");
-    if (args.toolCalls !== undefined) assertFiniteNumber(args.toolCalls, "toolCalls");
+    if (args.toolCalls !== undefined)
+      assertFiniteNumber(args.toolCalls, "toolCalls");
 
     assertNonNegativeIntegerLike(args.requests, "requests");
     assertNonNegativeIntegerLike(args.llmTokens, "llmTokens");
     assertNonNegativeIntegerLike(args.computeMs, "computeMs");
     assertNonNegativeIntegerLike(args.errors, "errors");
-    if (args.toolCalls !== undefined) assertNonNegativeIntegerLike(args.toolCalls, "toolCalls");
+    if (args.toolCalls !== undefined)
+      assertNonNegativeIntegerLike(args.toolCalls, "toolCalls");
 
     if (args.costUsdEstimated < 0) {
       throw new Error("Invalid costUsdEstimated");
@@ -141,7 +143,8 @@ export const ingestMetricsEvent = internalMutation({
       requests: Math.trunc(args.requests),
       llmTokens: Math.trunc(args.llmTokens),
       computeMs: Math.trunc(args.computeMs),
-      toolCalls: args.toolCalls !== undefined ? Math.trunc(args.toolCalls) : undefined,
+      toolCalls:
+        args.toolCalls !== undefined ? Math.trunc(args.toolCalls) : undefined,
 
       errors: Math.trunc(args.errors),
       errorClass: args.errorClass,
@@ -152,9 +155,55 @@ export const ingestMetricsEvent = internalMutation({
       provider: args.provider,
     });
 
+    // Increment aggregated usage for the billing period.
+    //
+    // Notes:
+    // - This is an incremental optimization for the dashboard; `billingUsage` remains derived data
+    //   and should be recomputable from `metricsEvents` (spec requirement).
+    // - We bucket by the telemetry event timestamp (not "now") so aggregation is deterministic.
+    const periodKey = getPeriodKeyUtcFromTimestampMs(args.timestampMs);
+    const now = Date.now();
+    const toolCallsInc = args.toolCalls ?? 0;
+
+    const existingUsage = await ctx.db
+      .query("billingUsage")
+      .withIndex("by_userId_periodKey", (q) =>
+        q.eq("userId", args.userId).eq("periodKey", periodKey),
+      )
+      .unique();
+
+    let billingUsageId: any;
+
+    if (!existingUsage) {
+      billingUsageId = await ctx.db.insert("billingUsage", {
+        userId: args.userId,
+        periodKey,
+        requests: args.requests,
+        llmTokens: args.llmTokens,
+        computeMs: args.computeMs,
+        toolCalls: toolCallsInc,
+        costUsdEstimated: args.costUsdEstimated,
+        updatedAtMs: now,
+      });
+    } else {
+      billingUsageId = existingUsage._id;
+
+      await ctx.db.patch(existingUsage._id, {
+        requests: numberOrZero(existingUsage.requests) + args.requests,
+        llmTokens: numberOrZero(existingUsage.llmTokens) + args.llmTokens,
+        computeMs: numberOrZero(existingUsage.computeMs) + args.computeMs,
+        toolCalls: numberOrZero(existingUsage.toolCalls) + toolCallsInc,
+        costUsdEstimated:
+          numberOrZero(existingUsage.costUsdEstimated) + args.costUsdEstimated,
+        updatedAtMs: now,
+      });
+    }
+
     return {
       deduped: false,
       metricsEventId,
+      billingUsageId,
+      periodKey,
       dedupeKey: (eventId ? "eventId" : args.traceId ? "traceId" : "none") as
         | "eventId"
         | "traceId"
@@ -162,6 +211,23 @@ export const ingestMetricsEvent = internalMutation({
     };
   },
 });
+
+/**
+ * v1 period key: calendar month, UTC, formatted as `YYYY-MM`.
+ *
+ * IMPORTANT: We derive this from the telemetry event timestamp so aggregation is deterministic.
+ */
+function getPeriodKeyUtcFromTimestampMs(timestampMs: number): string {
+  const d = new Date(timestampMs);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1; // 1..12
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function numberOrZero(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return value;
+}
 
 function normalizeOptionalId(value: string | undefined): string | null {
   if (value === undefined) return null;

@@ -2,6 +2,10 @@ import { v } from "convex/values";
 import { mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getOrCreateCurrentUser } from "../lib/auth";
+import {
+  getEntitlementsForTier,
+  isRuntimeProviderAllowed,
+} from "../lib/entitlements";
 import { renderCloudflareWorkerTemplate } from "../providers/cloudflareWorkerTemplate";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -30,7 +34,7 @@ export const createAndDeploy = mutation({
 
     /**
      * v1: runtimeProvider is optional; default to agent preference or "cloudflare".
-     * Runtime gating for AgentCore is enforced elsewhere (entitlements) and should also be
+     * Runtime gating for AgentCore is enforced here (tier-based baseline) and should also be
      * enforced inside the provider adapter (defense in depth).
      */
     runtimeProvider: v.optional(runtimeProvider),
@@ -51,7 +55,7 @@ export const createAndDeploy = mutation({
     mainModuleName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, identity } = await getOrCreateCurrentUser(ctx);
+    const { userId, user, identity } = await getOrCreateCurrentUser(ctx);
 
     const agent = await getAgentOwnedOrThrow(ctx, userId, args.agentId);
 
@@ -66,6 +70,13 @@ export const createAndDeploy = mutation({
 
     const chosenRuntimeProvider =
       args.runtimeProvider ?? agent.preferredRuntimeProvider ?? "cloudflare";
+
+    // Runtime gating (ADR-0007): enforce via centralized entitlements mapping (server-authoritative).
+    // Defense in depth: adapters must ALSO enforce this in deploy/invoke paths.
+    const entitlements = getEntitlementsForTier(user.tier);
+    if (!isRuntimeProviderAllowed(entitlements, chosenRuntimeProvider)) {
+      throw new Error("Runtime provider is not enabled for your tier");
+    }
 
     // v1 Slice B: only Cloudflare is wired. Keep this explicit to avoid silent partial behavior.
     if (chosenRuntimeProvider !== "cloudflare") {

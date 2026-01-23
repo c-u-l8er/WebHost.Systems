@@ -87,82 +87,25 @@ const INVOKE_PATH = ${JSON.stringify(invokePath)};
 const DEFAULT_MAX_OUTPUT_CHARS = ${JSON.stringify(defaultMaxOutputChars)};
 const REJECT_AMBIGUOUS_INPUT = ${JSON.stringify(rejectAmbiguousInput)};
 
-export interface Env {
-  // Secret binding injected by the deploy pipeline:
-  // base64url of raw key bytes (32 bytes recommended).
-  TELEMETRY_SECRET?: string;
+/**
+ * Runtime bindings injected by the deploy pipeline.
+ *
+ * NOTE:
+ * - This generated worker code must be valid JavaScript (Cloudflare parses it as JS, not TS).
+ * - All bindings are strings at runtime.
+ *
+ * Expected bindings:
+ * - TELEMETRY_SECRET (secret string; base64url of raw key bytes, 32 bytes recommended)
+ * - TELEMETRY_REPORT_URL (string; control-plane telemetry ingestion endpoint)
+ * - USER_ID / AGENT_ID / DEPLOYMENT_ID / RUNTIME_PROVIDER (strings; attribution)
+ * - MAX_OUTPUT_CHARS (optional numeric string)
+ */
 
-  // Control-plane telemetry ingestion endpoint.
-  TELEMETRY_REPORT_URL?: string;
-
-  // Attribution fields (injected by deploy pipeline).
-  USER_ID?: string;
-  AGENT_ID?: string;
-  DEPLOYMENT_ID?: string;
-  RUNTIME_PROVIDER?: string;
-
-  // Optional: allow simple per-deployment tuning.
-  // If provided and valid, overrides DEFAULT_MAX_OUTPUT_CHARS.
-  MAX_OUTPUT_CHARS?: string; // numeric string
-}
-
-type InvokeV1MessageRole = "system" | "user" | "assistant" | "tool";
-
-type InvokeV1Message = {
-  role: InvokeV1MessageRole;
-  content: string;
-};
-
-type InvokeV1Request = {
-  protocol?: "invoke/v1";
-  traceId?: string;
-  sessionId?: string;
-  input?: {
-    prompt?: string;
-    messages?: InvokeV1Message[];
-  };
-};
-
-type InvokeV1Response = {
-  protocol: "invoke/v1";
-  traceId: string;
-  sessionId?: string;
-  output: {
-    text: string;
-  };
-  usage?: {
-    tokens?: number;
-    computeMs?: number;
-  };
-};
-
-type TelemetryEventV1 = {
-  // Required attribution
-  userId: string;
-  agentId: string;
-  deploymentId: string;
-  runtimeProvider: "cloudflare" | "agentcore";
-
-  // Event metadata
-  timestampMs: number;
-  requests: number;
-
-  // Metering
-  llmTokens: number;
-  computeMs: number;
-  costUsdEstimated: number;
-
-  // Observability
-  errors: number;
-  errorClass?: "auth" | "limit" | "runtime" | "tool" | "unknown";
-  traceId?: string;
-
-  // Optional runtime-specific fields
-  provider?: Record<string, unknown>;
-};
+// TypeScript type declarations removed: Cloudflare Workers expects JavaScript source.
+// Keep the runtime shape implicit and validate dynamically where needed.
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (url.pathname !== INVOKE_PATH) {
@@ -192,9 +135,9 @@ export default {
     const startMs = Date.now();
 
     // Parse request JSON. (Invocation request bytes are not used for telemetry signature.)
-    let invokeReq: InvokeV1Request;
+    let invokeReq;
     try {
-      invokeReq = (await request.json()) as InvokeV1Request;
+      invokeReq = await request.json();
     } catch {
       return json(
         {
@@ -210,7 +153,7 @@ export default {
     const traceId = invokeReq.traceId ?? \`trace_\${crypto.randomUUID()}\`;
     const sessionId = invokeReq.sessionId ?? \`sess_\${crypto.randomUUID()}\`;
 
-    let messages: InvokeV1Message[];
+    let messages;
     try {
       messages = normalizeMessages(invokeReq);
     } catch (e) {
@@ -245,7 +188,7 @@ export default {
     // Token estimate is intentionally rough for the template.
     const tokensEstimated = estimateTokensFromText(messages, responseText);
 
-    const resp: InvokeV1Response = {
+    const resp = {
       protocol: "invoke/v1",
       traceId,
       sessionId,
@@ -279,8 +222,8 @@ export default {
   },
 };
 
-function normalizeMessages(req: InvokeV1Request): InvokeV1Message[] {
-  const input = req.input ?? {};
+function normalizeMessages(req) {
+  const input = (req && req.input) ? req.input : {};
   const hasMessages = Array.isArray(input.messages) && input.messages.length > 0;
   const hasPrompt = typeof input.prompt === "string" && input.prompt.length > 0;
 
@@ -289,30 +232,30 @@ function normalizeMessages(req: InvokeV1Request): InvokeV1Message[] {
       throw new Error("Provide either input.messages or input.prompt, not both");
     }
     // Deterministic fallback: prefer messages
-    return sanitizeMessages(input.messages!);
+    return sanitizeMessages(input.messages);
   }
 
   if (hasMessages) {
-    return sanitizeMessages(input.messages!);
+    return sanitizeMessages(input.messages);
   }
 
   if (hasPrompt) {
-    return [{ role: "user", content: input.prompt! }];
+    return [{ role: "user", content: input.prompt }];
   }
 
   return [];
 }
 
-function sanitizeMessages(messages: InvokeV1Message[]): InvokeV1Message[] {
+function sanitizeMessages(messages) {
   return messages
     .filter((m) => m && typeof m.role === "string" && typeof m.content === "string")
     .map((m) => ({
-      role: m.role as InvokeV1MessageRole,
+      role: m.role,
       content: m.content,
     }));
 }
 
-function estimateTokensFromText(messages: InvokeV1Message[], outputText: string): number {
+function estimateTokensFromText(messages, outputText) {
   // Rough heuristic: ~4 chars/token average for English.
   const inputChars = messages.reduce((acc, m) => acc + m.content.length, 0);
   const outputChars = outputText.length;
@@ -320,15 +263,7 @@ function estimateTokensFromText(messages: InvokeV1Message[], outputText: string)
   return Math.max(1, approx);
 }
 
-async function emitTelemetry(args: {
-  env: Env;
-  traceId: string;
-  computeMs: number;
-  llmTokens: number;
-  errors: number;
-  errorClass?: TelemetryEventV1["errorClass"];
-  providerMeta?: Record<string, unknown>;
-}): Promise<void> {
+async function emitTelemetry(args) {
   const { env, traceId, computeMs, llmTokens, errors, errorClass, providerMeta } = args;
 
   // Required env vars for attribution + auth
@@ -338,14 +273,14 @@ async function emitTelemetry(args: {
   const userId = env.USER_ID;
   const agentId = env.AGENT_ID;
   const deploymentId = env.DEPLOYMENT_ID;
-  const runtimeProvider = (env.RUNTIME_PROVIDER ?? "cloudflare") as TelemetryEventV1["runtimeProvider"];
+  const runtimeProvider = env.RUNTIME_PROVIDER || "cloudflare";
 
   if (!reportUrl || !secretB64u || !userId || !agentId || !deploymentId) {
     // Missing config; skip telemetry. (Do not throw; do not block invocations.)
     return;
   }
 
-  const event: TelemetryEventV1 = {
+  const event = {
     userId,
     agentId,
     deploymentId,
@@ -365,10 +300,10 @@ async function emitTelemetry(args: {
   const signatureHex = await hmacSha256HexFromBase64UrlKey(secretB64u, bodyBytes);
 
   // Telemetry auth headers (ADR-0004)
-  const headers: Record<string, string> = {
+  const headers = {
     "content-type": "application/json; charset=utf-8",
     "x-telemetry-deployment-id": deploymentId,
-    "x-telemetry-signature": \`v1=\${signatureHex}\`,
+    "x-telemetry-signature": "v1=" + signatureHex,
   };
 
   // Best-effort POST; ignore failures.
@@ -383,7 +318,7 @@ async function emitTelemetry(args: {
   }
 }
 
-async function hmacSha256HexFromBase64UrlKey(keyB64u: string, data: Uint8Array): Promise<string> {
+async function hmacSha256HexFromBase64UrlKey(keyB64u, data) {
   const keyBytes = base64UrlToBytes(keyB64u);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
@@ -396,7 +331,7 @@ async function hmacSha256HexFromBase64UrlKey(keyB64u: string, data: Uint8Array):
   return bytesToHex(new Uint8Array(sig));
 }
 
-function base64UrlToBytes(b64url: string): Uint8Array {
+function base64UrlToBytes(b64url) {
   // Convert base64url -> base64
   let b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
   while (b64.length % 4 !== 0) b64 += "=";
@@ -408,7 +343,7 @@ function base64UrlToBytes(b64url: string): Uint8Array {
   return bytes;
 }
 
-function bytesToHex(bytes: Uint8Array): string {
+function bytesToHex(bytes) {
   let out = "";
   for (let i = 0; i < bytes.length; i++) {
     out += bytes[i].toString(16).padStart(2, "0");
@@ -416,17 +351,17 @@ function bytesToHex(bytes: Uint8Array): string {
   return out;
 }
 
-function parseOptionalPositiveInt(value: string | undefined): number | null {
+function parseOptionalPositiveInt(value) {
   if (!value) return null;
   const n = Number(value);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
   return n;
 }
 
-function json(body: unknown, init?: { status?: number; headers?: Record<string, string> }): Response {
-  const headers = new Headers(init?.headers);
+function json(body, init) {
+  const headers = new Headers(init && init.headers ? init.headers : undefined);
   headers.set("content-type", "application/json; charset=utf-8");
-  return new Response(JSON.stringify(body), { status: init?.status ?? 200, headers });
+  return new Response(JSON.stringify(body), { status: (init && init.status) ? init.status : 200, headers });
 }
 `;
 }

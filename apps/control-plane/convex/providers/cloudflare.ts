@@ -245,7 +245,10 @@ async function cloudflareApiFetch(args: {
   }
 }
 
-async function requireCloudflareSuccess(res: Response): Promise<any> {
+async function requireCloudflareSuccess(
+  res: Response,
+  context?: { method?: string; path?: string; step?: string },
+): Promise<any> {
   const text = await res.text();
   let json: any = null;
   try {
@@ -267,8 +270,20 @@ async function requireCloudflareSuccess(res: Response): Promise<any> {
     const code = firstError?.code;
     const message = firstError?.message;
 
-    const safeSuffix =
-      code || message ? ` (code=${String(code ?? "unknown")})` : "";
+    const endpoint =
+      context?.method && context?.path
+        ? `${context.method} ${context.path}`
+        : undefined;
+
+    const parts: string[] = [];
+    if (context?.step) parts.push(`step=${context.step}`);
+    if (endpoint) parts.push(`endpoint=${endpoint}`);
+    if (code !== undefined && code !== null) parts.push(`code=${String(code)}`);
+    if (typeof message === "string" && message.trim().length > 0) {
+      parts.push(`message=${message.trim().slice(0, 200)}`);
+    }
+
+    const safeSuffix = parts.length > 0 ? ` (${parts.join(", ")})` : "";
 
     throw new Error(
       `Cloudflare API request failed (status ${res.status})${safeSuffix}`,
@@ -297,6 +312,7 @@ async function uploadWorkerModule(args: {
   const metadata: Record<string, unknown> = {
     main_module: args.mainModuleName,
     compatibility_date: args.compatibilityDate,
+    workers_dev: true,
   };
 
   // Bindings schema is provider-defined; we pass through if provided.
@@ -315,18 +331,25 @@ async function uploadWorkerModule(args: {
     args.mainModuleName,
   );
 
+  const method = "PUT";
+  const path = `/accounts/${encodeURIComponent(args.accountId)}/workers/scripts/${encodeURIComponent(
+    args.workerName,
+  )}`;
+
   const res = await cloudflareApiFetch({
-    method: "PUT",
-    path: `/accounts/${encodeURIComponent(args.accountId)}/workers/scripts/${encodeURIComponent(
-      args.workerName,
-    )}`,
+    method,
+    path,
     token: args.token,
     body: form,
     // Do NOT set content-type; fetch will set multipart boundary automatically.
     timeoutMs: 60_000,
   });
 
-  await requireCloudflareSuccess(res);
+  await requireCloudflareSuccess(res, {
+    method,
+    path,
+    step: "upload_worker_module",
+  });
 }
 
 /**
@@ -343,11 +366,14 @@ async function putWorkerSecret(args: {
   name: string;
   text: string;
 }): Promise<void> {
+  const method = "PUT";
+  const path = `/accounts/${encodeURIComponent(args.accountId)}/workers/scripts/${encodeURIComponent(
+    args.workerName,
+  )}/secrets`;
+
   const res = await cloudflareApiFetch({
-    method: "PUT",
-    path: `/accounts/${encodeURIComponent(args.accountId)}/workers/scripts/${encodeURIComponent(
-      args.workerName,
-    )}/secrets`,
+    method,
+    path,
     token: args.token,
     headers: {
       "content-type": "application/json",
@@ -360,7 +386,11 @@ async function putWorkerSecret(args: {
     timeoutMs: 30_000,
   });
 
-  await requireCloudflareSuccess(res);
+  await requireCloudflareSuccess(res, {
+    method,
+    path,
+    step: `put_worker_secret:${args.name}`,
+  });
 }
 
 /**
@@ -405,27 +435,42 @@ export async function deployCloudflareWorker(
   });
 
   // 1) Upload worker code
-  await uploadWorkerModule({
-    accountId: env.CLOUDFLARE_ACCOUNT_ID,
-    token: env.CLOUDFLARE_API_TOKEN,
-    workerName,
-    mainModuleName,
-    moduleCode: input.moduleCode,
-    compatibilityDate,
-    bindings: input.bindings,
-  });
+  try {
+    await uploadWorkerModule({
+      accountId: env.CLOUDFLARE_ACCOUNT_ID,
+      token: env.CLOUDFLARE_API_TOKEN,
+      workerName,
+      mainModuleName,
+      moduleCode: input.moduleCode,
+      compatibilityDate,
+      bindings: input.bindings,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Cloudflare deploy failed at step=upload_worker_module: ${msg}`,
+    );
+  }
 
   // 2) Inject telemetry secret binding
   //    Cloudflare secret values are strings; use base64url encoding for safe transport.
   const telemetrySecretForEnv =
     telemetrySecretBytesToEnvString(telemetrySecretBytes);
-  await putWorkerSecret({
-    accountId: env.CLOUDFLARE_ACCOUNT_ID,
-    token: env.CLOUDFLARE_API_TOKEN,
-    workerName,
-    name: telemetryBindingName,
-    text: telemetrySecretForEnv,
-  });
+
+  try {
+    await putWorkerSecret({
+      accountId: env.CLOUDFLARE_ACCOUNT_ID,
+      token: env.CLOUDFLARE_API_TOKEN,
+      workerName,
+      name: telemetryBindingName,
+      text: telemetrySecretForEnv,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Cloudflare deploy failed at step=put_worker_secret:${telemetryBindingName}: ${msg}`,
+    );
+  }
 
   // 3) Optionally inject additional secrets (values never stored in DB)
   if (input.additionalSecrets) {
@@ -435,13 +480,20 @@ export async function deployCloudflareWorker(
       // Avoid accidentally setting telemetry binding twice.
       if (key === telemetryBindingName) continue;
 
-      await putWorkerSecret({
-        accountId: env.CLOUDFLARE_ACCOUNT_ID,
-        token: env.CLOUDFLARE_API_TOKEN,
-        workerName,
-        name: key,
-        text: v,
-      });
+      try {
+        await putWorkerSecret({
+          accountId: env.CLOUDFLARE_ACCOUNT_ID,
+          token: env.CLOUDFLARE_API_TOKEN,
+          workerName,
+          name: key,
+          text: v,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Cloudflare deploy failed at step=put_worker_secret:${key}: ${msg}`,
+        );
+      }
     }
   }
 

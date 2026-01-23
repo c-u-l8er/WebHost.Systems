@@ -504,9 +504,12 @@ function decodeKeyString(value: string): Uint8Array {
     return hexToBytes(trimmed);
   }
 
-  // Default: base64 (also supports base64url-ish inputs after normalization below if you prefer,
-  // but we keep the heuristic simple and predictable).
-  return base64Decode(trimmed);
+  // Default: base64url (unpadded).
+  //
+  // Rationale:
+  // - We commonly generate/store keys as base64url without padding for env var friendliness.
+  // - This decoder also accepts standard base64 input (it normalizes and pads as needed).
+  return base64UrlDecode(trimmed);
 }
 
 function hexToBytes(hex: string): Uint8Array {

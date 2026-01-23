@@ -16,6 +16,8 @@ import {
   verifyTelemetrySignatureHeaderV1,
 } from "./lib/crypto";
 
+import { getCurrentPeriodKeyUtc } from "./lib/period";
+
 import { invokeCloudflareWorker } from "./providers/cloudflare";
 
 const http = httpRouter();
@@ -557,6 +559,123 @@ async function handleInvokeSubroutes(
       });
     }
 
+    // Limits & runtime gating (ADR-0007): enforce pre-invocation via internal request reservation.
+    //
+    // v1 enforcement model:
+    // - requests: hard-stop pre-invoke (and reserve 1 request to reduce concurrency gaps)
+    // - tokens/compute: post-charge via telemetry + aggregation (subsequent blocking)
+    const periodKey = getCurrentPeriodKeyUtc();
+
+    const preflight = await ctx.runMutation(
+      (internal as any).mutations.internalUsageCounters
+        .authorizeInvocationAndReserveRequest,
+      {
+        userId: agent.userId,
+        agentId: agent._id,
+        deploymentId: deployment._id,
+        periodKey,
+        runtimeProvider: deployment.runtimeProvider,
+        traceId,
+      },
+    );
+
+    if (!preflight || preflight.ok !== true) {
+      const denied = preflight?.denied;
+
+      // Streaming denials must still return SSE events (meta -> error) instead of a JSON error envelope.
+      if (isStream) {
+        return sseResponse(
+          async (send) => {
+            await send("meta", {
+              protocol: "invoke/v1",
+              traceId,
+              agentId: agent._id,
+              deploymentId: deployment._id,
+            });
+
+            if (denied?.kind === "requests_limit_exceeded") {
+              await send("error", {
+                error: {
+                  code: "LIMIT_EXCEEDED",
+                  message: "Request limit exceeded for current billing period",
+                  details: {
+                    limitType: "requests",
+                    periodKey,
+                    maxRequestsPerPeriod: denied.maxRequestsPerPeriod,
+                    requestsUsed: denied.requestsUsed,
+                  },
+                  retryable: false,
+                  requestId,
+                },
+              });
+              return;
+            }
+
+            if (denied?.kind === "runtime_gated") {
+              await send("error", {
+                error: {
+                  code: "FORBIDDEN",
+                  message: "Runtime provider not enabled for current tier",
+                  details: {
+                    runtimeProvider: deployment.runtimeProvider,
+                    entitlement: "agentcoreEnabled",
+                  },
+                  retryable: false,
+                  requestId,
+                },
+              });
+              return;
+            }
+
+            await send("error", {
+              error: {
+                code: "INTERNAL_ERROR",
+                message: "Invocation preflight failed",
+                retryable: true,
+                requestId,
+              },
+            });
+          },
+          corsHeaders(request, requestId),
+        );
+      }
+
+      if (denied?.kind === "requests_limit_exceeded") {
+        throw new HttpError({
+          status: 429,
+          code: "LIMIT_EXCEEDED",
+          message: "Request limit exceeded for current billing period",
+          details: {
+            limitType: "requests",
+            periodKey,
+            maxRequestsPerPeriod: denied.maxRequestsPerPeriod,
+            requestsUsed: denied.requestsUsed,
+          },
+          retryable: false,
+        });
+      }
+
+      if (denied?.kind === "runtime_gated") {
+        throw new HttpError({
+          status: 403,
+          code: "FORBIDDEN",
+          message: "Runtime provider not enabled for current tier",
+          details: {
+            runtimeProvider: deployment.runtimeProvider,
+            entitlement: "agentcoreEnabled",
+          },
+          retryable: false,
+        });
+      }
+
+      throw new HttpError({
+        status: 500,
+        code: "INTERNAL_ERROR",
+        message: "Invocation preflight failed",
+        retryable: true,
+      });
+    }
+
     // Runtime dispatch (Slice B: Cloudflare only)
     if (deployment.runtimeProvider !== "cloudflare") {
       throw new HttpError({
@@ -585,12 +704,30 @@ async function handleInvokeSubroutes(
     });
 
     if (!isStream) {
-      const providerResp = await invokeCloudflareWorker({
-        providerRef: deployment.providerRef as any,
-        body: forwardedBodyText,
-        traceId,
-        timeoutMs: 60_000,
-      });
+      let providerResp: { status: number; bodyText: string } | null = null;
+      try {
+        providerResp = await invokeCloudflareWorker({
+          providerRef: deployment.providerRef as any,
+          body: forwardedBodyText,
+          traceId,
+          timeoutMs: 60_000,
+        });
+      } catch (_err) {
+        const invokeHost = safeInvokeUrlHost(deployment.providerRef);
+        return errorResponse({
+          status: 502,
+          code: "RUNTIME_ERROR",
+          message: "Invocation failed",
+          details: {
+            runtimeProvider: "cloudflare",
+            failure: "network_error",
+            invokeHost: invokeHost ?? null,
+          },
+          retryable: true,
+          requestId,
+          headers: corsHeaders(request, requestId),
+        });
+      }
 
       // Best-effort: pass through the worker response as JSON.
       // In a later pass, normalize to the public contract and map provider errors to the error envelope.
@@ -613,6 +750,8 @@ async function handleInvokeSubroutes(
         details: {
           runtimeProvider: "cloudflare",
           upstreamStatus: status,
+          invokeHost: safeInvokeUrlHost(deployment.providerRef),
+          upstreamBodySnippet: safeBodySnippet(text, 500),
         },
         retryable: status >= 500,
         requestId,
@@ -647,6 +786,11 @@ async function handleInvokeSubroutes(
                 details: {
                   runtimeProvider: "cloudflare",
                   upstreamStatus: providerResp.status,
+                  invokeHost: safeInvokeUrlHost(deployment.providerRef),
+                  upstreamBodySnippet: safeBodySnippet(
+                    providerResp.bodyText,
+                    500,
+                  ),
                 },
                 retryable: providerResp.status >= 500,
                 requestId,
@@ -678,9 +822,21 @@ async function handleInvokeSubroutes(
           }
 
           await send("done", { ok: true });
-        } catch (err) {
-          const normalized = safeErrorEnvelopeFromUnknown(err, requestId);
-          await send("error", normalized);
+        } catch (_err) {
+          const invokeHost = safeInvokeUrlHost(deployment.providerRef);
+          await send("error", {
+            error: {
+              code: "RUNTIME_ERROR",
+              message: "Invocation failed",
+              details: {
+                runtimeProvider: "cloudflare",
+                failure: "network_error",
+                invokeHost: invokeHost ?? null,
+              },
+              retryable: true,
+              requestId,
+            },
+          });
         }
       },
       corsHeaders(request, requestId),
@@ -1065,6 +1221,8 @@ function requireNumber(value: any, field: string): number {
   return value;
 }
 
+// Entitlements mapping moved to `./lib/entitlements` (server-authoritative).
+
 /**
  * SSE helper (emulated streaming).
  *
@@ -1155,6 +1313,36 @@ function withCors(
   const cors = corsHeaders(request, requestId);
   for (const [k, v] of cors.entries()) headers.set(k, v);
   return new Response(response.body, { status: response.status, headers });
+}
+
+function safeInvokeUrlHost(providerRef: any): string | null {
+  try {
+    const urlStr =
+      providerRef && typeof providerRef.invokeUrl === "string"
+        ? providerRef.invokeUrl
+        : providerRef && typeof providerRef.workersDevUrl === "string"
+          ? providerRef.workersDevUrl
+          : null;
+
+    if (!urlStr) return null;
+
+    const u = new URL(urlStr);
+    return u.host || null;
+  } catch {
+    return null;
+  }
+}
+
+function safeBodySnippet(bodyText: unknown, maxChars = 500): string | null {
+  if (typeof bodyText !== "string") return null;
+
+  const trimmed = bodyText.trim();
+  if (!trimmed) return null;
+
+  const bound = Math.max(0, Math.min(5000, Math.trunc(maxChars)));
+  if (trimmed.length <= bound) return trimmed;
+
+  return `${trimmed.slice(0, bound)}…`;
 }
 
 /**

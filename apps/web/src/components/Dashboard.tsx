@@ -73,9 +73,23 @@ function stringifyJson(value: unknown): string {
 
 function summarizeError(err: unknown): string {
   if (err instanceof ControlPlaneApiError) {
-    const rid = err.requestId ? ` (requestId=${err.requestId})` : "";
-    return `${err.code}: ${err.message}${rid}`;
+    const rid = err.requestId ? ` requestId=${err.requestId}` : "";
+    const status = ` status=${err.status}`;
+    const retryable =
+      typeof err.retryable === "boolean" ? ` retryable=${err.retryable}` : "";
+
+    let details = "";
+    if (err.details !== undefined) {
+      try {
+        details = ` details=${JSON.stringify(err.details)}`;
+      } catch {
+        details = " details=[unserializable]";
+      }
+    }
+
+    return `${err.code}: ${err.message} (${status}${rid}${retryable})${details}`;
   }
+
   if (err instanceof Error) return err.message;
   return "Unknown error";
 }

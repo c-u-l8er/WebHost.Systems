@@ -24,9 +24,17 @@ import { deployCloudflareWorker } from "../providers/cloudflare";
  * Environment variables required for Slice B:
  * - CLOUDFLARE_ACCOUNT_ID
  * - CLOUDFLARE_API_TOKEN
- * - CLOUDFLARE_WORKERS_DEV_SUBDOMAIN
  * - TELEMETRY_SECRETS_ENCRYPTION_KEY   (32 bytes; base64/base64url or hex supported by crypto helper)
  * - CONTROL_PLANE_TELEMETRY_REPORT_URL (publicly reachable URL for POST /v1/telemetry/report)
+ *
+ * Public invocation URL strategy (choose one):
+ *
+ * A) workers.dev (fallback / simplest):
+ * - CLOUDFLARE_WORKERS_DEV_SUBDOMAIN    (subdomain only, e.g. "trabur" for "trabur.workers.dev")
+ *
+ * B) Custom domain route (recommended / production-like):
+ * - CLOUDFLARE_ZONE_ID                  (zone that owns the custom hostname, e.g. example.com)
+ * - CLOUDFLARE_WORKERS_CUSTOM_DOMAIN    (host only, e.g. workers-api.example.com)
  *
  * Notes:
  * - Cloudflare secret bindings are used for both secrets and non-secret “deployment constants”
@@ -138,7 +146,26 @@ export const deployCloudflareDeployment: any = internalAction({
       return { ok: false as const, reason: "missing_env" as const };
     }
 
-    const invokePath = normalizeInvokePath(args.invokePath ?? "/invoke");
+    const baseInvokePath = normalizeInvokePath(args.invokePath ?? "/invoke");
+
+    // Optional custom domain routing:
+    // - If configured, we route multiple deployments under one hostname by giving each deployment a unique path prefix:
+    //   https://workers-api.example.com/dep/<deploymentId>/invoke
+    // - If not configured, we fall back to workers.dev and the default invoke path (e.g. /invoke).
+    const customDomain = getOptionalCustomDomainConfig();
+
+    let routePrefix: string | null = null;
+    let invokePath = baseInvokePath;
+    let moduleCode = args.moduleCode;
+
+    if (customDomain) {
+      routePrefix = `/dep/${String(args.deploymentId)}`;
+      invokePath = `${routePrefix}${baseInvokePath}`;
+
+      // Rewrite the deterministic worker template's INVOKE_PATH constant so it matches the per-deployment invoke path.
+      // This keeps Slice B "moduleCode optional" working even though moduleCode was generated earlier.
+      moduleCode = rewriteInvokePathInWorkerModule(args.moduleCode, invokePath);
+    }
 
     // Generate a stable-ish worker name based on ids; must be unique per deployment.
     const workerName = makeCloudflareWorkerName({
@@ -147,22 +174,55 @@ export const deployCloudflareDeployment: any = internalAction({
     });
 
     try {
-      const { providerRef, telemetryAuthRef } = await deployCloudflareWorker({
-        workerName,
-        moduleCode: args.moduleCode,
-        mainModuleName: args.mainModuleName ?? "index.mjs",
-        compatibilityDate: args.compatibilityDate,
-        invokePath,
-        telemetrySecretBindingName: "TELEMETRY_SECRET",
-        additionalSecrets: {
-          // Non-secret but injected as secrets to keep the adapter surface simple in Slice B.
-          TELEMETRY_REPORT_URL: telemetryReportUrl,
-          USER_ID: String(deployment.userId),
-          AGENT_ID: String(deployment.agentId),
-          DEPLOYMENT_ID: String(deployment._id),
-          RUNTIME_PROVIDER: "cloudflare",
-        },
-      });
+      const { providerRef: providerRefFromAdapter, telemetryAuthRef } =
+        await deployCloudflareWorker({
+          workerName,
+          moduleCode,
+          mainModuleName: args.mainModuleName ?? "index.mjs",
+          compatibilityDate: args.compatibilityDate,
+          invokePath,
+          telemetrySecretBindingName: "TELEMETRY_SECRET",
+          additionalSecrets: {
+            // Non-secret but injected as secrets to keep the adapter surface simple in Slice B.
+            TELEMETRY_REPORT_URL: telemetryReportUrl,
+            USER_ID: String(deployment.userId),
+            AGENT_ID: String(deployment.agentId),
+            DEPLOYMENT_ID: String(deployment._id),
+            RUNTIME_PROVIDER: "cloudflare",
+          },
+        });
+
+      // If custom domain routing is configured, create a per-deployment route and override invokeUrl to the custom hostname.
+      // Otherwise, keep the workers.dev invokeUrl from the adapter.
+      let providerRef: any = providerRefFromAdapter;
+
+      if (customDomain) {
+        if (!routePrefix) {
+          throw new Error(
+            "Internal error: missing routePrefix for custom domain deploy",
+          );
+        }
+
+        const routePattern = `${customDomain.host}${routePrefix}/*`;
+
+        await upsertCloudflareWorkerRoute({
+          zoneId: customDomain.zoneId,
+          token: requireEnv("CLOUDFLARE_API_TOKEN"),
+          pattern: routePattern,
+          script: workerName,
+        });
+
+        providerRef = {
+          ...(providerRefFromAdapter as any),
+          invokeUrl: `https://${customDomain.host}${invokePath}`,
+          route: {
+            type: "cloudflare.zoneRoute.v1",
+            zoneId: customDomain.zoneId,
+            pattern: routePattern,
+            customDomainHost: customDomain.host,
+          },
+        };
+      }
 
       await ctx.runMutation(
         internal.mutations.internalDeploy.finalizeDeploymentSuccess,
@@ -200,6 +260,163 @@ function normalizeInvokePath(path: string): string {
   const trimmed = path.trim();
   if (!trimmed) return "/invoke";
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v || !v.trim()) throw new Error(`Missing ${name}`);
+  return v.trim();
+}
+
+function getOptionalCustomDomainConfig(): {
+  host: string;
+  zoneId: string;
+} | null {
+  const rawHost = process.env.CLOUDFLARE_WORKERS_CUSTOM_DOMAIN;
+  const rawZoneId = process.env.CLOUDFLARE_ZONE_ID;
+
+  // Not configured: fall back to workers.dev.
+  if ((!rawHost || !rawHost.trim()) && (!rawZoneId || !rawZoneId.trim())) {
+    return null;
+  }
+
+  // Misconfigured: require both.
+  if (!rawHost || !rawHost.trim() || !rawZoneId || !rawZoneId.trim()) {
+    throw new Error(
+      "Custom domain routing is partially configured. Set BOTH CLOUDFLARE_WORKERS_CUSTOM_DOMAIN and CLOUDFLARE_ZONE_ID, or set neither to use workers.dev.",
+    );
+  }
+
+  return {
+    host: normalizeCustomDomainHost(rawHost),
+    zoneId: rawZoneId.trim(),
+  };
+}
+
+function normalizeCustomDomainHost(value: string | undefined): string {
+  const raw = value?.trim();
+  if (!raw) throw new Error("Missing CLOUDFLARE_WORKERS_CUSTOM_DOMAIN");
+
+  // Allow user to accidentally provide a URL; strip scheme if present.
+  const withoutScheme = raw.replace(/^https?:\/\//, "");
+  // Reject paths; host only.
+  const host = withoutScheme.split("/")[0] ?? "";
+  if (!host || host.includes(" "))
+    throw new Error("Invalid CLOUDFLARE_WORKERS_CUSTOM_DOMAIN");
+  return host;
+}
+
+/**
+ * Best-effort rewrite of the generated worker module to change INVOKE_PATH.
+ *
+ * This keeps Slice B working without changing the deploy mutation that generated `moduleCode`.
+ */
+function rewriteInvokePathInWorkerModule(
+  moduleCode: string,
+  invokePath: string,
+): string {
+  const path = normalizeInvokePath(invokePath);
+
+  // Match: const INVOKE_PATH = "....";
+  const re = /const INVOKE_PATH = ("[^"]*"|'[^']*');/;
+  if (!re.test(moduleCode)) {
+    // If we can't rewrite, fail fast rather than deploying a worker that can't be invoked.
+    throw new Error("Worker template missing INVOKE_PATH constant");
+  }
+
+  return moduleCode.replace(re, `const INVOKE_PATH = ${JSON.stringify(path)};`);
+}
+
+/**
+ * Create (or ensure) a Workers route for a script on a custom domain.
+ *
+ * Route API:
+ * - POST /zones/:zone_id/workers/routes   { pattern, script }
+ *
+ * Idempotency:
+ * - If the route already exists, Cloudflare may return a 4xx. We treat "already exists" as success
+ *   when possible by falling back to list+detect (best effort).
+ */
+async function upsertCloudflareWorkerRoute(args: {
+  zoneId: string;
+  token: string;
+  pattern: string;
+  script: string;
+}): Promise<void> {
+  const base = "https://api.cloudflare.com/client/v4";
+
+  // First try: create route.
+  {
+    const res = await fetch(
+      `${base}/zones/${encodeURIComponent(args.zoneId)}/workers/routes`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${args.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          pattern: args.pattern,
+          script: args.script,
+        }),
+      },
+    );
+
+    const json = await safeParseCloudflareJson(res);
+    if (res.ok && json?.success === true) return;
+
+    // If create failed, fall through to "list and see if it already exists".
+  }
+
+  // Best-effort: list routes and see if the desired pattern already maps to this script.
+  {
+    const res = await fetch(
+      `${base}/zones/${encodeURIComponent(args.zoneId)}/workers/routes`,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${args.token}`,
+        },
+      },
+    );
+
+    const json = await safeParseCloudflareJson(res);
+    const routes = Array.isArray(json?.result) ? json.result : [];
+    const match = routes.find(
+      (r: any) => r && r.pattern === args.pattern && r.script === args.script,
+    );
+
+    if (match) return;
+
+    const firstError =
+      Array.isArray(json?.errors) && json.errors.length > 0
+        ? json.errors[0]
+        : null;
+
+    const code = firstError?.code;
+    const message = firstError?.message;
+
+    const suffixParts: string[] = [];
+    suffixParts.push(`pattern=${args.pattern}`);
+    if (code !== undefined && code !== null)
+      suffixParts.push(`code=${String(code)}`);
+    if (typeof message === "string" && message.trim()) {
+      suffixParts.push(`message=${message.trim().slice(0, 200)}`);
+    }
+
+    throw new Error(
+      `Failed to configure Cloudflare custom-domain route (${suffixParts.join(", ")})`,
+    );
+  }
+}
+
+async function safeParseCloudflareJson(res: Response): Promise<any | null> {
+  try {
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
