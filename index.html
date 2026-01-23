@@ -6,7 +6,7 @@
         <meta name="color-scheme" content="dark" />
         <meta
             name="description"
-            content="WebHost.Systems — a multi-tenant AI backend built in Elixir with Phoenix + Ash, designed for multi-tenant apps (one DB schema per tenant). Powered by Agentic AI."
+            content="WebHost.Systems — a multi-runtime AI agent deployment and hosting platform with a TypeScript-first developer experience. Control plane (UI + APIs) for deploys, secrets, telemetry, billing; data plane on Cloudflare Workers + Durable Objects (default) and AWS Bedrock AgentCore (premium)."
         />
         <title>WebHost.Systems — AI Systems for Web Hosts</title>
 
@@ -50,14 +50,15 @@
                     "Noto Sans",
                     "Apple Color Emoji",
                     "Segoe UI Emoji";
-                background: radial-gradient(
+                background:
+                    radial-gradient(
                         1200px 800px at 20% 20%,
                         rgba(124, 136, 255, 0.14),
                         transparent 60%
                     ),
                     radial-gradient(
                         1000px 700px at 80% 30%,
-                        rgba(255, 123, 214, 0.10),
+                        rgba(255, 123, 214, 0.1),
                         transparent 55%
                     ),
                     radial-gradient(
@@ -111,7 +112,7 @@
                     linear-gradient(
                         to bottom,
                         rgba(7, 7, 16, 0.12),
-                        rgba(7, 7, 16, 0.50)
+                        rgba(7, 7, 16, 0.5)
                     );
             }
 
@@ -151,7 +152,12 @@
                 width: 14px;
                 height: 14px;
                 border-radius: 999px;
-                background: linear-gradient(135deg, var(--a1), var(--a2), var(--a3));
+                background: linear-gradient(
+                    135deg,
+                    var(--a1),
+                    var(--a2),
+                    var(--a3)
+                );
                 box-shadow:
                     0 0 0 6px rgba(124, 136, 255, 0.12),
                     0 0 40px rgba(176, 108, 255, 0.25);
@@ -179,7 +185,9 @@
                 color: rgba(238, 240, 255, 0.62);
                 padding: 10px 12px;
                 border-radius: 999px;
-                transition: background 160ms ease, color 160ms ease;
+                transition:
+                    background 160ms ease,
+                    color 160ms ease;
             }
 
             .navlinks a:hover {
@@ -206,7 +214,12 @@
                 font-size: clamp(44px, 6.8vw, 88px);
                 line-height: 1.03;
                 font-weight: 900;
-                background: linear-gradient(135deg, var(--a1) 0%, var(--a2) 45%, var(--a3) 100%);
+                background: linear-gradient(
+                    135deg,
+                    var(--a1) 0%,
+                    var(--a2) 45%,
+                    var(--a3) 100%
+                );
                 -webkit-background-clip: text;
                 background-clip: text;
                 -webkit-text-fill-color: transparent;
@@ -215,7 +228,7 @@
 
             .subhead {
                 margin-top: 16px;
-                font-size: clamp(16px, 2.0vw, 20px);
+                font-size: clamp(16px, 2vw, 20px);
                 line-height: 1.55;
                 color: var(--muted);
                 max-width: 62ch;
@@ -334,8 +347,8 @@
                 height: 18px;
                 border-radius: 6px;
                 background: rgba(124, 136, 255, 0.16);
-                border: 1px solid rgba(124, 136, 255, 0.30);
-                box-shadow: 0 10px 30px rgba(124, 136, 255, 0.10);
+                border: 1px solid rgba(124, 136, 255, 0.3);
+                box-shadow: 0 10px 30px rgba(124, 136, 255, 0.1);
                 display: grid;
                 place-items: center;
                 margin-top: 2px;
@@ -445,26 +458,39 @@
             <section class="hero" aria-label="Hero">
                 <div class="hero-inner">
                     <div>
-                        <h1 class="headline">AI Systems<br/>for<br/>Web Hosts</h1>
+                        <h1 class="headline">
+                            AI Systems<br />for<br />Web Hosts
+                        </h1>
                         <p class="subhead">
-                            <strong>WebHost.Systems</strong> is a multi-tenant AI backend coded in
-                            <strong>Elixir</strong> with <strong>Phoenix</strong> +
-                            <strong>Ash</strong>, designed for serious multi‑tenant apps:
-                            <strong>one Postgres schema per tenant</strong>. Powered by Agentic AI.
+                            <strong>WebHost.Systems</strong> is a multi-runtime
+                            AI agent deployment and hosting platform. A
+                            <strong>control plane</strong> (UI + APIs) handles
+                            deploys, config/secrets, telemetry, and billing,
+                            while a <strong>data plane</strong> runs agents on
+                            <strong
+                                >Cloudflare Workers + Durable Objects</strong
+                            >
+                            (default) or <strong>AWS Bedrock AgentCore</strong>
+                            (premium). Built for a
+                            <strong>TypeScript-first</strong> developer
+                            experience with metering and limit enforcement.
                         </p>
 
                         <div class="pillrow" id="stack">
-                            <span class="pill">Elixir</span>
-                            <span class="pill">Phoenix</span>
-                            <span class="pill">Ash Framework</span>
-                            <span class="pill">Postgres</span>
-                            <span class="pill">Multi‑tenant</span>
-                            <span class="pill">Schema‑per‑tenant</span>
+                            <span class="pill">TypeScript</span>
+                            <span class="pill">Cloudflare Workers</span>
+                            <span class="pill">Durable Objects</span>
+                            <span class="pill">AWS Bedrock AgentCore</span>
+                            <span class="pill">Convex (Control Plane)</span>
+                            <span class="pill">Metering + Limits</span>
                         </div>
 
                         <div class="ctas" id="cta">
-                            <a class="button primary" href="https://app.fleetprompt.com/marketplace?q=WebHost.Systems">
-                                <span>Discover on FleetPrompt</span>
+                            <a
+                                class="button primary"
+                                href="https://app.webhost.systems"
+                            >
+                                <span>app.webhost.systems</span>
                                 <svg
                                     fill="none"
                                     stroke="currentColor"
@@ -501,8 +527,9 @@
                                     </svg>
                                 </span>
                                 <span>
-                                    <strong>Isolation by default</strong> with schema‑per‑tenant
-                                    Postgres (clean boundaries, predictable migrations).
+                                    <strong>Multi-runtime portability</strong>
+                                    behind a single abstraction (Cloudflare by
+                                    default, AgentCore for premium/enterprise).
                                 </span>
                             </li>
                             <li>
@@ -521,8 +548,8 @@
                                     </svg>
                                 </span>
                                 <span>
-                                    <strong>Ash resources</strong> as your contract: policies,
-                                    authz, validations, and actions—without hand‑rolled glue.
+                                    <strong>Immutable deployments</strong> with
+                                    rollback via an active deployment pointer.
                                 </span>
                             </li>
                             <li>
@@ -541,8 +568,9 @@
                                     </svg>
                                 </span>
                                 <span>
-                                    <strong>Phoenix‑native</strong> runtime: real‑time ready,
-                                    deployment friendly, and built for longevity.
+                                    <strong>Stable invocation</strong> via
+                                    <code>invoke/v1</code>, opaque session IDs,
+                                    and optional streaming (SSE).
                                 </span>
                             </li>
                             <li>
@@ -561,8 +589,11 @@
                                     </svg>
                                 </span>
                                 <span>
-                                    <strong>No BaaS lock‑in</strong>: keep Postgres first, keep
-                                    your data portable, keep your edge cases.
+                                    <strong>Secure metering + secrets</strong>:
+                                    signed telemetry events, usage aggregation
+                                    with plan limit enforcement, and no
+                                    plaintext secrets in the primary DB (use
+                                    provider-native secret mechanisms).
                                 </span>
                             </li>
                         </ul>
@@ -572,8 +603,14 @@
 
             <footer class="footer" aria-label="Footer">
                 <div class="footer-inner">
-                    <span>© <span id="year"></span> WebHost.Systems ... Powered by <a href="https://ampersandboxdesign.com" target="_blank">[&]</a></span>
-                    <span class="tagline">Ship multi‑tenant apps, faster</span>
+                    <span
+                        >© <span id="year"></span> WebHost.Systems ... Powered
+                        by
+                        <a href="https://ampersandboxdesign.com" target="_blank"
+                            >[&]</a
+                        ></span
+                    >
+                    <span class="tagline">Ship portable agents, faster</span>
                 </div>
             </footer>
         </main>
@@ -585,7 +622,8 @@
             "use strict";
 
             // Basic DOM wiring
-            document.getElementById("year").textContent = new Date().getFullYear();
+            document.getElementById("year").textContent =
+                new Date().getFullYear();
 
             // Respect reduced motion
             const prefersReducedMotion = window.matchMedia(
@@ -629,7 +667,9 @@
                     powerPreference: "high-performance",
                 });
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                renderer.setPixelRatio(
+                    Math.min(window.devicePixelRatio || 1, 2),
+                );
                 renderer.setClearColor(0x070710, 0);
                 renderer.outputEncoding = THREE.sRGBEncoding;
                 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -657,20 +697,33 @@
                 // (Keeps it slightly right-biased on wide screens so the headline stays readable.)
                 function applyLayout() {
                     const isNarrow = window.innerWidth < 940;
-                    const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+                    const aspect =
+                        window.innerWidth / Math.max(1, window.innerHeight);
 
                     // Slightly more right bias on desktop, but centered-ish on mobile.
-                    root.position.set(isNarrow ? 0.9 : 5.4, 0.1, isNarrow ? -4.2 : -3.4);
+                    root.position.set(
+                        isNarrow ? 0.9 : 5.4,
+                        0.1,
+                        isNarrow ? -4.2 : -3.4,
+                    );
                     root.rotation.y = isNarrow ? 0.35 : 0.55;
 
                     // Make the constellation fill the viewport.
                     // On ultra-wide screens we scale it up a touch more so it reaches the edges.
                     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-                    const desktopScale = clamp(1.75 + (aspect - 1.6) * 0.35, 1.75, 2.2);
+                    const desktopScale = clamp(
+                        1.75 + (aspect - 1.6) * 0.35,
+                        1.75,
+                        2.2,
+                    );
                     root.scale.setScalar(isNarrow ? 1.55 : desktopScale);
 
                     // Keep camera framing consistent across aspect ratios.
-                    camera.position.set(isNarrow ? 0.7 : 1.2, 0.15, isNarrow ? 18.5 : 16.5);
+                    camera.position.set(
+                        isNarrow ? 0.7 : 1.2,
+                        0.15,
+                        isNarrow ? 18.5 : 16.5,
+                    );
                 }
 
                 applyLayout();
@@ -680,7 +733,10 @@
                 const ORB_RADIUS = 1.7;
                 const LAYOUT_RADIUS = 8.2;
 
-                const orbBasePositions = fibonacciSpherePoints(ORB_COUNT, LAYOUT_RADIUS);
+                const orbBasePositions = fibonacciSpherePoints(
+                    ORB_COUNT,
+                    LAYOUT_RADIUS,
+                );
 
                 // Materials
                 const shellMat = new THREE.MeshStandardMaterial({
@@ -689,7 +745,7 @@
                     roughness: 0.32,
                     metalness: 0.18,
                     transparent: true,
-                    opacity: 0.30,
+                    opacity: 0.3,
                 });
 
                 const wireMat = new THREE.MeshBasicMaterial({
@@ -714,7 +770,11 @@
                 // Orb instances
                 const orbs = [];
                 const shellGeom = new THREE.SphereGeometry(ORB_RADIUS, 32, 32);
-                const wireGeom = new THREE.SphereGeometry(ORB_RADIUS * 1.03, 16, 16);
+                const wireGeom = new THREE.SphereGeometry(
+                    ORB_RADIUS * 1.03,
+                    16,
+                    16,
+                );
 
                 const haloTexture = createGlowTexture();
                 const haloBaseMat = new THREE.SpriteMaterial({
@@ -826,9 +886,15 @@
                 for (let i = 0; i < PACKET_COUNT; i++) {
                     const mesh = new THREE.Mesh(packetGeom, packetMat.clone());
                     mesh.material.color = new THREE.Color(
-                        i % 3 === 0 ? 0x33d0ff : i % 3 === 1 ? 0x7c88ff : 0xff7bd6,
+                        i % 3 === 0
+                            ? 0x33d0ff
+                            : i % 3 === 1
+                              ? 0x7c88ff
+                              : 0xff7bd6,
                     );
-                    mesh.userData.linkIndex = Math.floor(Math.random() * links.length);
+                    mesh.userData.linkIndex = Math.floor(
+                        Math.random() * links.length,
+                    );
                     mesh.userData.t = Math.random();
                     mesh.userData.speed = 0.08 + Math.random() * 0.12;
                     packets.push(mesh);
@@ -844,7 +910,10 @@
                     starPos[i * 3 + 1] = (Math.random() - 0.5) * 90;
                     starPos[i * 3 + 2] = (Math.random() - 0.5) * 120;
                 }
-                starGeom.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+                starGeom.setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(starPos, 3),
+                );
                 const starMat = new THREE.PointsMaterial({
                     color: 0x7c88ff,
                     size: 0.045,
@@ -918,8 +987,8 @@
                         g.scale.setScalar(1 + breathe);
 
                         wobble.set(
-                            0.30 * Math.sin(t * 0.55 + seed),
-                            0.24 * Math.cos(t * 0.50 + seed * 1.3),
+                            0.3 * Math.sin(t * 0.55 + seed),
+                            0.24 * Math.cos(t * 0.5 + seed * 1.3),
                             0.28 * Math.sin(t * 0.45 + seed * 0.7),
                         );
 
@@ -936,19 +1005,25 @@
 
                             if (child.material.wireframe) {
                                 child.material.opacity =
-                                    0.16 + 0.14 * (0.5 + 0.5 * Math.sin(t * 0.9 + seed));
+                                    0.16 +
+                                    0.14 *
+                                        (0.5 + 0.5 * Math.sin(t * 0.9 + seed));
                             }
 
                             // Sprite halo
                             if (child.isSprite) {
                                 child.material.opacity =
-                                    0.26 + 0.18 * (0.5 + 0.5 * Math.sin(t * 0.7 + seed));
+                                    0.26 +
+                                    0.18 *
+                                        (0.5 + 0.5 * Math.sin(t * 0.7 + seed));
                             }
 
                             // Core mesh (MeshBasicMaterial)
                             if (child.isMesh && child.geometry === coreGeom) {
                                 child.material.opacity =
-                                    0.70 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.8 + seed));
+                                    0.7 +
+                                    0.25 *
+                                        (0.5 + 0.5 * Math.sin(t * 1.8 + seed));
                             }
                         });
                     }
@@ -963,16 +1038,23 @@
                         const a = orbs[links[li][0]].position;
                         const b = orbs[links[li][1]].position;
 
-                        p.userData.t = (p.userData.t + p.userData.speed * 0.008) % 1;
+                        p.userData.t =
+                            (p.userData.t + p.userData.speed * 0.008) % 1;
 
                         // Slight curve by adding an offset towards camera
-                        const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
-                        const curve = mid.clone().add(new THREE.Vector3(0, 0, 2.4));
+                        const mid = new THREE.Vector3()
+                            .addVectors(a, b)
+                            .multiplyScalar(0.5);
+                        const curve = mid
+                            .clone()
+                            .add(new THREE.Vector3(0, 0, 2.4));
                         const pos = quadraticBezier(a, curve, b, p.userData.t);
                         p.position.copy(pos);
 
                         // Pulse brightness
-                        const pulse = 0.55 + 0.45 * Math.sin(t * 2.1 + p.userData.t * 6.28);
+                        const pulse =
+                            0.55 +
+                            0.45 * Math.sin(t * 2.1 + p.userData.t * 6.28);
                         p.material.opacity = 0.55 + pulse * 0.35;
                         p.scale.setScalar(0.9 + pulse * 0.35);
                     }
@@ -998,7 +1080,9 @@
                         camera.aspect = window.innerWidth / window.innerHeight;
                         camera.updateProjectionMatrix();
                         renderer.setSize(window.innerWidth, window.innerHeight);
-                        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                        renderer.setPixelRatio(
+                            Math.min(window.devicePixelRatio || 1, 2),
+                        );
                         applyLayout();
                     },
                     { passive: true },
@@ -1116,7 +1200,9 @@
             function addRandomLinks(existingLinks, nodeCount, count) {
                 const links = existingLinks.slice();
                 const set = new Set(
-                    links.map(([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`),
+                    links.map(
+                        ([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`,
+                    ),
                 );
 
                 let guard = 0;
