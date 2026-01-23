@@ -146,6 +146,9 @@ This will:
 - set `CONVEX_DEPLOYMENT` locally
 - generate `_generated/` code (required for TypeScript types)
 
+Troubleshooting:
+- If `convex dev` fails with an error like “is in /actions subfolder but has no "use node"; directive”, add `"use node";` as the first line of each file under `convex/actions/` (Convex now requires explicitly selecting the Node runtime for action files).
+
 ### 2) Generate code (optional/manual)
 
 If you need to re-generate types:
@@ -167,6 +170,19 @@ npm run typecheck
 ---
 
 ## HTTP API (Slice B)
+
+### Enable Convex HTTP actions (required)
+
+These `/v1/*` endpoints are implemented as **Convex HTTP actions** in `convex/http.ts`.
+
+With the Convex version used by this repo, you **do not enable HTTP actions via `convex.json`** (and adding an `http` key may be ignored with a warning). Instead, Convex expects an HTTP router file at:
+
+- `convex/http.ts` (default export from `httpRouter()`)
+
+If you see a response like “This Convex deployment does not have HTTP actions enabled.” it usually means you are hitting a deployment that **was not deployed with** `convex/http.ts` (or the deployment is out of date). Fix by re-running `convex dev` (for local development) or `convex deploy` (for the target environment) so the latest server code is uploaded.
+
+Note: when HTTP actions aren’t enabled on the target deployment, browser requests often present as **CORS/preflight** failures because the error response won’t include `Access-Control-Allow-Origin` headers.
+
 
 All control-plane routes require auth via:
 

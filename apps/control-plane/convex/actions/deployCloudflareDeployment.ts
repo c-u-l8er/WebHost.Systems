@@ -1,3 +1,5 @@
+"use node";
+
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -31,7 +33,7 @@ import { deployCloudflareWorker } from "../providers/cloudflare";
  *   (USER_ID/AGENT_ID/DEPLOYMENT_ID/TELEMETRY_REPORT_URL) to keep the adapter simple and avoid
  *   relying on provider-specific plaintext var/binding schemas in Slice B.
  */
-export const deployCloudflareDeployment = internalAction({
+export const deployCloudflareDeployment: any = internalAction({
   args: {
     agentId: v.id("agents"),
     deploymentId: v.id("deployments"),
@@ -44,11 +46,11 @@ export const deployCloudflareDeployment = internalAction({
     invokePath: v.optional(v.string()),
     mainModuleName: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const startedAtMs = Date.now();
 
     // Load deployment + agent (defense in depth).
-    const deployment = await ctx.runQuery(
+    const deployment: any = await ctx.runQuery(
       internal.queries.internal.getDeploymentById,
       {
         deploymentId: args.deploymentId,

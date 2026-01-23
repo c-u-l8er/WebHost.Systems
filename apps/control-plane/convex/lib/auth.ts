@@ -26,14 +26,18 @@ export type CurrentUser = {
 /**
  * Returns the authenticated identity or null if unauthenticated.
  */
-export async function getAuthIdentity(ctx: Pick<AnyCtx, "auth">): Promise<UserIdentity | null> {
+export async function getAuthIdentity(
+  ctx: Pick<AnyCtx, "auth">,
+): Promise<UserIdentity | null> {
   return await ctx.auth.getUserIdentity();
 }
 
 /**
  * Returns the Clerk subject (identity.subject) or null if unauthenticated.
  */
-export async function getIdentitySubject(ctx: Pick<AnyCtx, "auth">): Promise<string | null> {
+export async function getIdentitySubject(
+  ctx: Pick<AnyCtx, "auth">,
+): Promise<string | null> {
   const identity = await getAuthIdentity(ctx);
   return identity?.subject ?? null;
 }
@@ -41,7 +45,9 @@ export async function getIdentitySubject(ctx: Pick<AnyCtx, "auth">): Promise<str
 /**
  * Requires an authenticated identity.
  */
-export async function requireAuthIdentity(ctx: Pick<AnyCtx, "auth">): Promise<UserIdentity> {
+export async function requireAuthIdentity(
+  ctx: Pick<AnyCtx, "auth">,
+): Promise<UserIdentity> {
   const identity = await getAuthIdentity(ctx);
   if (!identity) {
     throw new Error("Not authenticated");
@@ -61,7 +67,7 @@ export async function requireAuthIdentity(ctx: Pick<AnyCtx, "auth">): Promise<Us
  * - Use `getOrCreateCurrentUser` from mutations/actions to auto-provision.
  */
 export async function getCurrentUser(
-  ctx: Pick<QueryCtx, "auth" | "db">
+  ctx: Pick<QueryCtx, "auth" | "db">,
 ): Promise<CurrentUser | null> {
   const identity = await getAuthIdentity(ctx);
   if (!identity) return null;
@@ -85,7 +91,7 @@ export async function getCurrentUser(
  * `requireCurrentUser` in queries/mutations thereafter.
  */
 export async function requireCurrentUser(
-  ctx: Pick<QueryCtx, "auth" | "db">
+  ctx: Pick<QueryCtx, "auth" | "db">,
 ): Promise<CurrentUser> {
   const current = await getCurrentUser(ctx);
   if (!current) {
@@ -98,10 +104,10 @@ export async function requireCurrentUser(
  * Creates the internal `users` record for the current identity if it doesn't exist.
  * Also keeps basic profile fields (email/displayName) up to date when available.
  *
- * MUST be called from a write-capable context (mutation/action).
+ * MUST be called from a write-capable context (mutation).
  */
 export async function getOrCreateCurrentUser(
-  ctx: Pick<MutationCtx | ActionCtx, "auth" | "db">
+  ctx: Pick<MutationCtx, "auth" | "db">,
 ): Promise<CurrentUser> {
   const identity = await requireAuthIdentity(ctx);
   const subject = identity.subject;
@@ -164,7 +170,7 @@ export async function getOrCreateCurrentUser(
 export function assertOwnedByUser(
   currentUserId: Id<"users">,
   resourceUserId: Id<"users">,
-  resourceNameForError: string
+  resourceNameForError: string,
 ): void {
   if (resourceUserId !== currentUserId) {
     // Keep message generic; the caller can map to a normalized NOT_FOUND to avoid leaking existence.

@@ -3,6 +3,7 @@ import {
   encryptSecretV1,
   generateTelemetrySecretBytes,
   loadEncryptionKeyFromEnv,
+  telemetrySecretBytesToEnvString,
 } from "../lib/crypto";
 
 /**
@@ -187,7 +188,7 @@ function getEnv(): CloudflareEnv {
 
   if (missing.length > 0) {
     throw new Error(
-      `Missing required Cloudflare env vars: ${missing.join(", ")}`
+      `Missing required Cloudflare env vars: ${missing.join(", ")}`,
     );
   }
 
@@ -199,7 +200,10 @@ function getEnv(): CloudflareEnv {
   };
 }
 
-function buildWorkersDevUrl(args: { workerName: string; subdomain: string }): string {
+function buildWorkersDevUrl(args: {
+  workerName: string;
+  subdomain: string;
+}): string {
   // workers.dev uses the pattern: https://<script>.<subdomain>.workers.dev
   return `https://${args.workerName}.${args.subdomain}.workers.dev`;
 }
@@ -248,7 +252,9 @@ async function requireCloudflareSuccess(res: Response): Promise<any> {
     json = text ? JSON.parse(text) : null;
   } catch {
     // Cloudflare should return JSON; if it doesn't, treat as error.
-    throw new Error(`Cloudflare API error (non-JSON response, status ${res.status})`);
+    throw new Error(
+      `Cloudflare API error (non-JSON response, status ${res.status})`,
+    );
   }
 
   if (!res.ok || !json || json.success !== true) {
@@ -262,11 +268,11 @@ async function requireCloudflareSuccess(res: Response): Promise<any> {
     const message = firstError?.message;
 
     const safeSuffix =
-      code || message
-        ? ` (code=${String(code ?? "unknown")})`
-        : "";
+      code || message ? ` (code=${String(code ?? "unknown")})` : "";
 
-    throw new Error(`Cloudflare API request failed (status ${res.status})${safeSuffix}`);
+    throw new Error(
+      `Cloudflare API request failed (status ${res.status})${safeSuffix}`,
+    );
   }
 
   return json;
@@ -299,17 +305,20 @@ async function uploadWorkerModule(args: {
   }
 
   const form = new FormData();
-  form.set("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+  form.set(
+    "metadata",
+    new Blob([JSON.stringify(metadata)], { type: "application/json" }),
+  );
   form.set(
     args.mainModuleName,
     new Blob([args.moduleCode], { type: "application/javascript+module" }),
-    args.mainModuleName
+    args.mainModuleName,
   );
 
   const res = await cloudflareApiFetch({
     method: "PUT",
     path: `/accounts/${encodeURIComponent(args.accountId)}/workers/scripts/${encodeURIComponent(
-      args.workerName
+      args.workerName,
     )}`,
     token: args.token,
     body: form,
@@ -337,7 +346,7 @@ async function putWorkerSecret(args: {
   const res = await cloudflareApiFetch({
     method: "PUT",
     path: `/accounts/${encodeURIComponent(args.accountId)}/workers/scripts/${encodeURIComponent(
-      args.workerName
+      args.workerName,
     )}/secrets`,
     token: args.token,
     headers: {
@@ -357,7 +366,9 @@ async function putWorkerSecret(args: {
 /**
  * Deploy a Cloudflare Worker (workers.dev-based) and inject telemetry secret binding.
  */
-export async function deployCloudflareWorker(input: CloudflareDeployInput): Promise<CloudflareDeployOutput> {
+export async function deployCloudflareWorker(
+  input: CloudflareDeployInput,
+): Promise<CloudflareDeployOutput> {
   const env = getEnv();
 
   const workerName = input.workerName.trim();
@@ -369,11 +380,15 @@ export async function deployCloudflareWorker(input: CloudflareDeployInput): Prom
   const compatibilityDate = (input.compatibilityDate ?? "2026-01-01").trim();
   if (!compatibilityDate) throw new Error("compatibilityDate is required");
 
-  const telemetryBindingName = (input.telemetrySecretBindingName ?? "TELEMETRY_SECRET").trim();
-  if (!telemetryBindingName) throw new Error("telemetrySecretBindingName is required");
+  const telemetryBindingName = (
+    input.telemetrySecretBindingName ?? "TELEMETRY_SECRET"
+  ).trim();
+  if (!telemetryBindingName)
+    throw new Error("telemetrySecretBindingName is required");
 
   const invokePath = (input.invokePath ?? "/invoke").trim();
-  if (!invokePath.startsWith("/")) throw new Error("invokePath must start with '/'");
+  if (!invokePath.startsWith("/"))
+    throw new Error("invokePath must start with '/'");
 
   // Generate deployment-scoped telemetry secret
   const telemetrySecretBytes = generateTelemetrySecretBytes(32);
@@ -384,7 +399,7 @@ export async function deployCloudflareWorker(input: CloudflareDeployInput): Prom
     expectedBytes: 32,
   });
 
-  const encrypted = encryptSecretV1({
+  const encrypted = await encryptSecretV1({
     plaintext: telemetrySecretBytes,
     encryptionKey,
   });
@@ -402,7 +417,8 @@ export async function deployCloudflareWorker(input: CloudflareDeployInput): Prom
 
   // 2) Inject telemetry secret binding
   //    Cloudflare secret values are strings; use base64url encoding for safe transport.
-  const telemetrySecretForEnv = Buffer.from(telemetrySecretBytes).toString("base64url");
+  const telemetrySecretForEnv =
+    telemetrySecretBytesToEnvString(telemetrySecretBytes);
   await putWorkerSecret({
     accountId: env.CLOUDFLARE_ACCOUNT_ID,
     token: env.CLOUDFLARE_API_TOKEN,
@@ -460,7 +476,9 @@ export async function deployCloudflareWorker(input: CloudflareDeployInput): Prom
  * - validate and execute the request
  * - return a response in your chosen internal format (the gateway normalizes to public API contract)
  */
-export async function invokeCloudflareWorker(input: CloudflareInvokeInput): Promise<CloudflareInvokeOutput> {
+export async function invokeCloudflareWorker(
+  input: CloudflareInvokeInput,
+): Promise<CloudflareInvokeOutput> {
   const { providerRef } = input;
 
   const controller = new AbortController();

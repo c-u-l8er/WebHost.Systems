@@ -855,12 +855,12 @@ async function handleTelemetryReport(
       expectedBytes: 32,
     });
 
-    const telemetrySecretBytes = decryptSecretV1({
+    const telemetrySecretBytes = await decryptSecretV1({
       encrypted,
       encryptionKey,
     });
 
-    const ok = verifyTelemetrySignatureHeaderV1({
+    const ok = await verifyTelemetrySignatureHeaderV1({
       telemetrySecret: telemetrySecretBytes,
       rawBodyBytes,
       signatureHeader,

@@ -37,6 +37,14 @@ VITE_CLERK_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
 
 ### Optional (recommended for Slice B)
 
+Select which Clerk JWT template name the dashboard requests when authenticating to the control plane:
+
+```/dev/null/.env.local#L1-1
+VITE_CLERK_JWT_TEMPLATE=convex
+```
+
+If omitted, the dashboard defaults to requesting the `convex` template.
+
 Point the dashboard at your control plane base URL (Convex HTTP endpoint domain):
 
 ```/dev/null/.env.local#L1-2
@@ -75,10 +83,10 @@ The dashboard calls control plane endpoints using an `Authorization: Bearer <JWT
 
 In the current UI, the token is retrieved from Clerk using:
 
-- `useAuth().getToken({ template: "convex" })`
+- `useAuth().getToken({ template: import.meta.env.VITE_CLERK_JWT_TEMPLATE ?? "convex" })`
 
 You must ensure:
-- You have a Clerk JWT template named `convex`, and
+- You have a Clerk JWT template named whatever `VITE_CLERK_JWT_TEMPLATE` is set to (defaults to `convex`), and
 - The control plane (Convex) is configured to accept that JWT (see `apps/control-plane/convex/auth.config.ts`).
 
 ---
@@ -102,6 +110,6 @@ From the dashboard you can:
 ### Control plane requests failing
 - Ensure `VITE_CONTROL_PLANE_URL` is correct (no trailing slash required)
 - Ensure you are signed in (Clerk)
-- Ensure the Clerk JWT template `convex` exists and matches the Convex auth configuration
+- Ensure the Clerk JWT template named by `VITE_CLERK_JWT_TEMPLATE` (defaults to `convex`) exists and matches the Convex auth configuration
 
 ---

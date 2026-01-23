@@ -141,7 +141,8 @@ export const createAndDeploy = mutation({
     // - set `agents.status` to "active" on success, or "error" on failure.
     await ctx.scheduler.runAfter(
       0,
-      internal.actions.deployCloudflareDeployment.deployCloudflareDeployment,
+      (internal as any)["actions/deployCloudflareDeployment"]
+        .deployCloudflareDeployment,
       {
         agentId: agent._id,
         deploymentId,
