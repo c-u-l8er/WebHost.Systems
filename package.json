@@ -1,0 +1,30 @@
+{
+  "name": "webhost.systems",
+  "private": true,
+  "version": "0.0.0",
+  "description": "WebHost.Systems - AI Systems for Web Hosts",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "preview": "npm run preview -w apps/web",
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy",
+    "lint": "npm --workspaces run lint",
+    "typecheck": "npm --workspaces run typecheck",
+    "test": "npm --workspaces run test",
+    "format": "npm --workspaces run format",
+    "format:check": "npm --workspaces run format:check",
+    "clean": "npm --workspaces run clean"
+  },
+  "devDependencies": {
+    "convex": "^1.31.5"
+  }
+}
