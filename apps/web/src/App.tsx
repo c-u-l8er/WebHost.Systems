@@ -1,11 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/clerk-react";
+import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 import Dashboard from "./components/Dashboard";
 import AgentsPage from "./components/AgentsPage";
 import LandingPage from "./components/LandingPage";
@@ -53,17 +47,14 @@ export default function App() {
 
               <div style={{ width: 10 }} />
 
-              <SignInButton>
-                <button className="button" type="button">
-                  Sign in
-                </button>
-              </SignInButton>
-
-              <SignUpButton>
-                <button className="button button-primary" type="button">
-                  Get started
-                </button>
-              </SignUpButton>
+              <a
+                className="button button-primary"
+                href="https://github.com/c-u-l8er/WebHost.Systems"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open source
+              </a>
             </div>
           </div>
         </header>

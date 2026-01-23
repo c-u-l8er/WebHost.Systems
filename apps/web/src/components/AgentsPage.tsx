@@ -241,6 +241,42 @@ export default function AgentsPage(): React.ReactElement {
   }, [client, createDescription, createName]);
 
   /* -------------------------------------------------------------------------------------------------
+   * Delete agent
+   * ------------------------------------------------------------------------------------------------- */
+
+  const [deleteStatus, setDeleteStatus] = useState<AsyncStatus>("idle");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteSelectedAgent = useCallback(async () => {
+    if (!client) return;
+    if (!selectedAgent) return;
+
+    const ok = window.confirm(
+      `Delete agent "${selectedAgent.name}"?\n\nThis will remove the agent and all of its deployments.`,
+    );
+    if (!ok) return;
+
+    setDeleteStatus("loading");
+    setDeleteError(null);
+
+    try {
+      await client.deleteAgent(selectedAgent._id);
+
+      // Optimistic remove + clear selection (refresh will reconcile).
+      setAgents((prev) => prev.filter((a) => a._id !== selectedAgent._id));
+      if (selectedAgentId === selectedAgent._id) {
+        setSelectedAgentId("");
+      }
+
+      setDeleteStatus("success");
+      await refreshAgents();
+    } catch (err) {
+      setDeleteStatus("error");
+      setDeleteError(summarizeError(err));
+    }
+  }, [client, refreshAgents, selectedAgent, selectedAgentId]);
+
+  /* -------------------------------------------------------------------------------------------------
    * Deploy
    * ------------------------------------------------------------------------------------------------- */
 
@@ -540,10 +576,14 @@ export default function AgentsPage(): React.ReactElement {
   }, [client, selectedAgent]);
 
   // Refresh deployments and telemetry when selection changes.
+  // Also reset destructive-action UI state so it doesn't "stick" when switching agents.
   useEffect(() => {
+    setDeleteStatus("idle");
+    setDeleteError(null);
+
     void refreshDeployments();
     void refreshUsageAndTelemetry();
-  }, [refreshDeployments, refreshUsageAndTelemetry]);
+  }, [selectedAgentId, refreshDeployments, refreshUsageAndTelemetry]);
 
   // Live telemetry polling (best-effort).
   useEffect(() => {
@@ -759,43 +799,89 @@ export default function AgentsPage(): React.ReactElement {
                   ) : (
                     <div
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
+                        display: "flex",
+                        flexDirection: "column",
                         gap: 12,
                       }}
                     >
-                      <div>
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          Agent ID
-                        </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 12,
+                        }}
+                      >
                         <div>
-                          <code>{selectedAgent._id}</code>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Agent ID
+                          </div>
+                          <div>
+                            <code>{selectedAgent._id}</code>
+                          </div>
+
+                          <div style={{ height: 8 }} />
+
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Active deployment
+                          </div>
+                          <div>
+                            <code>
+                              {selectedAgent.activeDeploymentId ?? "(none)"}
+                            </code>
+                          </div>
                         </div>
 
-                        <div style={{ height: 8 }} />
-
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          Active deployment
-                        </div>
                         <div>
-                          <code>
-                            {selectedAgent.activeDeploymentId ?? "(none)"}
-                          </code>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Created
+                          </div>
+                          <div>{formatMs(selectedAgent.createdAtMs)}</div>
+
+                          <div style={{ height: 8 }} />
+
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            Updated
+                          </div>
+                          <div>{formatMs(selectedAgent.updatedAtMs)}</div>
                         </div>
                       </div>
 
-                      <div>
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          Created
-                        </div>
-                        <div>{formatMs(selectedAgent.createdAtMs)}</div>
+                      <div className="row">
+                        <button
+                          className="button button-danger"
+                          onClick={() => void deleteSelectedAgent()}
+                          disabled={!canUseApi || deleteStatus === "loading"}
+                          title="Delete agent and remove all deployments"
+                        >
+                          {deleteStatus === "loading"
+                            ? "Deleting…"
+                            : "Delete agent"}
+                        </button>
 
-                        <div style={{ height: 8 }} />
+                        {deleteError ? (
+                          <span
+                            className="badge"
+                            style={{
+                              borderColor: "rgba(255, 107, 107, 0.6)",
+                              background: "rgba(255, 107, 107, 0.08)",
+                            }}
+                          >
+                            <span style={{ color: "var(--danger)" }}>
+                              error
+                            </span>{" "}
+                            {deleteError}
+                          </span>
+                        ) : null}
 
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          Updated
-                        </div>
-                        <div>{formatMs(selectedAgent.updatedAtMs)}</div>
+                        {deleteStatus === "success" ? (
+                          <span className="badge">
+                            <span className="muted">deleted</span>
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        Deleting an agent also removes all deployments.
                       </div>
                     </div>
                   )}

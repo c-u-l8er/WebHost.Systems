@@ -51,6 +51,21 @@ export type CloudflareProviderRef = {
    * Optional metadata for debugging/ops.
    */
   compatibilityDate?: string;
+
+  /**
+   * Optional custom-domain routing metadata (Slice B "custom domain route" mode).
+   *
+   * When present, the deployment was routed via a zone route like:
+   *   pattern: "<host>/dep/<deploymentId>/*"
+   *
+   * This is stored so cleanup can remove the zone route on teardown.
+   */
+  route?: {
+    type: "cloudflare.zoneRoute.v1";
+    zoneId: string;
+    pattern: string;
+    customDomainHost?: string;
+  };
 };
 
 export type CloudflareTelemetryAuthRef = {
@@ -563,4 +578,195 @@ export async function invokeCloudflareWorker(
   } finally {
     clearTimeout(t);
   }
+}
+
+/**
+ * Delete a Cloudflare Worker script.
+ *
+ * API:
+ * - DELETE /accounts/:account_id/workers/scripts/:script_name
+ *
+ * Idempotency:
+ * - If the script does not exist, treat it as success.
+ */
+export async function deleteCloudflareWorkerScript(args: {
+  accountId: string;
+  workerName: string;
+}): Promise<{ deleted: boolean }> {
+  const env = getEnv();
+
+  const accountId = args.accountId.trim();
+  const workerName = args.workerName.trim();
+
+  if (!accountId)
+    throw new Error("deleteCloudflareWorkerScript: accountId is required");
+  if (!workerName)
+    throw new Error("deleteCloudflareWorkerScript: workerName is required");
+
+  const method = "DELETE";
+  const path = `/accounts/${encodeURIComponent(accountId)}/workers/scripts/${encodeURIComponent(
+    workerName,
+  )}`;
+
+  const res = await cloudflareApiFetch({
+    method,
+    path,
+    token: env.CLOUDFLARE_API_TOKEN,
+    timeoutMs: 30_000,
+  });
+
+  // Cloudflare returns JSON; if it's a 404, treat as already-deleted.
+  if (res.status === 404) return { deleted: false };
+
+  await requireCloudflareSuccess(res, {
+    method,
+    path,
+    step: "delete_worker_script",
+  });
+
+  return { deleted: true };
+}
+
+/**
+ * Delete Cloudflare zone routes for a Worker on a custom domain.
+ *
+ * APIs:
+ * - GET    /zones/:zone_id/workers/routes
+ * - DELETE /zones/:zone_id/workers/routes/:route_id
+ *
+ * Idempotency:
+ * - If no matching routes exist, treat as success.
+ */
+export async function deleteCloudflareWorkerRoutes(args: {
+  zoneId: string;
+  workerName: string;
+  pattern?: string;
+}): Promise<{ deletedCount: number }> {
+  const env = getEnv();
+
+  const zoneId = args.zoneId.trim();
+  const workerName = args.workerName.trim();
+  const pattern = args.pattern?.trim();
+
+  if (!zoneId)
+    throw new Error("deleteCloudflareWorkerRoutes: zoneId is required");
+  if (!workerName)
+    throw new Error("deleteCloudflareWorkerRoutes: workerName is required");
+
+  // 1) List routes
+  const listMethod = "GET";
+  const listPath = `/zones/${encodeURIComponent(zoneId)}/workers/routes`;
+
+  const listRes = await cloudflareApiFetch({
+    method: listMethod,
+    path: listPath,
+    token: env.CLOUDFLARE_API_TOKEN,
+    timeoutMs: 30_000,
+  });
+
+  const listJson = await requireCloudflareSuccess(listRes, {
+    method: listMethod,
+    path: listPath,
+    step: "list_worker_routes",
+  });
+
+  const routes = Array.isArray(listJson?.result) ? listJson.result : [];
+
+  const matches = routes.filter((r: any) => {
+    if (!r || typeof r !== "object") return false;
+    if (r.script !== workerName) return false;
+    if (pattern && r.pattern !== pattern) return false;
+    return true;
+  });
+
+  // 2) Delete each matching route by id (best-effort)
+  let deletedCount = 0;
+
+  for (const r of matches) {
+    const routeId = (r as any).id as string | undefined;
+    if (!routeId || typeof routeId !== "string") continue;
+
+    const delMethod = "DELETE";
+    const delPath = `/zones/${encodeURIComponent(zoneId)}/workers/routes/${encodeURIComponent(
+      routeId,
+    )}`;
+
+    const delRes = await cloudflareApiFetch({
+      method: delMethod,
+      path: delPath,
+      token: env.CLOUDFLARE_API_TOKEN,
+      timeoutMs: 30_000,
+    });
+
+    // If already deleted, treat as success.
+    if (delRes.status === 404) continue;
+
+    await requireCloudflareSuccess(delRes, {
+      method: delMethod,
+      path: delPath,
+      step: "delete_worker_route",
+    });
+
+    deletedCount += 1;
+  }
+
+  return { deletedCount };
+}
+
+/**
+ * Best-effort cleanup for Cloudflare resources referenced by a deployment's providerRef.
+ *
+ * Order:
+ * 1) Remove custom-domain route (if present)
+ * 2) Delete Worker script
+ *
+ * Notes:
+ * - This only deletes Cloudflare-side resources. It does not touch Convex rows.
+ * - Safe to call multiple times.
+ */
+export async function deleteCloudflareResourcesForProviderRef(args: {
+  providerRef: CloudflareProviderRef;
+}): Promise<{
+  deletedRoutes: number;
+  deletedScript: boolean;
+}> {
+  const providerRef = args.providerRef as CloudflareProviderRef;
+
+  const workerName = providerRef.workerName;
+  const accountId = providerRef.accountId;
+
+  let deletedRoutes = 0;
+
+  const route = (providerRef as any).route as
+    | {
+        type?: unknown;
+        zoneId?: unknown;
+        pattern?: unknown;
+      }
+    | undefined;
+
+  if (route && route.type === "cloudflare.zoneRoute.v1") {
+    const zoneId = typeof route.zoneId === "string" ? route.zoneId : "";
+    const pattern =
+      typeof route.pattern === "string" ? route.pattern : undefined;
+
+    if (zoneId) {
+      const res = await deleteCloudflareWorkerRoutes({
+        zoneId,
+        workerName,
+        pattern,
+      });
+      deletedRoutes = res.deletedCount;
+    }
+  }
+
+  const scriptRes = await deleteCloudflareWorkerScript({
+    accountId,
+    workerName,
+  });
+
+  return {
+    deletedRoutes,
+    deletedScript: scriptRes.deleted,
+  };
 }

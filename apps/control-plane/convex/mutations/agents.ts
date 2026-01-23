@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { getOrCreateCurrentUser } from "../lib/auth";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -17,7 +18,10 @@ import type { Doc, Id } from "../_generated/dataModel";
  * - For IDOR safety, "not found" is returned for both missing and not-owned resources.
  */
 
-const runtimeProvider = v.union(v.literal("cloudflare"), v.literal("agentcore"));
+const runtimeProvider = v.union(
+  v.literal("cloudflare"),
+  v.literal("agentcore"),
+);
 
 export const createAgent = mutation({
   args: {
@@ -156,13 +160,69 @@ export const deleteAgent = mutation({
 
     const now = Date.now();
 
-    // v1 recommendation: soft-delete. We also clear routing pointer to prevent invocations.
+    // v1 recommendation: soft-delete agent row. We also clear routing pointer to prevent invocations.
+    // Do this BEFORE deleting deployments so the invocation gateway stops routing immediately.
     await ctx.db.patch(agent._id, {
       status: "deleted",
       deletedAtMs: now,
       updatedAtMs: now,
       activeDeploymentId: undefined,
     });
+
+    // Cascade: remove all deployments for this agent.
+    // This matches the dashboard expectation that deleting an agent also removes its deployments.
+    //
+    // Defense in depth: also scope deletes by the authenticated userId, even though agent ownership
+    // already implies these deployments should be owned by the same user.
+    //
+    // Implementation note: delete in batches to avoid large collects for users with many deployments.
+    //
+    // Provider-side cleanup (Cloudflare):
+    // - Best-effort delete Workers resources (routes + script) for each deployment that has a providerRef.
+    // - We schedule cleanup BEFORE deleting the deployment rows, and we pass providerRef directly so
+    //   cleanup can still run even after the DB rows are removed.
+    const BATCH_SIZE = 100;
+
+    while (true) {
+      const batch = await ctx.db
+        .query("deployments")
+        .withIndex("by_agentId", (q) => q.eq("agentId", agent._id))
+        .filter((q) => q.eq(q.field("userId"), userId))
+        .take(BATCH_SIZE);
+
+      if (batch.length === 0) break;
+
+      for (const d of batch) {
+        if (d.userId !== userId) {
+          throw new Error(
+            "Invariant violation: encountered non-owned deployment during agent delete",
+          );
+        }
+
+        // Best-effort Cloudflare teardown (workers + optional custom-domain route).
+        // If cleanup fails, we still proceed with deleting the deployment rows.
+        if (
+          d.runtimeProvider === "cloudflare" &&
+          d.providerRef !== undefined &&
+          d.providerRef !== null
+        ) {
+          try {
+            await ctx.scheduler.runAfter(
+              0,
+              (internal as any)["actions/cleanupCloudflareResources"]
+                .cleanupCloudflareResourcesForProviderRef,
+              { providerRef: d.providerRef },
+            );
+          } catch {
+            // Swallow scheduling errors; agent deletion should remain robust.
+          }
+        }
+
+        await ctx.db.delete(d._id);
+      }
+
+      if (batch.length < BATCH_SIZE) break;
+    }
 
     const updated = await ctx.db.get(agent._id);
     if (!updated) throw new Error("Not found");
@@ -173,7 +233,7 @@ export const deleteAgent = mutation({
 async function getAgentOwnedOrThrow(
   ctx: { db: any },
   currentUserId: Id<"users">,
-  agentId: Id<"agents">
+  agentId: Id<"agents">,
 ): Promise<Doc<"agents">> {
   const agent = (await ctx.db.get(agentId)) as Doc<"agents"> | null;
   if (!agent) throw new Error("Not found");
@@ -226,7 +286,7 @@ function normalizeEnvVarKeys(keys: string[]): string[] {
     }
     if (!re.test(key)) {
       throw new Error(
-        `Invalid envVarKeys entry: "${key}" must match ${re.toString()}`
+        `Invalid envVarKeys entry: "${key}" must match ${re.toString()}`,
       );
     }
 
