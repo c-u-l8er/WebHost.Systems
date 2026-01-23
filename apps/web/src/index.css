@@ -1,173 +1,716 @@
 /* Minimal, sane defaults for the dashboard UI */
 
 :root {
-  color-scheme: light dark;
+    color-scheme: light dark;
 
-  --bg: #0b0f17;
-  --panel: #0f1624;
-  --panel-2: #121b2b;
-  --text: #e6edf3;
-  --muted: #9aa7b4;
-  --border: rgba(255, 255, 255, 0.12);
+    --bg: #0b0f17;
+    --panel: #0f1624;
+    --panel-2: #121b2b;
+    --text: #e6edf3;
+    --muted: #9aa7b4;
+    --border: rgba(255, 255, 255, 0.12);
 
-  --primary: #6ea8fe;
-  --danger: #ff6b6b;
+    --primary: #6ea8fe;
+    --danger: #ff6b6b;
 
-  --radius: 12px;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --radius: 12px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+    --mono:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
 }
 
 *,
 *::before,
 *::after {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
-html,
-body {
-  height: 100%;
+html {
+    height: 100%;
+    /* Smooth in-page navigation (e.g. clicking header links) */
+    scroll-behavior: smooth;
+
+    /* Keep anchors from hiding under the sticky header */
+    scroll-padding-top: 92px;
 }
 
 body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-    Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.4;
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        Segoe UI,
+        Roboto,
+        Helvetica,
+        Arial,
+        "Apple Color Emoji",
+        "Segoe UI Emoji";
+    line-height: 1.4;
 }
 
 a {
-  color: var(--primary);
-  text-decoration: none;
+    color: var(--primary);
+    text-decoration: none;
 }
 a:hover {
-  text-decoration: underline;
+    text-decoration: underline;
 }
 
 code,
 pre {
-  font-family: var(--mono);
+    font-family: var(--mono);
 }
 
 hr {
-  border: 0;
-  border-top: 1px solid var(--border);
-  margin: 16px 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
 }
 
 /* Layout helpers */
 .container {
-  width: min(1100px, calc(100% - 32px));
-  margin: 0 auto;
+    width: min(1100px, calc(100% - 32px));
+    margin: 0 auto;
 }
 
 .page {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .header {
-  border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
 }
 
 .header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 0;
 }
 
 .brand {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 .brand-title {
-  font-weight: 700;
-  letter-spacing: 0.2px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
 }
 .brand-subtitle {
-  font-size: 12px;
-  color: var(--muted);
+    font-size: 12px;
+    color: var(--muted);
 }
 
 .main {
-  flex: 1;
-  padding: 20px 0 32px;
+    flex: 1;
+    padding: 20px 0 32px;
+}
+
+/* Anchor targets: avoid being hidden by the sticky header */
+[id] {
+    scroll-margin-top: 92px;
 }
 
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
 }
 
 .panel-header {
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
-  border-top-left-radius: var(--radius);
-  border-top-right-radius: var(--radius);
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
 }
 
 .panel-body {
-  padding: 14px;
+    padding: 14px;
 }
 
 .row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .spacer {
-  flex: 1;
+    flex: 1;
 }
 
 .muted {
-  color: var(--muted);
+    color: var(--muted);
 }
 
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 /* Simple buttons */
 .button {
-  appearance: none;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-weight: 600;
-  cursor: pointer;
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-weight: 600;
+    cursor: pointer;
 }
 .button:hover {
-  filter: brightness(1.08);
+    filter: brightness(1.08);
 }
 .button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .button-primary {
-  border-color: rgba(110, 168, 254, 0.5);
-  background: rgba(110, 168, 254, 0.12);
+    border-color: rgba(110, 168, 254, 0.5);
+    background: rgba(110, 168, 254, 0.12);
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Polish: typography, focus states, and form controls
+ * ------------------------------------------------------------------------------------------------- */
+
+:root {
+    --bg-2: #070a10;
+    --card: rgba(255, 255, 255, 0.03);
+
+    --border-strong: rgba(255, 255, 255, 0.16);
+
+    --shadow-1: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 18px 60px rgba(0, 0, 0, 0.45);
+
+    --ring: rgba(110, 168, 254, 0.35);
+    --ring-strong: rgba(110, 168, 254, 0.55);
+
+    --success: #2ecc71;
+    --warning: #f5c451;
+
+    --container: 1120px;
+}
+
+::selection {
+    background: rgba(110, 168, 254, 0.25);
+}
+
+.container {
+    width: min(var(--container), calc(100% - 32px));
+}
+
+body {
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+    letter-spacing: -0.02em;
+}
+
+code {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+
+/* Make all native controls inherit fonts; keeps Clerk buttons from looking off */
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+/* Inputs that already use the `.button` class (existing UI pattern) */
+.button {
+    transition:
+        border-color 120ms ease,
+        background 120ms ease,
+        filter 120ms ease,
+        box-shadow 120ms ease,
+        transform 80ms ease;
+}
+
+.button:hover:not(:disabled) {
+    border-color: var(--border-strong);
+}
+
+.button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.button:focus-visible {
+    outline: none;
+    border-color: rgba(110, 168, 254, 0.55);
+    box-shadow:
+        0 0 0 3px var(--ring),
+        var(--shadow-1);
+}
+
+/* Style buttons even when they don't use `.button` (e.g., Clerk SignInButton/SignUpButton) */
+button:not(.button) {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        border-color 120ms ease,
+        background 120ms ease,
+        filter 120ms ease,
+        box-shadow 120ms ease,
+        transform 80ms ease;
+}
+
+button:not(.button):hover:not(:disabled) {
+    border-color: var(--border-strong);
+    filter: brightness(1.06);
+}
+
+button:not(.button):active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+button:not(.button):disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button:not(.button):focus-visible {
+    outline: none;
+    border-color: rgba(110, 168, 254, 0.55);
+    box-shadow:
+        0 0 0 3px var(--ring),
+        var(--shadow-1);
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Header + navigation styling (for upcoming authed navigation menu)
+ * ------------------------------------------------------------------------------------------------- */
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    background:
+        radial-gradient(
+            1200px 400px at 10% 0%,
+            rgba(110, 168, 254, 0.1),
+            transparent 55%
+        ),
+        radial-gradient(
+            900px 300px at 90% 0%,
+            rgba(46, 204, 113, 0.06),
+            transparent 60%
+        ),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+
+    /* Keep a clear separation from content while sticky */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+    backdrop-filter: blur(6px);
+}
+
+.header-inner {
+    padding: 14px 0;
+}
+
+.brand-title {
+    font-size: 15px;
+}
+
+.brand-subtitle {
+    font-size: 12px;
+}
+
+.nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.nav-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 999px;
+}
+
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.nav-link:hover {
+    text-decoration: none;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.nav-link-active {
+    color: var(--text);
+    background: rgba(110, 168, 254, 0.1);
+    border-color: rgba(110, 168, 254, 0.3);
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Landing / marketing splash page styling (for upcoming SignedOut landing)
+ * ------------------------------------------------------------------------------------------------- */
+
+.landing {
+    padding: 44px 0 60px;
+}
+
+.hero {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    background:
+        radial-gradient(
+            1000px 420px at 10% 0%,
+            rgba(110, 168, 254, 0.12),
+            transparent 55%
+        ),
+        radial-gradient(
+            900px 360px at 90% 20%,
+            rgba(46, 204, 113, 0.08),
+            transparent 60%
+        ),
+        rgba(255, 255, 255, 0.02);
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+}
+
+.hero-inner {
+    padding: 28px;
+    display: grid;
+    grid-template-columns: 1.25fr 0.75fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.hero-title {
+    font-size: 34px;
+    line-height: 1.15;
+    margin: 0;
+}
+
+.hero-lede {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 64ch;
+}
+
+.hero-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.hero-aside {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.kpi {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.kpi-label {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.kpi-value {
+    margin-top: 6px;
+    font-weight: 700;
+}
+
+.feature-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.feature-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.feature-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.feature-body {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+/* Responsive tweaks */
+@media (max-width: 900px) {
+    .hero-inner {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+/* -------------------------------------------------------------------------------------------------
+ * Authenticated ACP layout (classic sidebar + full-width content)
+ *
+ * Replaces experimental :has()-based styling with explicit classes.
+ *
+ * Apply these classes in the authenticated shell:
+ * - wrapper:    .acp-shell
+ * - sidebar:    .acp-sidebar
+ * - content:    .acp-main
+ * - nav blocks: .acp-nav, .acp-nav-sections
+ * ------------------------------------------------------------------------------------------------- */
+
+.acp-shell {
+    min-height: 100%;
+}
+
+/* Fixed left sidebar (desktop) */
+.acp-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 200;
+
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+    background:
+        radial-gradient(
+            1200px 500px at 0% 0%,
+            rgba(110, 168, 254, 0.12),
+            transparent 55%
+        ),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+    backdrop-filter: blur(8px);
+}
+
+.acp-sidebar-inner {
+    height: 100%;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+
+    /* Allow the sidebar content to scroll independently (classic ACP behavior) */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    min-height: 0;
+}
+
+/* Stacked nav (classic ACP) */
+.acp-nav,
+.acp-nav-sections {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.acp-nav-sections {
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Full-width main content area (desktop) */
+.acp-main {
+    margin-left: 280px;
+    padding: 18px 18px 28px;
+
+    /* Prevent long panels/tables from forcing horizontal overflow */
+    min-width: 0;
+}
+
+/* If you still render a `.container` inside, make it full width */
+.acp-main > .container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+/* Sidebar controls should feel like a menu */
+.acp-sidebar .button {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+}
+
+/* Mobile: sidebar becomes top header-like (non-fixed) */
+@media (max-width: 900px) {
+    .acp-sidebar {
+        position: sticky;
+        top: 0;
+        bottom: auto;
+        width: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Sidebar shouldn't be a scroll container on mobile (acts like a top bar) */
+    .acp-sidebar-inner {
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Give the full-width content comfortable mobile padding */
+    .acp-main {
+        margin-left: 0;
+        padding: 16px;
+    }
+
+    .acp-main > .container {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+    }
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Agents page: sub-sidebar (agent list) + detail view layout helpers
+ *
+ * These classes are intended for the Agents page content area, in addition to the main ACP menu.
+ * ------------------------------------------------------------------------------------------------- */
+
+.acp-agents-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 12px;
+    align-items: start;
+    min-width: 0;
+}
+
+.acp-agents-subsidebar {
+    position: sticky;
+    top: 18px;
+    align-self: start;
+
+    max-height: calc(100vh - 36px);
+    overflow: hidden;
+    min-width: 0;
+}
+
+.acp-agents-subsidebar-scroll {
+    max-height: 30vh;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-right: 2px;
+    min-height: 0;
+}
+
+.acp-agents-subsidebar-scroll button {
+    width: 100%;
+}
+
+/* Optional: make agent "row buttons" feel more like list items */
+.acp-agent-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.acp-agent-list-item-title {
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.acp-agent-list-item-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* Detail view column should be allowed to shrink without overflow */
+.acp-agents-detail {
+    min-width: 0;
+}
+
+/* Mobile: stack agent list above details */
+@media (max-width: 900px) {
+    .acp-agents-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .acp-agents-subsidebar {
+        position: static;
+        max-height: none;
+    }
+
+    .acp-agents-subsidebar-scroll {
+        max-height: none;
+        overflow: visible;
+    }
 }
