@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Build output / cache
+dist/
+build/
+.cache/
+.tmp/
+tmp/
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Convex
+# Local project linkage + dev credentials
+.convex/
+# Generated Convex API/types (reproducible via `convex dev` / `convex codegen`)
+convex/_generated/
+
+# Optional: ignore local Wrangler config if you add it later
+.wrangler/

@@ -41,6 +41,14 @@ ADRs document the “why” behind major choices and define additional constrain
 - `adr/ADR-0006-invocation-protocol.md` — Canonical `invoke/v1` protocol, session semantics, and SSE streaming model.
 - `adr/ADR-0007-entitlements-and-limits.md` — Tier entitlements, runtime gating, and limit enforcement strategy.
 
+## Progress logs
+
+Daily implementation progress logs live in `../progress/` (relative to this folder). These logs are **non-normative** and exist to track execution against this spec.
+
+Recommended convention:
+- One file per day: `YYYY-MM-DD.md`
+- Include: what shipped, what changed, decisions made (with links to ADRs/spec sections), and next steps.
+
 ## Normative conventions used in this spec
 
 - **MUST / MUST NOT / SHOULD / MAY** are used intentionally.
