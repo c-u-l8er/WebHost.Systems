@@ -26,9 +26,9 @@ export default function App() {
         <header className="header">
           <div className="container header-inner">
             <div className="brand" style={{ gap: 4 }}>
-              <div className="brand-title">webhost.systems</div>
+              <div className="brand-title"><a href="https://webhost.systems">webhost.systems</a></div>
               <div className="brand-subtitle">
-                Deploy, run, and observe AI agents across runtimes
+                AI Systems for Web Hosts
               </div>
             </div>
 
@@ -71,7 +71,7 @@ export default function App() {
           <aside className="acp-sidebar" aria-label="Admin sidebar">
             <div className="acp-sidebar-inner">
               <div className="brand" style={{ gap: 4 }}>
-                <div className="brand-title">webhost.systems</div>
+                <div className="brand-title"><a href="https://webhost.systems">WebHost.Systems</a></div>
                 <div className="brand-subtitle">Admin Control Panel</div>
               </div>
 

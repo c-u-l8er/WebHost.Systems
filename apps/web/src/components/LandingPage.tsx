@@ -20,7 +20,7 @@ export type LandingPageProps = {
 
 export default function LandingPage({
   variant = "default",
-  headline = "Deploy and operate AI agents with a real control plane.",
+  headline = "Deploy, run, and observe AI agents across runtimes.",
   subheadline = "webhost.systems gives you deployments, invocations, telemetry, usage, and limits — with a multi-runtime foundation.",
 }: LandingPageProps): React.ReactElement {
   const isCompact = variant === "compact";
@@ -39,7 +39,7 @@ export default function LandingPage({
         <div className="row" style={{ alignItems: "baseline", gap: 10 }}>
           <div className="brand" style={{ gap: 6 }}>
             <div className="brand-title" style={{ fontSize: 16 }}>
-              webhost.systems
+              WebHost.Systems
             </div>
             <div className="brand-subtitle">
               Control plane for multi-runtime agent hosting
