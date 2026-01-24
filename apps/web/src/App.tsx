@@ -26,7 +26,7 @@ export default function App() {
         <header className="header">
           <div className="container header-inner">
             <div className="brand" style={{ gap: 4 }}>
-              <div className="brand-title"><a href="https://webhost.systems">webhost.systems</a></div>
+              <div className="brand-title"><a href="https://webhost.systems">WebHost.Systems</a></div>
               <div className="brand-subtitle">
                 AI Systems for Web Hosts
               </div>
