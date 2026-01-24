@@ -8,6 +8,7 @@ Related Docs:
 - `WebHost.Systems/project_spec/spec_v1/20_RUNTIME_PROVIDER_INTERFACE.md`
 - `WebHost.Systems/project_spec/spec_v1/50_OBSERVABILITY_BILLING_LIMITS.md`
 - `WebHost.Systems/project_spec/spec_v1/40_SECURITY_SECRETS_COMPLIANCE.md`
+- `WebHost.Systems/project_spec/spec_v1/adr/ADR-0008-delegated-invocation-auth.md` (delegated invocation auth mode; preserves invoke/v1 semantics)
 
 ## Context
 
@@ -40,6 +41,8 @@ The protocol applies to:
 - the internal Runtime Provider Interface (control plane -> provider adapters),
 - the runtime payloads (as applicable) for data plane execution,
 - telemetry correlation via `traceId`.
+
+Note: Additional authentication modes (e.g., delegated server-to-server invocation) MUST NOT introduce a new protocol shape. They preserve the same `invoke/v1` request/response semantics and differ only in how the invocation gateway authenticates and attributes the caller. See `ADR-0008-delegated-invocation-auth.md`.
 
 ### 2) Canonical input: chat messages (with prompt convenience)
 

@@ -173,11 +173,31 @@ For `INVALID_REQUEST`, `details` SHOULD include field-level issues:
 Telemetry ingestion MUST be protected against spoofing.
 
 MVP requirement:
-- Each deployment MUST have an associated `telemetrySecret` (HMAC key) that is injected into the runtime provider as a secret (never stored in plaintext in DB).
+- Each deployment MUST have an associated `telemetrySecret` (HMAC key) that is injected into the runtime provider as a secret.
+- The control plane database MUST store only a **secret reference/metadata** for telemetry signing (e.g., provider secret name/id, or external secret manager reference). The `telemetrySecret` value MUST NOT be stored in plaintext in the primary database.
 - Telemetry requests MUST include a signature header:
   - `X-Telemetry-Signature: v1=<hex-hmac-sha256(body)>`
   - `X-Telemetry-Deployment-Id: <deploymentId>`
-- Control plane verifies signature using the secret for that deployment.
+- Control plane verifies signatures by resolving the `telemetrySecret` value via the deployment’s secret reference:
+  - Option A (provider-native): fetch the secret value from the runtime provider’s secret store using the stored reference (recommended for Cloudflare-style secrets).
+  - Option B (centralized): fetch the secret value from an external secret manager (recommended if you want unified rotation/audit across providers).
+  - Implementations MAY cache the resolved secret value server-side briefly (bounded TTL) to reduce provider/secret-manager calls; caches MUST be server-only and MUST NOT expose secret material.
+- Rotation:
+  - Rotating `telemetrySecret` MUST be supported by updating the provider secret and the stored secret reference/metadata (and must be auditable).
+  - If you need zero-downtime rotation, support a short overlap window where both “current” and “previous” secrets are accepted for verification.
+- Anti-replay (recommended, non-breaking):
+  - Include a timestamp header (e.g., `X-Telemetry-Timestamp`) and reject signatures outside a small window, or include a nonce/eventId with dedupe at ingestion.
+
+### 4.4 Delegated invocation auth (server-to-server; internal)
+WHS MAY support a **delegated invocation** auth mode for trusted backend callers (e.g., a workflow orchestrator) to invoke an agent **on behalf of** an end user **without forwarding browser JWTs**.
+
+If enabled, delegated invocation MUST:
+- authenticate the delegator using **HMAC over raw request bytes** (signature header + timestamp window),
+- include a delegated end-user identity in the request body (e.g., `delegation.externalUserId`),
+- enforce WHS authorization, limits, and billing **as the delegated user** (no bypass),
+- require an idempotency key and dedupe by `(delegated user, agentId, idempotencyKey)` to prevent duplicate cost/side effects under retries.
+
+This auth mode is **service authentication** for the delegator, not user authentication. It MUST NOT weaken tenant isolation.
 
 ---
 
@@ -680,6 +700,96 @@ data: {}
 
 Notes:
 - Streaming is optional per runtime provider; if unsupported, server MAY emulate streaming by chunking buffered output.
+
+---
+
+### 10.3 Invoke agent (delegated; server-to-server, internal)
+**POST** `/v1/delegated/invoke/{agentId}`  
+**Purpose:** Allow trusted backend systems (e.g., workflow runners) to invoke an agent on behalf of a delegated end user without forwarding browser JWTs.
+
+This endpoint is **internal** and MUST NOT be used by browsers.
+
+#### Authentication (REQUIRED)
+Request MUST include:
+- `X-WHS-Delegation-Source: <string>` (e.g., `agentromatic`)
+- `X-WHS-Delegation-Timestamp: <epoch_ms>`
+- `X-WHS-Delegation-Signature: v1=<hex-hmac-sha256(raw_body_bytes)>`
+
+Server behavior (MUST):
+- Verify HMAC signature over the exact raw request bytes using `WHS_DELEGATION_SECRET`.
+- Validate timestamp within an allowed skew window (recommended ±5 minutes).
+- Optionally enforce a source allowlist (`X-WHS-Delegation-Source`) (recommended).
+- Reject invalid signatures/timestamps with `UNAUTHENTICATED`.
+
+#### Request body (REQUIRED)
+The request body MUST include:
+- a delegation envelope (delegated identity + idempotency),
+- the normal invocation request shape under `invoke` (compatible with `InvokeRequest`).
+
+Example:
+```WebHost.Systems/project_spec/spec_v1/10_API_CONTRACTS.md#L950-1012
+{
+  "delegation": {
+    "mode": "hmac_v1",
+    "externalUserId": "clerk_user_...",
+    "idempotencyKey": "agentromatic:exec:ex_...:node:node_...:attempt:1",
+    "correlation": {
+      "workflowId": "wf_...",
+      "executionId": "ex_...",
+      "nodeId": "node_...",
+      "attempt": 1
+    }
+  },
+  "invoke": {
+    "input": {
+      "messages": [
+        { "role": "system", "content": "You are a helpful assistant." },
+        { "role": "user", "content": "Summarize last week's support tickets." }
+      ]
+    },
+    "sessionId": null,
+    "options": {
+      "maxSteps": 10,
+      "temperature": 0.2
+    },
+    "metadata": {
+      "traceId": "trc_client_...",
+      "client": { "name": "agentromatic", "version": "0.1" }
+    }
+  }
+}
+```
+
+Rules:
+- `delegation.externalUserId` MUST be the stable external auth subject for the end user.
+- `delegation.idempotencyKey` is REQUIRED and MUST be:
+  - deterministic for a single logical invocation,
+  - secret-free,
+  - bounded in length.
+- The request body MUST NOT include plaintext secrets or end-user auth tokens.
+
+#### Response
+On success, response MUST match the canonical invocation response (same as `/v1/invoke/{agentId}`), including `traceId`.
+
+#### Authorization & billing (MUST)
+Server MUST:
+- resolve the delegated user (`externalUserId` → WHS user row),
+- enforce agent visibility/ownership **as that user**,
+- enforce plan limits and runtime gating **as that user**,
+- route to the active deployment (or a specified deployment if WHS later supports it).
+
+#### Idempotency (MUST)
+Server MUST dedupe requests by `(delegation.externalUserId, agentId, delegation.idempotencyKey)`:
+- repeated requests with the same tuple MUST NOT double-run or double-charge,
+- reusing the same idempotency key with a different payload MUST return `CONFLICT` (or `INVALID_REQUEST`; pick one and keep consistent).
+
+Errors:
+- `UNAUTHENTICATED` (bad signature, stale timestamp, unknown source)
+- `UNAUTHORIZED` / `NOT_FOUND` (agent not visible to delegated user)
+- `LIMIT_EXCEEDED`
+- `RUNTIME_ERROR`
+- `INVALID_REQUEST`
+- `CONFLICT` (idempotency key reuse with different payload)
 
 ---
 
