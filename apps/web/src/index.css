@@ -284,7 +284,7 @@ textarea {
 }
 
 /* Style buttons even when they don't use `.button` (e.g., Clerk SignInButton/SignUpButton) */
-button:not(.button) {
+/*button:not(.button) {
     appearance: none;
     border: 1px solid var(--border);
     background: var(--panel-2);
@@ -321,7 +321,7 @@ button:not(.button):focus-visible {
     box-shadow:
         0 0 0 3px var(--ring),
         var(--shadow-1);
-}
+}*/
 
 /* -------------------------------------------------------------------------------------------------
  * Header + navigation styling (for upcoming authed navigation menu)

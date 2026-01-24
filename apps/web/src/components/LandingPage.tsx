@@ -341,7 +341,7 @@ export default function LandingPage({
       <div style={{ height: 10 }} />
 
       <div className="muted" style={{ fontSize: 12, textAlign: "center" }}>
-        © {new Date().getFullYear()} webhost.systems — v1 dashboard
+        © {new Date().getFullYear()} WebHost.Systems ... Powered by <a href="https://ampersandboxdesign.com">[&]</a>
       </div>
     </div>
   );
