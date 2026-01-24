@@ -103,7 +103,38 @@ async function readTextSafe(res: Response): Promise<string> {
   }
 }
 
-export default function AgentsPage(): React.ReactElement {
+export type AgentsPageMode = "list" | "detail" | "combined";
+
+export type AgentsPageProps = {
+  /**
+   * "list": show only the agents list/table (no detail panels)
+   * "detail": show only the selected agent detail panels (no list)
+   * "combined": show both (back-compat / transitional)
+   */
+  mode?: AgentsPageMode;
+
+  /**
+   * When provided, the page treats this as the selected agent id (detail context).
+   * The caller owns routing; this component should not touch window.location.
+   */
+  agentId?: string;
+
+  /**
+   * Optional navigation callback for list row clicks.
+   * If omitted, selection stays internal (back-compat).
+   */
+  onNavigateToAgent?: (agentId: string) => void;
+
+  /**
+   * Optional navigation callback for the "Back" button on the detail page.
+   * If omitted, selection is cleared internally (back-compat).
+   */
+  onBackToList?: () => void;
+};
+
+export default function AgentsPage(
+  props: AgentsPageProps = {},
+): React.ReactElement {
   const { getToken } = useAuth();
 
   const controlPlaneUrl = useMemo(() => {
@@ -154,15 +185,183 @@ export default function AgentsPage(): React.ReactElement {
    * Agents
    * ------------------------------------------------------------------------------------------------- */
 
+  type AgentSortKey =
+    | "name"
+    | "status"
+    | "preferredRuntimeProvider"
+    | "hasActiveDeployment"
+    | "updatedAtMs"
+    | "createdAtMs"
+    | "_id";
+  type SortDir = "asc" | "desc";
+
   const [agentsStatus, setAgentsStatus] = useState<AsyncStatus>("idle");
   const [agentsError, setAgentsError] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
 
+  const viewMode: AgentsPageMode = props.mode ?? "combined";
+  const routeAgentId = props.agentId ?? "";
+
+  // If the route provides an agentId, ensure it becomes selected (detail page).
+  // This component must not mutate the URL; the caller owns routing.
+  useEffect(() => {
+    if (routeAgentId) setSelectedAgentId(routeAgentId);
+  }, [routeAgentId]);
+
+  const handleSelectAgent = useCallback(
+    (agentId: string) => {
+      if (props.onNavigateToAgent) {
+        props.onNavigateToAgent(agentId);
+        return;
+      }
+      setSelectedAgentId(agentId);
+    },
+    [props],
+  );
+
+  const handleBackToList = useCallback(() => {
+    if (props.onBackToList) {
+      props.onBackToList();
+      return;
+    }
+    setSelectedAgentId("");
+  }, [props]);
+
+  // Agents table controls
+  const [agentSearch, setAgentSearch] = useState<string>("");
+  const [agentStatusFilter, setAgentStatusFilter] = useState<
+    "all" | Agent["status"]
+  >("all");
+  const [agentRuntimeFilter, setAgentRuntimeFilter] = useState<
+    "all" | RuntimeProvider | "unknown"
+  >("all");
+  const [agentDeploymentFilter, setAgentDeploymentFilter] = useState<
+    "all" | "has" | "none"
+  >("all");
+  const [agentSortKey, setAgentSortKey] = useState<AgentSortKey>("updatedAtMs");
+  const [agentSortDir, setAgentSortDir] = useState<SortDir>("desc");
+
   const selectedAgent = useMemo(
     () => agents.find((a) => a._id === selectedAgentId) ?? null,
     [agents, selectedAgentId],
   );
+
+  const defaultSortDirFor = useCallback((key: AgentSortKey): SortDir => {
+    switch (key) {
+      case "updatedAtMs":
+      case "createdAtMs":
+        return "desc";
+      case "hasActiveDeployment":
+        // Most useful default: agents with a deployment first
+        return "desc";
+      case "name":
+      case "status":
+      case "preferredRuntimeProvider":
+      case "_id":
+      default:
+        return "asc";
+    }
+  }, []);
+
+  const toggleSort = useCallback((key: AgentSortKey) => {
+    setAgentSortKey((prevKey) => {
+      if (prevKey !== key) {
+        setAgentSortDir(defaultSortDirFor(key));
+        return key;
+      }
+
+      setAgentSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+      return prevKey;
+    });
+  }, [defaultSortDirFor]);
+
+  const sortIndicator = useCallback(
+    (key: AgentSortKey) => {
+      if (agentSortKey !== key) return "";
+      return agentSortDir === "asc" ? " ▲" : " ▼";
+    },
+    [agentSortDir, agentSortKey],
+  );
+
+  const visibleAgents = useMemo(() => {
+    const q = agentSearch.trim().toLowerCase();
+
+    const matches = (a: Agent) => {
+      if (agentStatusFilter !== "all" && a.status !== agentStatusFilter)
+        return false;
+
+      const runtime = (a.preferredRuntimeProvider ?? "unknown") as
+        | RuntimeProvider
+        | "unknown";
+
+      if (agentRuntimeFilter !== "all" && runtime !== agentRuntimeFilter)
+        return false;
+
+      const hasDep = !!a.activeDeploymentId;
+      if (agentDeploymentFilter === "has" && !hasDep) return false;
+      if (agentDeploymentFilter === "none" && hasDep) return false;
+
+      if (!q) return true;
+
+      const hay = [
+        a.name,
+        a.description ?? "",
+        a._id,
+        a.status,
+        runtime,
+        hasDep ? "hasDeployment" : "noDeployment",
+        a.activeDeploymentId ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(q);
+    };
+
+    const getSortValue = (a: Agent, key: AgentSortKey): string | number => {
+      const runtime = (a.preferredRuntimeProvider ?? "unknown") as
+        | RuntimeProvider
+        | "unknown";
+
+      if (key === "name") return a.name ?? "";
+      if (key === "status") return a.status ?? "";
+      if (key === "preferredRuntimeProvider") return runtime;
+      if (key === "hasActiveDeployment") return a.activeDeploymentId ? 1 : 0;
+      if (key === "createdAtMs") return a.createdAtMs ?? 0;
+      if (key === "updatedAtMs") return a.updatedAtMs ?? 0;
+      if (key === "_id") return a._id ?? "";
+      return 0;
+    };
+
+    const dir = agentSortDir === "asc" ? 1 : -1;
+
+    return agents
+      .slice()
+      .filter(matches)
+      .sort((a, b) => {
+        const av = getSortValue(a, agentSortKey);
+        const bv = getSortValue(b, agentSortKey);
+
+        if (typeof av === "number" && typeof bv === "number") {
+          if (av === bv) return 0;
+          return av < bv ? -1 * dir : 1 * dir;
+        }
+
+        const as = String(av);
+        const bs = String(bv);
+        const cmp = as.localeCompare(bs);
+        return cmp * dir;
+      });
+  }, [
+    agents,
+    agentSearch,
+    agentSortDir,
+    agentSortKey,
+    agentStatusFilter,
+    agentRuntimeFilter,
+    agentDeploymentFilter,
+  ]);
 
   const refreshAgents = useCallback(async () => {
     if (!client) return;
@@ -178,14 +377,24 @@ export default function AgentsPage(): React.ReactElement {
       setAgents(list);
 
       if (list.length > 0) {
-        // Keep selection stable; default to the newest agent.
+        // Keep selection stable if it still exists.
         const stillExists =
           selectedAgentId && list.some((a) => a._id === selectedAgentId);
+
         if (!stillExists) {
-          const newest = [...list].sort(
-            (a, b) => b.createdAtMs - a.createdAtMs,
-          )[0];
-          setSelectedAgentId(newest._id);
+          // If the caller is driving a detail route, honor it.
+          if (routeAgentId && list.some((a) => a._id === routeAgentId)) {
+            setSelectedAgentId(routeAgentId);
+          } else if (viewMode === "combined") {
+            // Back-compat: in combined mode we pick a default selection.
+            const newest = [...list].sort(
+              (a, b) => b.createdAtMs - a.createdAtMs,
+            )[0];
+            setSelectedAgentId(newest._id);
+          } else {
+            // In list/detail modes, the route should drive selection; don't guess.
+            setSelectedAgentId("");
+          }
         }
       } else {
         setSelectedAgentId("");
@@ -196,7 +405,7 @@ export default function AgentsPage(): React.ReactElement {
       setAgentsStatus("error");
       setAgentsError(summarizeError(err));
     }
-  }, [client, selectedAgentId]);
+  }, [client, routeAgentId, selectedAgentId]);
 
   useEffect(() => {
     void refreshAgents();
@@ -229,9 +438,17 @@ export default function AgentsPage(): React.ReactElement {
         preferredRuntimeProvider: "cloudflare",
       });
 
-      // Optimistic insert + select
+      // Optimistic insert
       setAgents((prev) => [agent, ...prev]);
-      setSelectedAgentId(agent._id);
+
+      // List vs detail routing:
+      // - On the list page, creating an agent should take you to its detail page.
+      // - In combined/back-compat mode, we just select it in-place.
+      if (viewMode === "list" && props.onNavigateToAgent) {
+        props.onNavigateToAgent(agent._id);
+      } else {
+        setSelectedAgentId(agent._id);
+      }
 
       setCreateStatus("success");
     } catch (err) {
@@ -578,21 +795,26 @@ export default function AgentsPage(): React.ReactElement {
   // Refresh deployments and telemetry when selection changes.
   // Also reset destructive-action UI state so it doesn't "stick" when switching agents.
   useEffect(() => {
+    if (viewMode === "list") return;
+
     setDeleteStatus("idle");
     setDeleteError(null);
 
     void refreshDeployments();
     void refreshUsageAndTelemetry();
-  }, [selectedAgentId, refreshDeployments, refreshUsageAndTelemetry]);
+  }, [selectedAgentId, refreshDeployments, refreshUsageAndTelemetry, viewMode]);
 
   // Live telemetry polling (best-effort).
   useEffect(() => {
     if (!client) return;
+    if (viewMode === "list") return;
+    if (!selectedAgent) return;
+
     const id = setInterval(() => {
       void refreshUsageAndTelemetry();
     }, 5000);
     return () => clearInterval(id);
-  }, [client, refreshUsageAndTelemetry]);
+  }, [client, refreshUsageAndTelemetry, selectedAgent, viewMode]);
 
   /* -------------------------------------------------------------------------------------------------
    * Render
@@ -602,7 +824,7 @@ export default function AgentsPage(): React.ReactElement {
 
   return (
     <>
-      <div className="panel">
+      <div className="panel" style={{ marginBottom: 12 }}>
         <div className="panel-header">
           <div className="row">
             <div className="brand">
@@ -625,8 +847,9 @@ export default function AgentsPage(): React.ReactElement {
             </button>
           </div>
         </div>
+      </div>
 
-        <div className="panel-body">
+      <div>
           {!controlPlaneUrl ? (
             <div className="panel" style={{ padding: 12, marginBottom: 12 }}>
               <div className="muted">
@@ -652,12 +875,15 @@ export default function AgentsPage(): React.ReactElement {
             </div>
           ) : null}
 
-          <div className="acp-agents-layout">
+          <div
+            className={viewMode === "combined" ? "acp-agents-layout" : undefined}
+          >
             {/* Left column: Agents sidebar */}
             <aside
-              className="panel acp-agents-subsidebar"
+              className={viewMode === "list" ? "panel" : "panel acp-agents-subsidebar"}
               id="agents"
               aria-label="Agents sidebar"
+              style={{ display: viewMode === "detail" ? "none" : undefined }}
             >
               <div className="panel-header">
                 <div className="row">
@@ -680,44 +906,380 @@ export default function AgentsPage(): React.ReactElement {
                         No agents yet. Create one below.
                       </div>
                     ) : (
-                      agents
-                        .slice()
-                        .sort((a, b) => b.createdAtMs - a.createdAtMs)
-                        .map((a) => {
-                          const active = a._id === selectedAgentId;
-                          return (
-                            <button
-                              key={a._id}
-                              type="button"
-                              className={`${active ? "button button-primary" : "button"} acp-agent-list-item`}
-                              aria-current={active ? "page" : undefined}
-                              onClick={() => setSelectedAgentId(a._id)}
-                              disabled={!canUseApi}
-                              title={a._id}
-                            >
-                              <span
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                }}
-                              >
-                                <span className="acp-agent-list-item-title">
-                                  {a.name}
-                                </span>
-                                <span className="acp-agent-list-item-subtitle">
-                                  {a.description ? a.description : "—"}
-                                </span>
-                              </span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <input
+                            className="button"
+                            style={{ width: "100%", textAlign: "left" }}
+                            value={agentSearch}
+                            onChange={(e) => setAgentSearch(e.target.value)}
+                            placeholder="Search (name, id, status, runtime, deployment)…"
+                            disabled={!canUseApi}
+                          />
 
-                              <span
-                                className="badge"
-                                style={{ flex: "0 0 auto" }}
-                              >
-                                <span className="muted">status</span> {a.status}
-                              </span>
+                          <select
+                            className="button"
+                            style={{ width: "100%", textAlign: "left" }}
+                            value={agentStatusFilter}
+                            onChange={(e) =>
+                              setAgentStatusFilter(
+                                e.target.value as "all" | Agent["status"],
+                              )
+                            }
+                            disabled={!canUseApi}
+                            aria-label="Filter by status"
+                          >
+                            <option value="all">All statuses</option>
+                            <option value="draft">draft</option>
+                            <option value="ready">ready</option>
+                            <option value="deploying">deploying</option>
+                            <option value="active">active</option>
+                            <option value="error">error</option>
+                            <option value="disabled">disabled</option>
+                            <option value="deleted">deleted</option>
+                          </select>
+
+                          <select
+                            className="button"
+                            style={{ width: "100%", textAlign: "left" }}
+                            value={agentRuntimeFilter}
+                            onChange={(e) =>
+                              setAgentRuntimeFilter(
+                                e.target.value as "all" | RuntimeProvider | "unknown",
+                              )
+                            }
+                            disabled={!canUseApi}
+                            aria-label="Filter by runtime"
+                          >
+                            <option value="all">All runtimes</option>
+                            <option value="cloudflare">cloudflare</option>
+                            <option value="agentcore">agentcore</option>
+                            <option value="unknown">unknown</option>
+                          </select>
+
+                          <select
+                            className="button"
+                            style={{ width: "100%", textAlign: "left" }}
+                            value={agentDeploymentFilter}
+                            onChange={(e) =>
+                              setAgentDeploymentFilter(
+                                e.target.value as "all" | "has" | "none",
+                              )
+                            }
+                            disabled={!canUseApi}
+                            aria-label="Filter by active deployment"
+                          >
+                            <option value="all">Any deployment state</option>
+                            <option value="has">Has active deployment</option>
+                            <option value="none">No active deployment</option>
+                          </select>
+
+                          <div className="row" style={{ gap: 8 }}>
+                            <button
+                              type="button"
+                              className="button"
+                              onClick={() => {
+                                setAgentSearch("");
+                                setAgentStatusFilter("all");
+                                setAgentRuntimeFilter("all");
+                                setAgentDeploymentFilter("all");
+                                setAgentSortKey("updatedAtMs");
+                                setAgentSortDir("desc");
+                              }}
+                              disabled={!canUseApi}
+                              title="Reset search, filters, and sorting"
+                            >
+                              Reset
                             </button>
-                          );
-                        })
+
+                            <span className="badge">
+                              <span className="muted">shown</span>{" "}
+                              {visibleAgents.length}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ overflowX: "auto" }}>
+                          <table
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              fontSize: 13,
+                            }}
+                            aria-label="Agents table"
+                          >
+                            <thead>
+                              <tr>
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => toggleSort("name")}
+                                  aria-sort={
+                                    agentSortKey === "name"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by name"
+                                >
+                                  Name{sortIndicator("name")}
+                                </th>
+
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  onClick={() => toggleSort("status")}
+                                  aria-sort={
+                                    agentSortKey === "status"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by status"
+                                >
+                                  Status{sortIndicator("status")}
+                                </th>
+
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  onClick={() => toggleSort("preferredRuntimeProvider")}
+                                  aria-sort={
+                                    agentSortKey === "preferredRuntimeProvider"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by runtime"
+                                >
+                                  Runtime{sortIndicator("preferredRuntimeProvider")}
+                                </th>
+
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  onClick={() => toggleSort("hasActiveDeployment")}
+                                  aria-sort={
+                                    agentSortKey === "hasActiveDeployment"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by active deployment presence"
+                                >
+                                  Deployment{sortIndicator("hasActiveDeployment")}
+                                </th>
+
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  onClick={() => toggleSort("updatedAtMs")}
+                                  aria-sort={
+                                    agentSortKey === "updatedAtMs"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by last updated"
+                                >
+                                  Updated{sortIndicator("updatedAtMs")}
+                                </th>
+
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  onClick={() => toggleSort("createdAtMs")}
+                                  aria-sort={
+                                    agentSortKey === "createdAtMs"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by created time"
+                                >
+                                  Created{sortIndicator("createdAtMs")}
+                                </th>
+
+                                <th
+                                  style={{
+                                    textAlign: "left",
+                                    padding: "8px 6px",
+                                    borderBottom: "1px solid var(--border)",
+                                    position: "sticky",
+                                    top: 0,
+                                    background: "var(--panel)",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  onClick={() => toggleSort("_id")}
+                                  aria-sort={
+                                    agentSortKey === "_id"
+                                      ? agentSortDir === "asc"
+                                        ? "ascending"
+                                        : "descending"
+                                      : "none"
+                                  }
+                                  title="Sort by agent id"
+                                >
+                                  ID{sortIndicator("_id")}
+                                </th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {visibleAgents.map((a) => {
+                                const active = a._id === selectedAgentId;
+                                const rowBg = active
+                                  ? "rgba(110, 168, 254, 0.10)"
+                                  : "transparent";
+
+                                const runtime = a.preferredRuntimeProvider ?? "unknown";
+
+                                return (
+                                  <tr
+                                    key={a._id}
+                                    style={{
+                                      background: rowBg,
+                                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                                    }}
+                                  >
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
+                                      <button
+                                        type="button"
+                                        className={active ? "button button-primary" : "button"}
+                                        onClick={() => handleSelectAgent(a._id)}
+                                        disabled={!canUseApi}
+                                        title={a._id}
+                                        style={{
+                                          width: "100%",
+                                          textAlign: "left",
+                                          padding: "8px 10px",
+                                        }}
+                                      >
+                                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                                          <span style={{ fontWeight: 800 }}>{a.name}</span>
+                                          {a.activeDeploymentId ? (
+                                            <span className="badge" style={{ flex: "0 0 auto" }}>
+                                              <span className="muted">active</span> dep
+                                            </span>
+                                          ) : (
+                                            <span className="badge" style={{ flex: "0 0 auto" }}>
+                                              <span className="muted">no</span> dep
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div
+                                          className="muted"
+                                          style={{ marginTop: 6, fontSize: 12, lineHeight: 1.35 }}
+                                        >
+                                          {a.description ? a.description : "—"}
+                                        </div>
+                                      </button>
+                                    </td>
+
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
+                                      <span className="badge">
+                                        <span className="muted">status</span> {a.status}
+                                      </span>
+                                    </td>
+
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                                      <span className="badge">
+                                        <span className="muted">rt</span> {runtime}
+                                      </span>
+                                    </td>
+
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                                      {a.activeDeploymentId ? (
+                                        <span className="badge">
+                                          <span className="muted">dep</span>{" "}
+                                          <code>{a.activeDeploymentId}</code>
+                                        </span>
+                                      ) : (
+                                        <span className="badge">
+                                          <span className="muted">dep</span> —
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                                      {formatMs(a.updatedAtMs)}
+                                    </td>
+
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                                      {formatMs(a.createdAtMs)}
+                                    </td>
+
+                                    <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                                      <code>{a._id}</code>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {visibleAgents.length === 0 ? (
+                          <div className="muted" style={{ fontSize: 13 }}>
+                            No agents match your filters.
+                          </div>
+                        ) : null}
+                      </div>
                     )}
                   </div>
 
@@ -771,11 +1333,26 @@ export default function AgentsPage(): React.ReactElement {
             {/* Right column: Selected agent actions */}
             <div
               className="acp-agents-detail"
-              style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              style={{
+                display: viewMode === "list" ? "none" : "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
             >
               <section className="panel" id="agent">
                 <div className="panel-header">
                   <div className="row">
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => handleBackToList()}
+                      style={{
+                        display: viewMode === "detail" ? "inline-flex" : "none",
+                      }}
+                      title="Back to agents list"
+                    >
+                      ← Back
+                    </button>
                     <strong>Selected agent</strong>
                     <div className="spacer" />
                     {selectedAgent ? (
@@ -1538,7 +2115,6 @@ export default function AgentsPage(): React.ReactElement {
               </section>
             </div>
           </div>
-        </div>
       </div>
     </>
   );
