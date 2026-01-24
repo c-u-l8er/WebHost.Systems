@@ -72,7 +72,8 @@ export default function App() {
             <div className="acp-sidebar-inner">
               <div className="brand" style={{ gap: 4 }}>
                 <div className="brand-title"><a href="https://webhost.systems">WebHost.Systems</a></div>
-                <div className="brand-subtitle">Admin Control Panel</div>
+                {/*<div className="brand-subtitle">Admin Control Panel</div>*/}
+                <div className="brand-subtitle">AI Systems for Web Hosts</div>
               </div>
 
               <nav className="acp-nav" aria-label="Dashboard navigation">
