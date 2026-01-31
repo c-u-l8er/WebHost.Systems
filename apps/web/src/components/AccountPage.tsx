@@ -1,10 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useAuth, useUser } from "@clerk/clerk-react";
-import {
-  ControlPlaneApiError,
-  ControlPlaneClient,
-  type CurrentUsageResponse,
-} from "../lib/controlPlaneClient";
+import React, { useCallback, useEffect, useState } from "react";
+import { useUser } from "@clerk/clerk-react";
+import { ControlPlaneApiError, type CurrentUsageResponse } from "../lib/controlPlaneClient";
+import useControlPlaneClient from "../lib/useControlPlaneClient";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
 
@@ -55,45 +52,8 @@ function formatUsd(n: number | undefined | null): string {
 
 export default function AccountPage(): React.ReactElement {
   const { user } = useUser();
-  const { getToken } = useAuth();
 
-  const controlPlaneUrl = useMemo(() => {
-    const raw = import.meta.env.VITE_CONTROL_PLANE_URL;
-    return raw ? raw.replace(/\/+$/, "") : "";
-  }, []);
-
-  const clerkJwtTemplate = useMemo(() => {
-    // Intentionally typed via `any` to avoid requiring a vite-env.d.ts change in this edit.
-    const raw = (import.meta as any).env?.VITE_CLERK_JWT_TEMPLATE as
-      | string
-      | undefined;
-    const trimmed = raw?.trim();
-    return trimmed ? trimmed : "convex";
-  }, []);
-
-  const client = useMemo(() => {
-    if (!controlPlaneUrl) return null;
-
-    return new ControlPlaneClient({
-      baseUrl: controlPlaneUrl,
-      getToken: async () => {
-        try {
-          if (clerkJwtTemplate === "default") {
-            return await getToken();
-          }
-          return await getToken({ template: clerkJwtTemplate });
-        } catch (err) {
-          const detail = err instanceof Error ? err.message : String(err);
-          throw new Error(
-            `Failed to fetch Clerk JWT (template "${clerkJwtTemplate}"). ` +
-              `If you see a 404 to /tokens/${clerkJwtTemplate}, create a Clerk JWT template named "${clerkJwtTemplate}" ` +
-              `with audience/application ID "convex", or set VITE_CLERK_JWT_TEMPLATE to an existing template name. ` +
-              `Underlying error: ${detail}`,
-          );
-        }
-      },
-    });
-  }, [controlPlaneUrl, getToken, clerkJwtTemplate]);
+  const { client, controlPlaneUrl } = useControlPlaneClient();
 
   const [usageStatus, setUsageStatus] = useState<AsyncStatus>("idle");
   const [usageError, setUsageError] = useState<string | null>(null);

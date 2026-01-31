@@ -5,10 +5,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAuth } from "@clerk/clerk-react";
 import {
   ControlPlaneApiError,
-  ControlPlaneClient,
   type Agent,
   type CurrentUsageResponse,
   type Deployment,
@@ -17,6 +15,7 @@ import {
   type MetricsEvent,
   type SseEvent,
 } from "../lib/controlPlaneClient";
+import { useControlPlaneClient } from "../lib/useControlPlaneClient";
 
 /**
  * Agents UI (Slice B)
@@ -132,54 +131,13 @@ export type AgentsPageProps = {
   onBackToList?: () => void;
 };
 
+// Uses shared `useControlPlaneClient()` hook (see `src/lib/useControlPlaneClient.ts`) to avoid
+// duplicating base URL normalization + Clerk JWT template logic across pages.
+
 export default function AgentsPage(
   props: AgentsPageProps = {},
 ): React.ReactElement {
-  const { getToken } = useAuth();
-
-  const controlPlaneUrl = useMemo(() => {
-    const raw = import.meta.env.VITE_CONTROL_PLANE_URL;
-    return raw ? raw.replace(/\/+$/, "") : "";
-  }, []);
-
-  const clerkJwtTemplate = useMemo(() => {
-    // Intentionally typed via `any` to avoid requiring a vite-env.d.ts change in this edit.
-    const raw = (import.meta as any).env?.VITE_CLERK_JWT_TEMPLATE as
-      | string
-      | undefined;
-    const trimmed = raw?.trim();
-    return trimmed ? trimmed : "convex";
-  }, []);
-
-  const client = useMemo(() => {
-    if (!controlPlaneUrl) return null;
-
-    return new ControlPlaneClient({
-      baseUrl: controlPlaneUrl,
-      getToken: async () => {
-        try {
-          // Convex auth config expects `applicationID: "convex"`.
-          // Default behavior: request the Clerk JWT template named "convex".
-          // Override via: VITE_CLERK_JWT_TEMPLATE
-          //
-          // Special value:
-          // - "default": call `getToken()` with no template (use Clerk default token behavior)
-          if (clerkJwtTemplate === "default") {
-            return await getToken();
-          }
-          return await getToken({ template: clerkJwtTemplate });
-        } catch (err) {
-          const detail = err instanceof Error ? err.message : String(err);
-          throw new Error(
-            `Failed to fetch Clerk JWT (template "${clerkJwtTemplate}"). ` +
-              `If you see a 404 to /tokens/${clerkJwtTemplate}, create a Clerk JWT template named "${clerkJwtTemplate}" ` +
-              `with audience/application ID "convex", or set VITE_CLERK_JWT_TEMPLATE to an existing template name. ` +
-              `Underlying error: ${detail}`,
-          );
-        }
-      },
-    });
-  }, [controlPlaneUrl, getToken, clerkJwtTemplate]);
+  const { client, controlPlaneUrl, canUseApi } = useControlPlaneClient();
 
   /* -------------------------------------------------------------------------------------------------
    * Agents
@@ -820,7 +778,7 @@ export default function AgentsPage(
    * Render
    * ------------------------------------------------------------------------------------------------- */
 
-  const canUseApi = !!client;
+  // `canUseApi` is already provided by `useControlPlaneClient()`.
 
   return (
     <>
@@ -1353,8 +1311,64 @@ export default function AgentsPage(
                     >
                       ← Back
                     </button>
+
                     <strong>Selected agent</strong>
+
                     <div className="spacer" />
+
+                    {selectedAgent ? (
+                      <div className="row" style={{ gap: 8 }}>
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() => {
+                            const text = selectedAgent._id;
+
+                            // Best-effort clipboard copy (no UI toast yet; keep this a quick win).
+                            if (navigator.clipboard?.writeText) {
+                              void navigator.clipboard.writeText(text);
+                              return;
+                            }
+
+                            // Fallback for older browsers / insecure contexts.
+                            const el = document.createElement("textarea");
+                            el.value = text;
+                            el.style.position = "fixed";
+                            el.style.left = "-9999px";
+                            el.style.top = "0";
+                            document.body.appendChild(el);
+                            el.focus();
+                            el.select();
+                            try {
+                              document.execCommand("copy");
+                            } finally {
+                              document.body.removeChild(el);
+                            }
+                          }}
+                          title="Copy agent id"
+                        >
+                          Copy ID
+                        </button>
+
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() => {
+                            void refreshAgents();
+                            void refreshDeployments();
+                            void refreshUsageAndTelemetry();
+                          }}
+                          title="Refresh agent details (deployments + usage + telemetry)"
+                        >
+                          Refresh details
+                        </button>
+
+                        <a className="button" href="#deployments" title="Jump to deployments">
+                          Deployments ↓
+                        </a>
+                      </div>
+                    ) : null}
+
                     {selectedAgent ? (
                       <span className="badge">
                         <span className="muted">status</span>{" "}

@@ -256,6 +256,75 @@ export default defineSchema({
    * - Tokens/compute remain post-charged via telemetry aggregation (with subsequent blocking).
    * - This table is a "fast path"; `billingUsage` remains the canonical aggregated view.
    */
+  /**
+   * Delegated invocation idempotency (v1).
+   *
+   * Purpose:
+   * - Support server-to-server "delegated invoke" callers (e.g. Agentromatic) without double-running or double-charging.
+   * - Enable conflict detection when an idempotency key is reused with a different payload.
+   *
+   * Normative source:
+   * - project_spec/spec_v1/10_API_CONTRACTS.md §10.3 (delegated invoke)
+   *
+   * Key (logical):
+   * - (userId, agentId, idempotencyKey)
+   *
+   * Notes:
+   * - `requestHash` is an implementation aid: store a deterministic hash of the raw request bytes
+   *   so we can detect same-key/different-payload conflicts without storing the whole request.
+   * - `response` is optional and intentionally flexible in v1; you may later replace it with a
+   *   reference/pointer if responses become large.
+   */
+  delegatedInvocationIdempotency: defineTable({
+    userId: v.id("users"),
+    agentId: v.id("agents"),
+
+    /**
+     * Deterministic, secret-free idempotency key provided by the delegated caller.
+     * Example: "agentromatic:exec:ex_...:node:node_...:attempt:1"
+     */
+    idempotencyKey: v.string(),
+
+    /**
+     * Hash of the raw delegated request body bytes (e.g., sha256 hex/base64url).
+     * Used to detect conflicts when the same idempotency key is reused with a different payload.
+     */
+    requestHash: v.string(),
+
+    /**
+     * Correlation aids (optional).
+     */
+    traceId: v.optional(v.string()),
+    deploymentId: v.optional(v.id("deployments")),
+
+    /**
+     * Status tracking for in-flight vs completed idempotent calls.
+     */
+    status: v.union(
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+
+    /**
+     * Optional cached result for exact replay of a completed call.
+     * Keep payloads bounded and secret-free.
+     */
+    response: v.optional(v.any()),
+    errorCode: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    errorStatus: v.optional(v.number()),
+
+    createdAtMs: v.number(),
+    updatedAtMs: v.number(),
+  })
+    .index("by_userId_agentId_idempotencyKey", [
+      "userId",
+      "agentId",
+      "idempotencyKey",
+    ])
+    .index("by_userId_createdAtMs", ["userId", "createdAtMs"]),
+
   requestUsageCounters: defineTable({
     userId: v.id("users"),
     periodKey: v.string(), // e.g. "2026-01"

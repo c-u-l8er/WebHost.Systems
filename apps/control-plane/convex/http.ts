@@ -99,6 +99,18 @@ http.route({
 });
 
 /**
+ * Delegated invocation gateway (server-to-server, internal):
+ * - /v1/delegated/invoke/:agentId
+ *
+ * NOTE: MUST NOT be used by browsers.
+ */
+http.route({
+  pathPrefix: "/v1/delegated/invoke/",
+  method: "POST",
+  handler: httpAction(handleDelegatedInvokeSubroutes),
+});
+
+/**
  * Telemetry ingestion:
  * - /v1/telemetry/report
  */
@@ -422,6 +434,609 @@ async function handleAgentsSubroutes(
       message: "Not found",
     });
   } catch (err) {
+    return withCors(
+      request,
+      errorResponseFromUnknown(err, requestId),
+      requestId,
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------------------------------
+ * Delegated invocation (server-to-server, internal)
+ * ------------------------------------------------------------------------------------------------- */
+
+async function handleDelegatedInvokeSubroutes(
+  ctx: { runQuery: any; runMutation: any; auth: any },
+  request: Request,
+): Promise<Response> {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
+  // When we successfully "begin" an idempotent delegated invocation, we capture enough context
+  // to record a deterministic failure for *any* later error path (preflight, runtime gating, etc.).
+  // This enables safe retries from workflow runners without double-running.
+  let delegatedIdemContext: {
+    userId: any;
+    agentId: any;
+    idempotencyKey: string;
+    requestHash: string;
+    traceId: string;
+    deploymentId: any;
+  } | null = null;
+
+  try {
+    // This endpoint is authenticated via HMAC signature, not via user auth.
+    const url = new URL(request.url);
+    const segments = splitPath(url.pathname);
+
+    // Expected base: ["v1", "delegated", "invoke", :agentId]
+    if (
+      segments.length < 4 ||
+      segments[0] !== "v1" ||
+      segments[1] !== "delegated" ||
+      segments[2] !== "invoke"
+    ) {
+      throw new HttpError({
+        status: 404,
+        code: "NOT_FOUND",
+        message: "Not found",
+      });
+    }
+
+    // Keep streaming reserved for the public endpoint for now.
+    // (If you need it later, you can implement SSE here too with the same auth envelope.)
+    if (segments.length >= 5) {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Unsupported delegated invoke path",
+        details: { path: url.pathname },
+        retryable: false,
+      });
+    }
+
+    const agentId = segments[3];
+    if (!agentId) {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Missing agentId",
+        retryable: false,
+      });
+    }
+
+    const { source, timestampMs, signatureHeader } =
+      parseDelegationHeadersOrThrow(request);
+
+    // Optional allowlist (recommended): comma-separated values.
+    // Example: WHS_DELEGATION_ALLOWED_SOURCES=agentromatic,internal
+    const rawAllow = (process.env.WHS_DELEGATION_ALLOWED_SOURCES ?? "").trim();
+    if (rawAllow) {
+      const allow = rawAllow
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (!allow.includes(source)) {
+        throw new HttpError({
+          status: 401,
+          code: "UNAUTHORIZED",
+          message: "Invalid delegation source",
+          retryable: false,
+        });
+      }
+    }
+
+    // Timestamp skew check (recommended ±5 minutes)
+    const now = Date.now();
+    const skew = Math.abs(now - timestampMs);
+    if (skew > DELEGATION_MAX_SKEW_MS) {
+      throw new HttpError({
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "Delegation timestamp is out of range",
+        details: {
+          maxSkewMs: DELEGATION_MAX_SKEW_MS,
+        },
+        retryable: false,
+      });
+    }
+
+    // Read raw body bytes ONCE (required for HMAC verification over exact bytes).
+    const rawBodyBytes = new Uint8Array(await request.arrayBuffer());
+    const rawBodyText = new TextDecoder().decode(rawBodyBytes);
+    const body = safeParseJson(rawBodyText);
+
+    if (!body || typeof body !== "object") {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Invalid JSON",
+        retryable: false,
+      });
+    }
+
+    const delegation = (body as any).delegation;
+    const invoke = (body as any).invoke;
+
+    if (!delegation || typeof delegation !== "object") {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Missing delegation envelope",
+        retryable: false,
+      });
+    }
+    if (!invoke || typeof invoke !== "object") {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Missing invoke payload",
+        retryable: false,
+      });
+    }
+
+    const idempotencyKey =
+      typeof delegation.idempotencyKey === "string"
+        ? delegation.idempotencyKey.trim()
+        : "";
+
+    const externalUserId =
+      typeof delegation.externalUserId === "string"
+        ? delegation.externalUserId.trim()
+        : "";
+
+    if (!idempotencyKey) {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Missing delegation.idempotencyKey",
+        retryable: false,
+      });
+    }
+    if (idempotencyKey.length > 300) {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "delegation.idempotencyKey is too long",
+        retryable: false,
+      });
+    }
+    if (!externalUserId) {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Missing delegation.externalUserId",
+        retryable: false,
+      });
+    }
+
+    // Verify HMAC signature over raw request bytes (MUST).
+    // Do this BEFORE any side effects (like user upsert) so invalid signatures can't create rows.
+    const delegationSecret = loadDelegationSecretOrThrow();
+    const sigOk = await verifyTelemetrySignatureHeaderV1({
+      telemetrySecret: delegationSecret,
+      rawBodyBytes,
+      signatureHeader,
+    });
+
+    if (!sigOk) {
+      throw new HttpError({
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "Invalid delegation signature",
+        retryable: false,
+      });
+    }
+
+    // Resolve delegated identity (external subject) -> WHS internal users row.
+    // This allows server-to-server callers to invoke on behalf of a user without browser JWTs.
+    const upserted = await ctx.runMutation(
+      (internal as any).mutations.internalUsers.upsertUserByIdentitySubject,
+      {
+        identitySubject: externalUserId,
+        email:
+          typeof delegation.email === "string"
+            ? delegation.email.trim()
+            : undefined,
+        displayName:
+          typeof delegation.displayName === "string"
+            ? delegation.displayName.trim()
+            : undefined,
+      },
+    );
+
+    const delegatedUserId = upserted?.userId as string | undefined;
+    if (!delegatedUserId) {
+      throw new HttpError({
+        status: 500,
+        code: "INTERNAL_ERROR",
+        message: "Failed to resolve delegated user",
+        retryable: true,
+      });
+    }
+
+    // Idempotency is handled via the DB-backed `delegatedInvocationIdempotency` table.
+    // (Do not rely on in-memory caches; they are not durable across isolates.)
+
+    // Resolve agent (IDOR-safe) using server-side ownership guard.
+    const agent = await ctx.runQuery(
+      internal.queries.internal.getAgentOwnedByUser,
+      {
+        userId: delegatedUserId as any,
+        agentId: agentId as any,
+        includeDeleted: false,
+      },
+    );
+
+    if (!agent) {
+      throw new HttpError({
+        status: 404,
+        code: "NOT_FOUND",
+        message: "Agent not found",
+        retryable: false,
+      });
+    }
+
+    if (agent.status === "disabled") {
+      throw new HttpError({
+        status: 403,
+        code: "FORBIDDEN",
+        message: "Agent is disabled",
+        retryable: false,
+      });
+    }
+
+    const activeDeploymentId = agent.activeDeploymentId as string | undefined;
+    if (!activeDeploymentId) {
+      throw new HttpError({
+        status: 409,
+        code: "CONFLICT",
+        message: "No active deployment",
+        retryable: false,
+      });
+    }
+
+    const deployment = await ctx.runQuery(
+      internal.queries.internal.getDeploymentById,
+      {
+        deploymentId: activeDeploymentId as any,
+      },
+    );
+
+    if (!deployment) {
+      throw new HttpError({
+        status: 409,
+        code: "CONFLICT",
+        message: "Active deployment not found",
+        retryable: false,
+      });
+    }
+
+    // Defense in depth: relationship consistency.
+    if (
+      deployment.userId !== agent.userId ||
+      deployment.agentId !== agent._id ||
+      String(deployment.userId) !== String(delegatedUserId)
+    ) {
+      throw new HttpError({
+        status: 409,
+        code: "CONFLICT",
+        message: "Active deployment mismatch",
+        retryable: false,
+      });
+    }
+
+    if (deployment.status !== "active") {
+      throw new HttpError({
+        status: 409,
+        code: "CONFLICT",
+        message: "Active deployment is not ready",
+        details: { status: deployment.status },
+        retryable: true,
+      });
+    }
+
+    // Determine traceId (required).
+    const invokeReq = invoke;
+    const traceId =
+      (invokeReq?.traceId as string | undefined) ?? `trace_${cryptoRandomId()}`;
+
+    const protocol = (invokeReq?.protocol as string | undefined) ?? "invoke/v1";
+    if (protocol !== "invoke/v1") {
+      throw new HttpError({
+        status: 400,
+        code: "INVALID_REQUEST",
+        message: "Unsupported protocol",
+        details: { protocol },
+        retryable: false,
+      });
+    }
+
+    // Compute a deterministic request hash for idempotency conflict detection.
+    // Use the hex portion of the verified signature header as the stable request hash (v1 HMAC over raw bytes).
+    const requestHash = signatureHeader.toLowerCase().startsWith("v1=")
+      ? signatureHeader.slice(3).trim().toLowerCase()
+      : signatureHeader.trim();
+
+    // DB-backed idempotency (spec §10.3): dedupe by (delegated user, agent, idempotencyKey).
+    const idem = await ctx.runMutation(
+      (internal as any).mutations.internalDelegatedIdempotency
+        .beginDelegatedInvocation,
+      {
+        userId: delegatedUserId as any,
+        agentId: agent._id,
+        idempotencyKey,
+        requestHash,
+        traceId,
+        deploymentId: deployment._id,
+      },
+    );
+
+    // If we created an in-progress idempotency record, capture context so that any later error
+    // (including preflight denials) can be recorded and replayed deterministically.
+    if (idem && idem.ok === true && idem.state === "created") {
+      delegatedIdemContext = {
+        userId: delegatedUserId as any,
+        agentId: agent._id,
+        idempotencyKey,
+        requestHash,
+        traceId,
+        deploymentId: deployment._id,
+      };
+    }
+
+    if (idem && idem.ok === false && idem.state === "conflict") {
+      throw new HttpError({
+        status: 409,
+        code: "CONFLICT",
+        message: "Idempotency key reused with different payload",
+        retryable: false,
+      });
+    }
+
+    if (idem && idem.ok === true && idem.state === "replay_success") {
+      return jsonResponse(idem.response ?? { ok: true }, {
+        status: 200,
+        requestId,
+        headers: corsHeaders(request, requestId),
+      });
+    }
+
+    if (idem && idem.ok === true && idem.state === "replay_failure") {
+      return errorResponse({
+        status: Number.isFinite((idem as any).errorStatus)
+          ? (idem as any).errorStatus
+          : 502,
+        code: String(idem.errorCode ?? "RUNTIME_ERROR"),
+        message: String(idem.errorMessage ?? "Invocation failed"),
+        retryable: false,
+        requestId,
+        headers: corsHeaders(request, requestId),
+      });
+    }
+
+    if (idem && idem.ok === true && idem.state === "in_progress") {
+      throw new HttpError({
+        status: 409,
+        code: "CONFLICT",
+        message: "Delegated invocation is already in progress",
+        retryable: true,
+      });
+    }
+
+    // Limits & runtime gating (ADR-0007): enforce pre-invocation via internal request reservation.
+    const periodKey = getCurrentPeriodKeyUtc();
+
+    const preflight = await ctx.runMutation(
+      (internal as any).mutations.internalUsageCounters
+        .authorizeInvocationAndReserveRequest,
+      {
+        userId: delegatedUserId as any,
+        agentId: agent._id,
+        deploymentId: deployment._id,
+        periodKey,
+        runtimeProvider: deployment.runtimeProvider,
+        traceId,
+      },
+    );
+
+    if (!preflight || preflight.ok !== true) {
+      const denied = preflight?.denied;
+
+      if (denied?.kind === "requests_limit_exceeded") {
+        throw new HttpError({
+          status: 429,
+          code: "LIMIT_EXCEEDED",
+          message: "Request limit exceeded for current billing period",
+          details: {
+            limitType: "requests",
+            periodKey,
+            maxRequestsPerPeriod: denied.maxRequestsPerPeriod,
+            requestsUsed: denied.requestsUsed,
+          },
+          retryable: false,
+        });
+      }
+
+      if (denied?.kind === "runtime_gated") {
+        throw new HttpError({
+          status: 403,
+          code: "FORBIDDEN",
+          message: "Runtime provider not enabled for current tier",
+          details: {
+            runtimeProvider: deployment.runtimeProvider,
+            entitlement: "agentcoreEnabled",
+          },
+          retryable: false,
+        });
+      }
+
+      throw new HttpError({
+        status: 500,
+        code: "INTERNAL_ERROR",
+        message: "Invocation preflight failed",
+        retryable: true,
+      });
+    }
+
+    // Runtime dispatch (Slice B: Cloudflare only)
+    if (deployment.runtimeProvider !== "cloudflare") {
+      throw new HttpError({
+        status: 403,
+        code: "FORBIDDEN",
+        message: "Runtime provider not enabled",
+        details: { runtimeProvider: deployment.runtimeProvider },
+        retryable: false,
+      });
+    }
+
+    if (!deployment.providerRef) {
+      throw new HttpError({
+        status: 500,
+        code: "INTERNAL_ERROR",
+        message: "Deployment missing provider reference",
+        retryable: true,
+      });
+    }
+
+    // Ensure body contains traceId (propagate to data plane).
+    // NOTE: We intentionally do NOT forward the delegation envelope to the data plane.
+    const forwardedBodyText = JSON.stringify({
+      ...(invokeReq ?? {}),
+      protocol: "invoke/v1",
+      traceId,
+    });
+
+    try {
+      const providerResp = await invokeCloudflareWorker({
+        providerRef: deployment.providerRef as any,
+        body: forwardedBodyText,
+        traceId,
+        timeoutMs: 60_000,
+      });
+
+      const status = providerResp.status;
+      const text = providerResp.bodyText;
+
+      if (status < 200 || status >= 300) {
+        await ctx.runMutation(
+          (internal as any).mutations.internalDelegatedIdempotency
+            .completeDelegatedInvocationFailure,
+          {
+            userId: delegatedUserId as any,
+            agentId: agent._id,
+            idempotencyKey,
+            requestHash,
+            errorCode: "RUNTIME_ERROR",
+            errorMessage: "Invocation failed",
+            errorStatus: 502,
+            traceId,
+            deploymentId: deployment._id,
+          },
+        );
+
+        return errorResponse({
+          status: 502,
+          code: "RUNTIME_ERROR",
+          message: "Invocation failed",
+          details: {
+            runtimeProvider: "cloudflare",
+            upstreamStatus: status,
+            invokeHost: safeInvokeUrlHost(deployment.providerRef),
+            upstreamBodySnippet: safeBodySnippet(text, 500),
+          },
+          retryable: status >= 500,
+          requestId,
+          headers: corsHeaders(request, requestId),
+        });
+      }
+
+      const json = safeParseJson(text);
+      const responsePayload = json ?? { raw: text };
+
+      await ctx.runMutation(
+        (internal as any).mutations.internalDelegatedIdempotency
+          .completeDelegatedInvocationSuccess,
+        {
+          userId: delegatedUserId as any,
+          agentId: agent._id,
+          idempotencyKey,
+          requestHash,
+          response: responsePayload,
+          traceId,
+          deploymentId: deployment._id,
+        },
+      );
+
+      return jsonResponse(responsePayload, {
+        status: 200,
+        requestId,
+        headers: corsHeaders(request, requestId),
+      });
+    } catch (_err) {
+      const invokeHost = safeInvokeUrlHost(deployment.providerRef);
+
+      await ctx.runMutation(
+        (internal as any).mutations.internalDelegatedIdempotency
+          .completeDelegatedInvocationFailure,
+        {
+          userId: delegatedUserId as any,
+          agentId: agent._id,
+          idempotencyKey,
+          requestHash,
+          errorCode: "RUNTIME_ERROR",
+          errorMessage: "Invocation failed",
+          errorStatus: 502,
+          traceId,
+          deploymentId: deployment._id,
+        },
+      );
+
+      return errorResponse({
+        status: 502,
+        code: "RUNTIME_ERROR",
+        message: "Invocation failed",
+        details: {
+          runtimeProvider: "cloudflare",
+          failure: "network_error",
+          invokeHost: invokeHost ?? null,
+        },
+        retryable: true,
+        requestId,
+        headers: corsHeaders(request, requestId),
+      });
+    }
+  } catch (err) {
+    // If we've already begun an idempotent delegated invocation, record the failure so that
+    // subsequent retries can replay the same error (and status) without double-running.
+    if (delegatedIdemContext) {
+      try {
+        const status = err instanceof HttpError ? err.status : 500;
+        const code = err instanceof HttpError ? err.code : "INTERNAL_ERROR";
+        const message =
+          err instanceof HttpError ? err.message : "Internal server error";
+
+        await ctx.runMutation(
+          (internal as any).mutations.internalDelegatedIdempotency
+            .completeDelegatedInvocationFailure,
+          {
+            userId: delegatedIdemContext.userId,
+            agentId: delegatedIdemContext.agentId,
+            idempotencyKey: delegatedIdemContext.idempotencyKey,
+            requestHash: delegatedIdemContext.requestHash,
+            errorCode: code,
+            errorMessage: message,
+            errorStatus: status,
+            traceId: delegatedIdemContext.traceId,
+            deploymentId: delegatedIdemContext.deploymentId,
+          },
+        );
+      } catch {
+        // Best-effort only; never hide the original error behavior.
+      }
+    }
+
     return withCors(
       request,
       errorResponseFromUnknown(err, requestId),
@@ -1149,6 +1764,154 @@ async function handleTelemetryReport(
  * Helpers
  * ------------------------------------------------------------------------------------------------- */
 
+const DELEGATION_MAX_SKEW_MS = 5 * 60 * 1000;
+
+// Best-effort in-memory idempotency cache for delegated invokes.
+// NOTE: This is NOT durable across isolates and is not a substitute for a DB-backed idempotency table.
+const delegatedInvokeIdempotencyCache: Map<
+  string,
+  {
+    signatureHeader: string;
+    status: number;
+    responseText: string;
+    createdAtMs: number;
+  }
+> = new Map();
+
+function pruneDelegatedInvokeIdempotencyCache(nowMs: number): void {
+  const MAX_ENTRIES = 500;
+  const TTL_MS = 10 * 60 * 1000;
+
+  // Opportunistic TTL eviction
+  for (const [k, v] of delegatedInvokeIdempotencyCache.entries()) {
+    if (nowMs - v.createdAtMs > TTL_MS) {
+      delegatedInvokeIdempotencyCache.delete(k);
+    }
+  }
+
+  // Opportunistic size cap eviction (drop oldest first)
+  if (delegatedInvokeIdempotencyCache.size > MAX_ENTRIES) {
+    const entries = [...delegatedInvokeIdempotencyCache.entries()].sort(
+      (a, b) => a[1].createdAtMs - b[1].createdAtMs,
+    );
+    const toDrop = delegatedInvokeIdempotencyCache.size - MAX_ENTRIES;
+    for (let i = 0; i < toDrop; i++) {
+      delegatedInvokeIdempotencyCache.delete(entries[i]![0]);
+    }
+  }
+}
+
+function getDelegatedInvokeCacheHit(
+  key: string,
+  signatureHeader: string,
+): { status: number; responseText: string } | null {
+  const nowMs = Date.now();
+  pruneDelegatedInvokeIdempotencyCache(nowMs);
+
+  const hit = delegatedInvokeIdempotencyCache.get(key);
+  if (!hit) return null;
+
+  // Same idempotency key reused with different payload => conflict.
+  if (hit.signatureHeader !== signatureHeader) {
+    throw new HttpError({
+      status: 409,
+      code: "CONFLICT",
+      message: "Idempotency key reused with different payload",
+      retryable: false,
+    });
+  }
+
+  return { status: hit.status, responseText: hit.responseText };
+}
+
+function setDelegatedInvokeCacheHit(
+  key: string,
+  signatureHeader: string,
+  value: { status: number; responseText: string },
+): void {
+  const nowMs = Date.now();
+  pruneDelegatedInvokeIdempotencyCache(nowMs);
+
+  delegatedInvokeIdempotencyCache.set(key, {
+    signatureHeader,
+    status: value.status,
+    responseText: value.responseText,
+    createdAtMs: nowMs,
+  });
+}
+
+function parseDelegationHeadersOrThrow(request: Request): {
+  source: string;
+  timestampMs: number;
+  signatureHeader: string;
+} {
+  const source = (request.headers.get("X-WHS-Delegation-Source") ?? "").trim();
+  const tsRaw = (
+    request.headers.get("X-WHS-Delegation-Timestamp") ?? ""
+  ).trim();
+  const signatureHeader = (
+    request.headers.get("X-WHS-Delegation-Signature") ?? ""
+  ).trim();
+
+  if (!source) {
+    throw new HttpError({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Missing delegation source",
+      retryable: false,
+    });
+  }
+
+  const timestampMs = Number(tsRaw);
+  if (
+    !Number.isFinite(timestampMs) ||
+    !Number.isInteger(timestampMs) ||
+    timestampMs <= 0
+  ) {
+    throw new HttpError({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Invalid delegation timestamp",
+      retryable: false,
+    });
+  }
+
+  if (!signatureHeader) {
+    throw new HttpError({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Missing delegation signature",
+      retryable: false,
+    });
+  }
+
+  return { source, timestampMs, signatureHeader };
+}
+
+function loadDelegationSecretOrThrow(): Uint8Array {
+  // Spec key name: WHS_DELEGATION_SECRET
+  //
+  // Encoding: same accepted formats as `TELEMETRY_SECRETS_ENCRYPTION_KEY` (base64url/base64/hex).
+  // We require 32 bytes to keep HMAC keying consistent (v1).
+  try {
+    return loadEncryptionKeyFromEnv({
+      envValue: process.env.WHS_DELEGATION_SECRET,
+      expectedBytes: 32,
+    });
+  } catch {
+    // Keep config errors non-leaky but actionable.
+    throw new HttpError({
+      status: 500,
+      code: "INTERNAL_ERROR",
+      message: "Delegated invocation is not configured",
+      details: {
+        missingEnv: "WHS_DELEGATION_SECRET",
+      },
+      retryable: false,
+    });
+  }
+}
+
 async function requireAuth(ctx: {
   auth: any;
   runMutation?: any;
@@ -1270,13 +2033,38 @@ function sseResponse(
 }
 
 function safeErrorEnvelopeFromUnknown(err: unknown, requestId?: string): any {
-  // Keep it generic and consistent with the error envelope shape.
-  const message = err instanceof Error ? err.message : "Internal server error";
+  // SSE error events MUST be safe to expose to browser clients.
+  //
+  // IMPORTANT:
+  // - Do NOT leak internal/provider error messages (they may include sensitive infra details).
+  // - Prefer stable error codes; keep messages generic unless explicitly allowlisted.
+  const allowlistedMessageCodes = new Set([
+    "INVALID_REQUEST",
+    "UNAUTHORIZED",
+    "FORBIDDEN",
+    "NOT_FOUND",
+    "LIMIT_EXCEEDED",
+  ]);
+
+  if (err instanceof HttpError) {
+    const safeMessage = allowlistedMessageCodes.has(err.code)
+      ? err.message
+      : "Internal server error";
+
+    return {
+      error: {
+        code: err.code,
+        message: safeMessage,
+        requestId,
+        retryable: err.retryable ?? false,
+      },
+    };
+  }
 
   return {
     error: {
       code: "INTERNAL_ERROR",
-      message,
+      message: "Internal server error",
       requestId,
       retryable: true,
     },
@@ -1289,16 +2077,55 @@ function safeErrorEnvelopeFromUnknown(err: unknown, requestId?: string): any {
  */
 function corsHeaders(request: Request, requestId?: string): Headers {
   const h = new Headers();
-  const origin = request.headers.get("origin") ?? "*";
 
-  // In production, you should validate `origin` against an allowlist.
-  h.set("access-control-allow-origin", origin);
+  // Browser requests include an Origin header; server-to-server requests often do not.
+  const originHeader = request.headers.get("origin");
+  const origin = originHeader ? originHeader.trim() : null;
+
+  // Comma-separated allowlist. Example:
+  //   CONTROL_PLANE_CORS_ALLOW_ORIGINS=http://localhost:5173,https://app.webhost.systems
+  //
+  // Behavior:
+  // - If empty/unset: dev-friendly "reflect origin" (previous behavior).
+  // - If set: only reflect when the origin is explicitly allowlisted.
+  const rawAllow = (process.env.CONTROL_PLANE_CORS_ALLOW_ORIGINS ?? "").trim();
+  const allowlist = rawAllow
+    ? rawAllow
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  let allowOriginValue: string;
+
+  if (!origin) {
+    // No origin -> not a browser CORS request; keep permissive for curl/server calls.
+    allowOriginValue = "*";
+  } else if (allowlist.length === 0) {
+    // Dev default: reflect any origin.
+    allowOriginValue = origin;
+  } else if (allowlist.includes(origin)) {
+    allowOriginValue = origin;
+  } else {
+    // Not allowlisted: browsers will treat this as disallowed.
+    allowOriginValue = "null";
+  }
+
+  h.set("access-control-allow-origin", allowOriginValue);
+
+  // Avoid cache poisoning when reflecting origins.
+  if (origin) h.set("vary", "origin");
+
   h.set("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
   h.set(
     "access-control-allow-headers",
     "authorization,content-type,x-telemetry-deployment-id,x-telemetry-signature",
   );
-  h.set("access-control-allow-credentials", "true");
+
+  // Only valid when allow-origin is a specific origin (not "*").
+  if (allowOriginValue !== "*" && allowOriginValue !== "null") {
+    h.set("access-control-allow-credentials", "true");
+  }
 
   if (requestId) h.set("x-request-id", requestId);
   return h;
