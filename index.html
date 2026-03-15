@@ -6,50 +6,46 @@
         <meta name="color-scheme" content="dark" />
         <meta
             name="description"
-            content="WebHost.Systems — a multi-runtime AI agent deployment and hosting platform with a TypeScript-first developer experience. Control plane (UI + APIs) for deploys, secrets, telemetry, billing; data plane on Cloudflare Workers + Durable Objects (default) and AWS Bedrock AgentCore (premium)."
+            content="WebHost.Systems — multi-runtime AI agent deployment platform. Part of the [&amp;] Ampersand Box ecosystem."
         />
         <title>WebHost.Systems — AI Systems for Web Hosts</title>
-
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Instrument+Serif:ital@0;1&family=Sora:wght@200;300;400;500;600;700;800&display=swap"
+            rel="stylesheet"
+        />
         <style>
-            :root {
-                --bg: #070710;
-                --fg: #eef0ff;
-                --muted: rgba(238, 240, 255, 0.72);
-                --muted2: rgba(238, 240, 255, 0.55);
-
-                --a1: #7c88ff;
-                --a2: #b06cff;
-                --a3: #ff7bd6;
-                --a4: #33d0ff;
-
-                --card: rgba(255, 255, 255, 0.06);
-                --cardBorder: rgba(255, 255, 255, 0.12);
-            }
-
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
-
             html,
             body {
                 height: 100%;
             }
 
+            :root {
+                --bg: #070710;
+                --fg: #eef0ff;
+                --muted: rgba(238, 240, 255, 0.72);
+                --muted2: rgba(238, 240, 255, 0.5);
+                --muted3: rgba(238, 240, 255, 0.3);
+                --muted4: rgba(238, 240, 255, 0.14);
+                --a1: #7c88ff;
+                --a2: #b06cff;
+                --a3: #ff7bd6;
+                --a4: #33d0ff;
+                --card: rgba(255, 255, 255, 0.04);
+                --border: rgba(255, 255, 255, 0.08);
+                --border-hi: rgba(255, 255, 255, 0.15);
+                --display: "Sora", system-ui, sans-serif;
+                --serif: "Instrument Serif", Georgia, serif;
+                --mono: "IBM Plex Mono", monospace;
+            }
+
             body {
-                font-family:
-                    ui-sans-serif,
-                    system-ui,
-                    -apple-system,
-                    BlinkMacSystemFont,
-                    "Segoe UI",
-                    Roboto,
-                    "Helvetica Neue",
-                    Arial,
-                    "Noto Sans",
-                    "Apple Color Emoji",
-                    "Segoe UI Emoji";
+                font-family: var(--display);
                 background:
                     radial-gradient(
                         1200px 800px at 20% 20%,
@@ -70,32 +66,26 @@
                 color: var(--fg);
                 overflow-x: hidden;
             }
-
             a {
                 color: inherit;
             }
 
-            /* WebGL canvas background */
             #canvas-container {
                 position: fixed;
                 inset: 0;
                 z-index: 0;
             }
-
-            /* Ensure the canvas always fills the viewport (prevents “half-screen” sizing) */
             #canvas-container canvas {
                 width: 100% !important;
                 height: 100% !important;
                 display: block;
             }
 
-            /* Subtle vignette + blur overlay to unify scene */
             .veil {
                 position: fixed;
                 inset: 0;
                 z-index: 1;
                 pointer-events: none;
-                /* Keep hero readable while spotlighting the 3D constellation to the right */
                 background:
                     radial-gradient(
                         900px 680px at 72% 44%,
@@ -116,273 +106,20 @@
                     );
             }
 
-            /* Page content */
-            .page {
-                position: relative;
-                z-index: 10;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-            }
-
-            .topbar {
-                width: 100%;
-                padding: 28px 22px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .topbar-inner {
-                width: min(1100px, 100%);
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 18px;
-            }
-
-            .brand {
-                display: inline-flex;
-                align-items: center;
-                gap: 12px;
-                text-decoration: none;
-            }
-
-            .brand-mark {
-                width: 14px;
-                height: 14px;
-                border-radius: 999px;
+            .content-veil {
+                position: absolute;
+                left: 0;
+                right: 0;
+                z-index: 0;
+                pointer-events: none;
                 background: linear-gradient(
-                    135deg,
-                    var(--a1),
-                    var(--a2),
-                    var(--a3)
+                    to bottom,
+                    rgba(7, 7, 16, 0),
+                    rgba(7, 7, 16, 0.92) 120px,
+                    rgba(7, 7, 16, 0.96)
                 );
-                box-shadow:
-                    0 0 0 6px rgba(124, 136, 255, 0.12),
-                    0 0 40px rgba(176, 108, 255, 0.25);
             }
 
-            .brand-name {
-                font-size: 13px;
-                letter-spacing: 0.28em;
-                text-transform: uppercase;
-                color: rgba(238, 240, 255, 0.78);
-                font-weight: 500;
-            }
-
-            .navlinks {
-                display: inline-flex;
-                align-items: center;
-                gap: 14px;
-            }
-
-            .navlinks a {
-                text-decoration: none;
-                font-size: 12px;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                color: rgba(238, 240, 255, 0.62);
-                padding: 10px 12px;
-                border-radius: 999px;
-                transition:
-                    background 160ms ease,
-                    color 160ms ease;
-            }
-
-            .navlinks a:hover {
-                color: rgba(238, 240, 255, 0.92);
-                background: rgba(255, 255, 255, 0.06);
-            }
-
-            .hero {
-                flex: 1;
-                display: grid;
-                place-items: center;
-                padding: 28px 22px 40px;
-            }
-
-            .hero-inner {
-                width: min(1100px, 100%);
-                display: grid;
-                grid-template-columns: 1.2fr 0.8fr;
-                gap: 28px;
-                align-items: center;
-            }
-
-            .headline {
-                font-size: clamp(44px, 6.8vw, 88px);
-                line-height: 1.03;
-                font-weight: 900;
-                background: linear-gradient(
-                    135deg,
-                    var(--a1) 0%,
-                    var(--a2) 45%,
-                    var(--a3) 100%
-                );
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-                letter-spacing: -0.02em;
-            }
-
-            .subhead {
-                margin-top: 16px;
-                font-size: clamp(16px, 2vw, 20px);
-                line-height: 1.55;
-                color: var(--muted);
-                max-width: 62ch;
-            }
-
-            .pillrow {
-                margin-top: 16px;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-
-            .pill {
-                font-size: 12px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                padding: 10px 12px;
-                border-radius: 999px;
-                background: rgba(255, 255, 255, 0.06);
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                color: rgba(238, 240, 255, 0.72);
-                backdrop-filter: blur(8px);
-            }
-
-            .ctas {
-                margin-top: 24px;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                align-items: center;
-            }
-
-            .button {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 10px;
-                padding: 16px 20px;
-                border-radius: 999px;
-                text-decoration: none;
-                font-weight: 650;
-                letter-spacing: 0.02em;
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                background: rgba(255, 255, 255, 0.06);
-                backdrop-filter: blur(10px);
-                transition:
-                    transform 180ms ease,
-                    background 180ms ease,
-                    border-color 180ms ease,
-                    box-shadow 180ms ease;
-                user-select: none;
-            }
-
-            .button:hover {
-                transform: translateY(-2px);
-                border-color: rgba(255, 255, 255, 0.22);
-                background: rgba(255, 255, 255, 0.09);
-                box-shadow: 0 18px 55px rgba(124, 136, 255, 0.16);
-            }
-
-            .button.primary {
-                border-color: rgba(124, 136, 255, 0.35);
-                background: linear-gradient(
-                    135deg,
-                    rgba(124, 136, 255, 0.22),
-                    rgba(176, 108, 255, 0.18),
-                    rgba(255, 123, 214, 0.14)
-                );
-                box-shadow: 0 22px 70px rgba(176, 108, 255, 0.16);
-            }
-
-            .button svg {
-                width: 18px;
-                height: 18px;
-                opacity: 0.95;
-            }
-
-            .aside {
-                border-radius: 18px;
-                background: linear-gradient(
-                    180deg,
-                    rgba(255, 255, 255, 0.07),
-                    rgba(255, 255, 255, 0.04)
-                );
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                padding: 18px;
-                backdrop-filter: blur(12px);
-            }
-
-            .aside h2 {
-                font-size: 12px;
-                letter-spacing: 0.18em;
-                text-transform: uppercase;
-                color: rgba(238, 240, 255, 0.68);
-                margin-bottom: 12px;
-            }
-
-            .bullets {
-                list-style: none;
-                display: grid;
-                gap: 12px;
-            }
-
-            .bullets li {
-                display: grid;
-                grid-template-columns: 18px 1fr;
-                gap: 10px;
-                align-items: start;
-                color: var(--muted);
-                line-height: 1.45;
-                font-size: 14px;
-            }
-
-            .check {
-                width: 18px;
-                height: 18px;
-                border-radius: 6px;
-                background: rgba(124, 136, 255, 0.16);
-                border: 1px solid rgba(124, 136, 255, 0.3);
-                box-shadow: 0 10px 30px rgba(124, 136, 255, 0.1);
-                display: grid;
-                place-items: center;
-                margin-top: 2px;
-            }
-
-            .check svg {
-                width: 12px;
-                height: 12px;
-            }
-
-            .footer {
-                padding: 18px 22px 28px;
-                display: flex;
-                justify-content: center;
-            }
-
-            .footer-inner {
-                width: min(1100px, 100%);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 16px;
-                color: var(--muted2);
-                font-size: 12px;
-                letter-spacing: 0.06em;
-            }
-
-            .footer-inner .tagline {
-                text-transform: uppercase;
-                letter-spacing: 0.22em;
-                color: rgba(238, 240, 255, 0.52);
-            }
-
-            /* Loading */
             .loading {
                 position: fixed;
                 inset: 0;
@@ -393,34 +130,867 @@
                 backdrop-filter: blur(12px);
                 transition: opacity 300ms ease;
             }
-
             .spinner {
-                width: 52px;
-                height: 52px;
-                border: 3px solid rgba(124, 136, 255, 0.18);
+                width: 48px;
+                height: 48px;
+                border: 2.5px solid rgba(124, 136, 255, 0.18);
                 border-top-color: rgba(255, 123, 214, 0.75);
                 border-radius: 999px;
                 animation: spin 1s linear infinite;
             }
-
             @keyframes spin {
                 to {
                     transform: rotate(360deg);
                 }
             }
 
-            /* Responsive */
-            @media (max-width: 940px) {
-                .hero-inner {
-                    grid-template-columns: 1fr;
-                }
+            .page {
+                position: relative;
+                z-index: 10;
+            }
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 0 28px;
+            }
 
-                .navlinks {
-                    display: none;
+            /* NAV */
+            nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                backdrop-filter: blur(24px) saturate(1.3);
+                background: rgba(7, 7, 16, 0.6);
+                border-bottom: 1px solid var(--border);
+            }
+            .nav-inner {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 0 28px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                height: 60px;
+            }
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                text-decoration: none;
+            }
+            .logo-mark {
+                width: 28px;
+                height: 28px;
+                border-radius: 8px;
+                background: linear-gradient(
+                    135deg,
+                    var(--a1),
+                    var(--a2),
+                    var(--a3)
+                );
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: var(--serif);
+                font-style: italic;
+                font-size: 15px;
+                color: white;
+                box-shadow: 0 0 20px rgba(176, 108, 255, 0.3);
+            }
+            .logo-text {
+                font-family: var(--mono);
+                font-size: 12.5px;
+                font-weight: 500;
+                letter-spacing: 0.06em;
+                color: rgba(238, 240, 255, 0.85);
+            }
+            .logo-text span {
+                color: var(--muted3);
+            }
+            .nav-links {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .nav-links a {
+                font-family: var(--mono);
+                font-size: 11px;
+                font-weight: 400;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: var(--muted2);
+                text-decoration: none;
+                padding: 8px 14px;
+                border-radius: 6px;
+                transition: all 0.2s;
+            }
+            .nav-links a:hover {
+                color: var(--fg);
+                background: rgba(255, 255, 255, 0.05);
+            }
+            .nav-cta {
+                background: linear-gradient(
+                    135deg,
+                    rgba(124, 136, 255, 0.15),
+                    rgba(176, 108, 255, 0.12)
+                ) !important;
+                border: 1px solid rgba(124, 136, 255, 0.2);
+                color: var(--a1) !important;
+            }
+            .nav-cta:hover {
+                border-color: rgba(124, 136, 255, 0.35) !important;
+                box-shadow: 0 0 20px rgba(124, 136, 255, 0.1);
+            }
+
+            /* HERO */
+            .hero {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                padding: 100px 0 80px;
+                position: relative;
+            }
+            .hero-grid {
+                display: grid;
+                grid-template-columns: 1.15fr 0.85fr;
+                gap: 48px;
+                align-items: center;
+            }
+
+            .hero-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 14px 5px 6px;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border);
+                border-radius: 100px;
+                font-family: var(--mono);
+                font-size: 10.5px;
+                color: var(--muted2);
+                letter-spacing: 0.06em;
+                margin-bottom: 28px;
+                animation: fadeUp 0.6s ease both;
+                animation-delay: 0.1s;
+                opacity: 0;
+            }
+            .hero-badge .dot {
+                width: 20px;
+                height: 20px;
+                border-radius: 6px;
+                background: linear-gradient(135deg, var(--a1), var(--a2));
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: var(--serif);
+                font-style: italic;
+                font-size: 11px;
+                color: white;
+            }
+            .hero-badge a {
+                color: var(--a1);
+                text-decoration: none;
+            }
+
+            @keyframes fadeUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
                 }
             }
 
-            /* Respect reduced motion */
+            .hero h1 {
+                font-family: var(--display);
+                font-size: clamp(44px, 6.5vw, 84px);
+                font-weight: 800;
+                line-height: 1;
+                letter-spacing: -0.04em;
+                animation: fadeUp 0.7s ease both;
+                animation-delay: 0.2s;
+                opacity: 0;
+            }
+            .hero h1 .gradient {
+                background: linear-gradient(
+                    135deg,
+                    var(--a1) 0%,
+                    var(--a2) 45%,
+                    var(--a3) 100%
+                );
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .hero h1 .italic {
+                font-family: var(--serif);
+                font-style: italic;
+                font-weight: 400;
+            }
+
+            .hero-sub {
+                margin-top: 24px;
+                font-size: 16px;
+                line-height: 1.7;
+                color: var(--muted);
+                font-weight: 300;
+                max-width: 520px;
+                animation: fadeUp 0.7s ease both;
+                animation-delay: 0.35s;
+                opacity: 0;
+            }
+            .hero-sub strong {
+                color: var(--fg);
+                font-weight: 500;
+            }
+
+            .hero-btns {
+                display: flex;
+                gap: 12px;
+                margin-top: 32px;
+                animation: fadeUp 0.7s ease both;
+                animation-delay: 0.5s;
+                opacity: 0;
+            }
+
+            .btn-glow {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 14px 28px;
+                border-radius: 10px;
+                font-family: var(--mono);
+                font-size: 12px;
+                font-weight: 500;
+                letter-spacing: 0.06em;
+                text-decoration: none;
+                background: linear-gradient(
+                    135deg,
+                    rgba(124, 136, 255, 0.2),
+                    rgba(176, 108, 255, 0.16),
+                    rgba(255, 123, 214, 0.12)
+                );
+                border: 1px solid rgba(124, 136, 255, 0.3);
+                color: var(--fg);
+                box-shadow: 0 8px 32px rgba(176, 108, 255, 0.15);
+                transition: all 0.25s;
+            }
+            .btn-glow:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 48px rgba(176, 108, 255, 0.25);
+                border-color: rgba(124, 136, 255, 0.5);
+            }
+
+            .btn-ghost {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 14px 28px;
+                border-radius: 10px;
+                font-family: var(--mono);
+                font-size: 12px;
+                font-weight: 400;
+                letter-spacing: 0.06em;
+                text-decoration: none;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border);
+                color: var(--muted2);
+                transition: all 0.25s;
+            }
+            .btn-ghost:hover {
+                border-color: var(--border-hi);
+                color: var(--fg);
+            }
+
+            /* Hero card */
+            .hero-card {
+                background: linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.06),
+                    rgba(255, 255, 255, 0.03)
+                );
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                padding: 28px;
+                backdrop-filter: blur(16px);
+                animation: fadeUp 0.8s ease both;
+                animation-delay: 0.5s;
+                opacity: 0;
+            }
+            .hero-card h2 {
+                font-family: var(--mono);
+                font-size: 10px;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: var(--muted2);
+                margin-bottom: 20px;
+            }
+            .hero-card-row {
+                display: flex;
+                align-items: start;
+                gap: 12px;
+                padding: 12px 0;
+                border-top: 1px solid var(--muted4);
+            }
+            .hero-card-row:first-of-type {
+                border-top: none;
+                padding-top: 0;
+            }
+            .hc-dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                margin-top: 6px;
+                flex-shrink: 0;
+                background: var(--a1);
+                box-shadow: 0 0 8px rgba(124, 136, 255, 0.4);
+            }
+            .hc-dot.pink {
+                background: var(--a3);
+                box-shadow: 0 0 8px rgba(255, 123, 214, 0.4);
+            }
+            .hc-dot.cyan {
+                background: var(--a4);
+                box-shadow: 0 0 8px rgba(51, 208, 255, 0.4);
+            }
+            .hc-dot.purple {
+                background: var(--a2);
+                box-shadow: 0 0 8px rgba(176, 108, 255, 0.4);
+            }
+            .hc-text {
+                font-size: 13.5px;
+                line-height: 1.55;
+                color: var(--muted);
+            }
+            .hc-text strong {
+                color: var(--fg);
+                font-weight: 600;
+            }
+            .hc-text code {
+                font-family: var(--mono);
+                font-size: 11px;
+                color: var(--a4);
+                background: rgba(51, 208, 255, 0.08);
+                padding: 1px 5px;
+                border-radius: 3px;
+            }
+
+            /* SECTIONS */
+            .below-fold {
+                position: relative;
+            }
+            section {
+                position: relative;
+                z-index: 2;
+                padding: 100px 0;
+            }
+            .sec-label {
+                font-family: var(--mono);
+                font-size: 10px;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: var(--a1);
+                margin-bottom: 16px;
+                opacity: 0.8;
+            }
+            .sec-title {
+                font-family: var(--display);
+                font-size: clamp(28px, 3.5vw, 44px);
+                font-weight: 700;
+                letter-spacing: -0.03em;
+                line-height: 1.1;
+                margin-bottom: 12px;
+            }
+            .sec-title .italic {
+                font-family: var(--serif);
+                font-style: italic;
+                font-weight: 400;
+            }
+            .sec-title .gradient {
+                background: linear-gradient(
+                    135deg,
+                    var(--a1),
+                    var(--a2),
+                    var(--a3)
+                );
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            /* Features */
+            .feat-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1px;
+                margin-top: 48px;
+                background: var(--border);
+                border-radius: 16px;
+                overflow: hidden;
+            }
+            .feat {
+                background: rgba(7, 7, 16, 0.85);
+                padding: 32px 28px;
+                transition: background 0.3s;
+            }
+            .feat:hover {
+                background: rgba(20, 20, 40, 0.9);
+            }
+            .feat-num {
+                font-family: var(--mono);
+                font-size: 10px;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                margin-bottom: 16px;
+                background: linear-gradient(135deg, var(--a1), var(--a3));
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .feat h3 {
+                font-size: 17px;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+                margin-bottom: 10px;
+            }
+            .feat p {
+                font-size: 13.5px;
+                line-height: 1.6;
+                color: var(--muted2);
+                font-weight: 300;
+            }
+            .feat code {
+                font-family: var(--mono);
+                font-size: 11px;
+                color: var(--a4);
+                background: rgba(51, 208, 255, 0.08);
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+
+            /* Planes */
+            .planes-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1px;
+                margin-top: 48px;
+                background: var(--border);
+                border-radius: 16px;
+                overflow: hidden;
+            }
+            .plane {
+                background: rgba(7, 7, 16, 0.85);
+                padding: 40px 32px;
+            }
+            .plane-eyebrow {
+                font-family: var(--mono);
+                font-size: 9px;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                margin-bottom: 14px;
+                background: linear-gradient(135deg, var(--a1), var(--a2));
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .plane h3 {
+                font-size: 20px;
+                font-weight: 600;
+                margin-bottom: 12px;
+            }
+            .plane p {
+                font-size: 14px;
+                line-height: 1.6;
+                color: var(--muted2);
+                font-weight: 300;
+                margin-bottom: 20px;
+            }
+            .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .tag {
+                font-family: var(--mono);
+                font-size: 10px;
+                letter-spacing: 0.04em;
+                padding: 5px 12px;
+                border-radius: 6px;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid var(--border);
+                color: var(--muted2);
+            }
+            .tag.hi {
+                background: linear-gradient(
+                    135deg,
+                    rgba(124, 136, 255, 0.1),
+                    rgba(176, 108, 255, 0.08)
+                );
+                border-color: rgba(124, 136, 255, 0.2);
+                color: var(--a1);
+            }
+
+            /* Ecosystem */
+            .eco-stack {
+                margin-top: 48px;
+                border-radius: 16px;
+                overflow: hidden;
+                background: var(--border);
+            }
+            .eco-row {
+                display: grid;
+                grid-template-columns: 140px 1fr;
+                background: rgba(7, 7, 16, 0.85);
+                margin-bottom: 1px;
+            }
+            .eco-row:last-child {
+                margin-bottom: 0;
+            }
+            .eco-layer {
+                padding: 16px 18px;
+                font-family: var(--mono);
+                font-size: 9.5px;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: var(--muted3);
+                border-right: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+            }
+            .eco-data {
+                display: flex;
+                align-items: stretch;
+            }
+            .eco-link {
+                text-decoration: none;
+                color: inherit;
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                padding: 16px 22px;
+                transition: background 0.25s;
+                flex: 1;
+            }
+            .eco-link:hover {
+                background: rgba(255, 255, 255, 0.04);
+            }
+            .eco-link .arrow {
+                font-size: 12px;
+                color: var(--muted3);
+                margin-left: auto;
+                opacity: 0;
+                transition:
+                    opacity 0.2s,
+                    transform 0.2s;
+                font-family: var(--mono);
+            }
+            .eco-link:hover .arrow {
+                opacity: 1;
+                transform: translateX(3px);
+            }
+            .eco-name {
+                font-family: var(--mono);
+                font-size: 12.5px;
+                font-weight: 500;
+                color: var(--fg);
+                min-width: 210px;
+            }
+            .eco-desc {
+                font-size: 12.5px;
+                color: var(--muted3);
+                font-weight: 300;
+            }
+            .eco-row.active .eco-layer {
+                background: linear-gradient(
+                    135deg,
+                    rgba(124, 136, 255, 0.08),
+                    rgba(176, 108, 255, 0.06)
+                );
+                color: var(--a1);
+            }
+            .eco-row.active .eco-link {
+                background: linear-gradient(
+                    135deg,
+                    rgba(124, 136, 255, 0.04),
+                    rgba(176, 108, 255, 0.03)
+                );
+            }
+            .eco-row.active .eco-name {
+                background: linear-gradient(135deg, var(--a1), var(--a2));
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-weight: 600;
+            }
+            .eco-row.active .eco-link .arrow {
+                opacity: 0.6;
+            }
+
+            /* Code */
+            .code-split {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1px;
+                margin-top: 48px;
+                background: var(--border);
+                border-radius: 16px;
+                overflow: hidden;
+            }
+            .code-panel {
+                background: rgba(0, 0, 0, 0.4);
+            }
+            .code-bar {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 14px 20px;
+                border-bottom: 1px solid var(--border);
+            }
+            .code-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.08);
+            }
+            .code-file {
+                font-family: var(--mono);
+                font-size: 10.5px;
+                color: var(--muted3);
+                margin-left: 6px;
+            }
+            .code-body {
+                padding: 24px;
+                font-family: var(--mono);
+                font-size: 12.5px;
+                line-height: 1.85;
+                color: var(--muted2);
+                overflow-x: auto;
+            }
+            .code-body pre {
+                margin: 0;
+                font-family: inherit;
+                font-size: inherit;
+                line-height: inherit;
+                color: inherit;
+                white-space: pre;
+                tab-size: 2;
+            }
+            .code-body .k {
+                color: var(--fg);
+            }
+            .code-body .s {
+                color: #7cf5a0;
+            }
+            .code-body .c {
+                color: var(--muted3);
+                font-style: italic;
+            }
+            .code-info {
+                background: rgba(7, 7, 16, 0.85);
+                padding: 36px 32px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+            .code-info h3 {
+                font-size: 22px;
+                font-weight: 600;
+                margin-bottom: 16px;
+                letter-spacing: -0.01em;
+            }
+            .code-info h3 .gradient {
+                background: linear-gradient(135deg, var(--a1), var(--a2));
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .code-info p {
+                font-size: 14.5px;
+                line-height: 1.65;
+                color: var(--muted);
+                font-weight: 300;
+            }
+            .code-info a {
+                color: var(--a1);
+                text-decoration: none;
+                border-bottom: 1px solid rgba(124, 136, 255, 0.2);
+                transition: border-color 0.25s;
+            }
+            .code-info a:hover {
+                border-color: var(--a1);
+            }
+
+            /* CTA */
+            .cta-section {
+                text-align: center;
+                padding: 120px 0 140px;
+                position: relative;
+                z-index: 2;
+            }
+            .cta-section h2 {
+                font-family: var(--display);
+                font-size: clamp(36px, 5vw, 60px);
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                line-height: 1.05;
+                margin-bottom: 16px;
+            }
+            .cta-section h2 .gradient {
+                background: linear-gradient(
+                    135deg,
+                    var(--a1),
+                    var(--a2),
+                    var(--a3)
+                );
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .cta-sub {
+                font-size: 15px;
+                color: var(--muted2);
+                font-weight: 300;
+                margin-bottom: 32px;
+                max-width: 440px;
+                margin-left: auto;
+                margin-right: auto;
+                line-height: 1.6;
+            }
+            .cta-sub code {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--a4);
+                background: rgba(51, 208, 255, 0.08);
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+
+            /* Footer */
+            footer {
+                position: relative;
+                z-index: 2;
+                border-top: 1px solid var(--border);
+                padding: 36px 0;
+            }
+            .foot-inner {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+            .foot-left {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+            }
+            .foot-copy {
+                font-family: var(--mono);
+                font-size: 10.5px;
+                color: var(--muted3);
+            }
+            .foot-links a {
+                font-family: var(--mono);
+                font-size: 10.5px;
+                color: var(--muted3);
+                text-decoration: none;
+                margin-right: 16px;
+                transition: color 0.2s;
+            }
+            .foot-links a:hover {
+                color: var(--muted);
+            }
+            .foot-right {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+            .foot-eco {
+                font-family: var(--mono);
+                font-size: 10.5px;
+                color: var(--muted3);
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: color 0.2s;
+            }
+            .foot-eco:hover {
+                color: var(--a1);
+            }
+            .foot-eco .amp {
+                font-family: var(--serif);
+                font-style: italic;
+                font-size: 15px;
+                background: linear-gradient(135deg, var(--a1), var(--a2));
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .foot-status {
+                font-family: var(--mono);
+                font-size: 9px;
+                color: var(--muted3);
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .foot-status::before {
+                content: "";
+                width: 5px;
+                height: 5px;
+                background: #4ade80;
+                border-radius: 50%;
+                box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+            }
+
+            @media (max-width: 900px) {
+                .hero-grid {
+                    grid-template-columns: 1fr;
+                }
+                .nav-links a:not(.nav-cta) {
+                    display: none;
+                }
+                .feat-grid {
+                    grid-template-columns: 1fr;
+                }
+                .planes-grid {
+                    grid-template-columns: 1fr;
+                }
+                .eco-row {
+                    grid-template-columns: 1fr;
+                }
+                .eco-layer {
+                    border-right: none;
+                    border-bottom: 1px solid var(--border);
+                }
+                .eco-name {
+                    min-width: auto;
+                }
+                .eco-link {
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+                .code-split {
+                    grid-template-columns: 1fr;
+                }
+                footer {
+                    padding: 28px 0;
+                }
+                .foot-inner {
+                    flex-direction: column;
+                    text-align: center;
+                }
+                .foot-left,
+                .foot-right {
+                    flex-direction: column;
+                    align-items: center;
+                }
+            }
             @media (prefers-reduced-motion: reduce) {
                 * {
                     scroll-behavior: auto !important;
@@ -431,227 +1001,515 @@
             }
         </style>
     </head>
-
     <body>
         <div class="loading" id="loading" aria-hidden="true">
-            <div class="spinner" aria-hidden="true"></div>
+            <div class="spinner"></div>
         </div>
-
         <div id="canvas-container" aria-hidden="true"></div>
         <div class="veil" aria-hidden="true"></div>
 
         <main class="page">
-            <header class="topbar">
-                <div class="topbar-inner">
-                    <a class="brand" href="/" aria-label="WebHost.Systems home">
-                        <span class="brand-mark" aria-hidden="true"></span>
-                        <span class="brand-name">WebHost.Systems</span>
+            <nav>
+                <div class="nav-inner">
+                    <a href="/" class="logo">
+                        <div class="logo-mark">&amp;</div>
+                        <span class="logo-text"
+                            >WebHost<span>.Systems</span></span
+                        >
                     </a>
-                    <nav class="navlinks" aria-label="Primary">
+                    <div class="nav-links">
                         <a href="#features">Features</a>
                         <a href="#stack">Stack</a>
-                        <a href="#cta">Access</a>
-                    </nav>
-                </div>
-            </header>
-
-            <section class="hero" aria-label="Hero">
-                <div class="hero-inner">
-                    <div>
-                        <h1 class="headline">
-                            AI Systems<br />for<br />Web Hosts
-                        </h1>
-                        <p class="subhead">
-                            <strong>WebHost.Systems</strong> is a multi-runtime
-                            AI agent deployment and hosting platform. A
-                            <strong>control plane</strong> (UI + APIs) handles
-                            deploys, config/secrets, telemetry, and billing,
-                            while a <strong>data plane</strong> runs agents on
-                            <strong
-                                >Cloudflare Workers + Durable Objects</strong
-                            >
-                            (default) or <strong>AWS Bedrock AgentCore</strong>
-                            (premium). Built for a
-                            <strong>TypeScript-first</strong> developer
-                            experience with metering and limit enforcement.
-                        </p>
-
-                        <div class="pillrow" id="stack">
-                            <span class="pill">TypeScript</span>
-                            <span class="pill">Cloudflare Workers</span>
-                            <span class="pill">Durable Objects</span>
-                            <span class="pill">AWS Bedrock AgentCore</span>
-                            <span class="pill">Convex (Control Plane)</span>
-                            <span class="pill">Metering + Limits</span>
-                        </div>
-
-                        <div class="ctas" id="cta">
-                            <a
-                                class="button primary"
-                                href="https://app.webhost.systems"
-                            >
-                                <span>app.webhost.systems</span>
-                                <svg
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                    />
-                                </svg>
-                            </a>
-                        </div>
+                        <a href="#ecosystem">Ecosystem</a>
+                        <a href="#protocol">Protocol</a>
+                        <a href="https://app.webhost.systems" class="nav-cta"
+                            >Launch App &rarr;</a
+                        >
                     </div>
+                </div>
+            </nav>
 
-                    <aside class="aside" id="features" aria-label="Highlights">
-                        <h2>What you get</h2>
-                        <ul class="bullets">
-                            <li>
-                                <span class="check" aria-hidden="true">
-                                    <svg
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M5 13l4 4L19 7"
-                                        />
-                                    </svg>
-                                </span>
-                                <span>
+            <section class="hero">
+                <div class="container">
+                    <div class="hero-grid">
+                        <div>
+                            <div class="hero-badge">
+                                <span class="dot">&amp;</span>
+                                Part of the
+                                <a href="https://ampersandboxdesign.com"
+                                    >[&amp;] ecosystem</a
+                                >
+                            </div>
+                            <h1>
+                                Ship portable<br />agents,
+                                <span class="gradient italic">faster.</span>
+                            </h1>
+                            <p class="hero-sub">
+                                <strong>WebHost.Systems</strong> is a
+                                multi-runtime AI agent deployment platform. One
+                                control plane &mdash; deploy to
+                                <strong>Cloudflare Workers</strong> or
+                                <strong>AWS Bedrock AgentCore</strong>.
+                                Immutable deploys, signed telemetry, metered
+                                usage. TypeScript-first.
+                            </p>
+                            <div class="hero-btns">
+                                <a
+                                    href="https://app.webhost.systems"
+                                    class="btn-glow"
+                                    >Open Dashboard &rarr;</a
+                                >
+                                <a href="#ecosystem" class="btn-ghost"
+                                    >Architecture</a
+                                >
+                            </div>
+                        </div>
+                        <div class="hero-card">
+                            <h2>What You Get</h2>
+                            <div class="hero-card-row">
+                                <div class="hc-dot"></div>
+                                <div class="hc-text">
                                     <strong>Multi-runtime portability</strong>
                                     behind a single abstraction (Cloudflare by
-                                    default, AgentCore for premium/enterprise).
-                                </span>
-                            </li>
-                            <li>
-                                <span class="check" aria-hidden="true">
-                                    <svg
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M5 13l4 4L19 7"
-                                        />
-                                    </svg>
-                                </span>
-                                <span>
+                                    default, AgentCore for enterprise).
+                                </div>
+                            </div>
+                            <div class="hero-card-row">
+                                <div class="hc-dot pink"></div>
+                                <div class="hc-text">
                                     <strong>Immutable deployments</strong> with
                                     rollback via an active deployment pointer.
-                                </span>
-                            </li>
-                            <li>
-                                <span class="check" aria-hidden="true">
-                                    <svg
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M5 13l4 4L19 7"
-                                        />
-                                    </svg>
-                                </span>
-                                <span>
+                                </div>
+                            </div>
+                            <div class="hero-card-row">
+                                <div class="hc-dot cyan"></div>
+                                <div class="hc-text">
                                     <strong>Stable invocation</strong> via
                                     <code>invoke/v1</code>, opaque session IDs,
-                                    and optional streaming (SSE).
-                                </span>
-                            </li>
-                            <li>
-                                <span class="check" aria-hidden="true">
-                                    <svg
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M5 13l4 4L19 7"
-                                        />
-                                    </svg>
-                                </span>
-                                <span>
+                                    and optional SSE streaming.
+                                </div>
+                            </div>
+                            <div class="hero-card-row">
+                                <div class="hc-dot purple"></div>
+                                <div class="hc-text">
                                     <strong>Secure metering + secrets</strong>:
-                                    signed telemetry events, usage aggregation
-                                    with plan limit enforcement, and no
-                                    plaintext secrets in the primary DB (use
-                                    provider-native secret mechanisms).
-                                </span>
-                            </li>
-                        </ul>
-                    </aside>
+                                    signed telemetry, usage aggregation, plan
+                                    limit enforcement.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <footer class="footer" aria-label="Footer">
-                <div class="footer-inner">
-                    <span
-                        >© <span id="year"></span> WebHost.Systems ... Powered
-                        by
-                        <a href="https://ampersandboxdesign.com" target="_blank"
-                            >[&]</a
-                        ></span
-                    >
-                    <span class="tagline">Ship portable agents, faster</span>
+            <div class="below-fold">
+                <div class="content-veil" style="top: 0; bottom: 0"></div>
+
+                <section id="features">
+                    <div class="container">
+                        <div class="sec-label">System Capabilities</div>
+                        <div class="sec-title">
+                            Infrastructure that
+                            <span class="gradient italic">disappears.</span>
+                        </div>
+                        <div class="feat-grid">
+                            <div class="feat">
+                                <div class="feat-num">
+                                    01 &mdash; Multi-Runtime
+                                </div>
+                                <h3>Runtime Portability</h3>
+                                <p>
+                                    One abstraction. Cloudflare Workers +
+                                    Durable Objects by default, AWS Bedrock
+                                    AgentCore for enterprise. Same API, same
+                                    agent code.
+                                </p>
+                            </div>
+                            <div class="feat">
+                                <div class="feat-num">02 &mdash; Immutable</div>
+                                <h3>Sealed Deploys</h3>
+                                <p>
+                                    Every deploy is a snapshot. Rollback via
+                                    deployment pointer. No drift, no surprises,
+                                    full auditability from day one.
+                                </p>
+                            </div>
+                            <div class="feat">
+                                <div class="feat-num">03 &mdash; Invoke</div>
+                                <h3>Stable Endpoints</h3>
+                                <p>
+                                    Reach any agent via
+                                    <code>invoke/v1</code> with opaque session
+                                    IDs and optional SSE streaming.
+                                </p>
+                            </div>
+                            <div class="feat">
+                                <div class="feat-num">04 &mdash; Metered</div>
+                                <h3>Secure Telemetry</h3>
+                                <p>
+                                    Signed telemetry events, usage aggregation
+                                    with plan limit enforcement. Provider-native
+                                    secret mechanisms only.
+                                </p>
+                            </div>
+                            <div class="feat">
+                                <div class="feat-num">05 &mdash; Typed</div>
+                                <h3>TypeScript-First</h3>
+                                <p>
+                                    Full type safety from config to deploy. SDK,
+                                    CLI, and APIs designed for the TypeScript
+                                    developer experience.
+                                </p>
+                            </div>
+                            <div class="feat">
+                                <div class="feat-num">06 &mdash; Protocol</div>
+                                <h3>[&amp;] Native</h3>
+                                <p>
+                                    MCP + A2A bindings, capability composition,
+                                    and governance constraints are first-class
+                                    citizens.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="stack">
+                    <div class="container">
+                        <div class="sec-label">Internals</div>
+                        <div class="sec-title">
+                            Two planes, one
+                            <span class="gradient italic">surface.</span>
+                        </div>
+                        <div class="planes-grid">
+                            <div class="plane">
+                                <div class="plane-eyebrow">Control Plane</div>
+                                <h3>UI + APIs</h3>
+                                <p>
+                                    Dashboard, deploys, configuration, secrets,
+                                    telemetry, billing, and plan enforcement.
+                                    The system of record.
+                                </p>
+                                <div class="tags">
+                                    <span class="tag hi">Convex</span
+                                    ><span class="tag">TypeScript</span
+                                    ><span class="tag">Auth</span
+                                    ><span class="tag">Billing</span>
+                                </div>
+                            </div>
+                            <div class="plane">
+                                <div class="plane-eyebrow">Data Plane</div>
+                                <h3>Agent Runtime</h3>
+                                <p>
+                                    Where agents execute. Cloudflare Workers +
+                                    Durable Objects as default, AgentCore for
+                                    premium isolation.
+                                </p>
+                                <div class="tags">
+                                    <span class="tag hi">CF Workers</span
+                                    ><span class="tag hi">Durable Objects</span
+                                    ><span class="tag">AgentCore</span
+                                    ><span class="tag">SSE</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="ecosystem">
+                    <div class="container">
+                        <div class="sec-label">Ecosystem Position</div>
+                        <div class="sec-title">
+                            The [&amp;]
+                            <span class="gradient italic">stack.</span>
+                        </div>
+                        <div class="eco-stack">
+                            <div class="eco-row">
+                                <div class="eco-layer">Interface</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://specprompt.com"
+                                        target="_blank"
+                                        ><span class="eco-name">SpecPrompt</span
+                                        ><span class="eco-desc"
+                                            >Agent behavior specs &amp;
+                                            contracts</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                            <div class="eco-row">
+                                <div class="eco-layer">Creation</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://agentelic.com"
+                                        target="_blank"
+                                        ><span class="eco-name">Agentelic</span
+                                        ><span class="eco-desc"
+                                            >Build and deploy individual
+                                            agents</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                            <div class="eco-row">
+                                <div class="eco-layer">Orchestrate</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://delegatic.com"
+                                        target="_blank"
+                                        ><span class="eco-name"
+                                            >Delegatic &middot;
+                                            AgenTroMatic</span
+                                        ><span class="eco-desc"
+                                            >Multi-agent coordination &amp;
+                                            routing</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                            <div class="eco-row">
+                                <div class="eco-layer">Cognition</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://graphonomous.com"
+                                        target="_blank"
+                                        ><span class="eco-name"
+                                            >Graphonomous &middot;
+                                            Deliberatic</span
+                                        ><span class="eco-desc"
+                                            >Memory, reasoning, evidence
+                                            chains</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                            <div class="eco-row">
+                                <div class="eco-layer">Intelligence</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://ticktickclock.com"
+                                        target="_blank"
+                                        ><span class="eco-name"
+                                            >TickTickClock &middot;
+                                            GeoFleetic</span
+                                        ><span class="eco-desc"
+                                            >Temporal &amp; spatial
+                                            primitives</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                            <div class="eco-row">
+                                <div class="eco-layer">Distribution</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://fleetprompt.com"
+                                        target="_blank"
+                                        ><span class="eco-name"
+                                            >FleetPrompt</span
+                                        ><span class="eco-desc"
+                                            >Skill marketplace &amp; capability
+                                            packages</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                            <div class="eco-row active">
+                                <div class="eco-layer">Runtime &#9656;</div>
+                                <div class="eco-data">
+                                    <a
+                                        class="eco-link"
+                                        href="https://webhost.systems"
+                                        target="_blank"
+                                        ><span class="eco-name"
+                                            >WebHost.Systems</span
+                                        ><span class="eco-desc"
+                                            >Multi-runtime hosting, immutable
+                                            deploys, metered infra</span
+                                        ><span class="arrow">&rarr;</span></a
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="protocol">
+                    <div class="container">
+                        <div class="sec-label">Ecosystem Integration</div>
+                        <div class="sec-title">
+                            The &amp; composes.
+                            <span class="gradient italic">We run it.</span>
+                        </div>
+                        <div class="code-split">
+                            <div class="code-panel">
+                                <div class="code-bar">
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                    <span class="code-file"
+                                        >ampersand.json</span
+                                    >
+                                </div>
+                                <div class="code-body" id="code-block"></div>
+                            </div>
+                            <div class="code-info">
+                                <h3>
+                                    From spec to
+                                    <span class="gradient">production</span>
+                                </h3>
+                                <p>
+                                    WebHost.Systems is the runtime layer of the
+                                    <a
+                                        href="https://ampersandboxdesign.com/protocol.html"
+                                        >[&amp;] Protocol</a
+                                    >. Define capabilities, validate contracts
+                                    at compile time, and deploy to metered,
+                                    fault-tolerant infrastructure with a single
+                                    command.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="cta-section">
+                    <div class="container">
+                        <h2>
+                            Deploy your first
+                            <span class="gradient">agent.</span>
+                        </h2>
+                        <p class="cta-sub">
+                            TypeScript SDK, CLI tooling, and a dashboard &mdash;
+                            from <code>ampersand.json</code> to production.
+                        </p>
+                        <a
+                            href="https://app.webhost.systems"
+                            class="btn-glow"
+                            style="font-size: 13px; padding: 16px 36px"
+                            >Launch Dashboard &rarr;</a
+                        >
+                    </div>
                 </div>
-            </footer>
+
+                <footer>
+                    <div class="container">
+                        <div class="foot-inner">
+                            <div class="foot-left">
+                                <span class="foot-copy"
+                                    >&copy;
+                                    <span id="year"></span>
+                                    WebHost.Systems</span
+                                >
+                                <div class="foot-links">
+                                    <a href="https://ampersandboxdesign.com"
+                                        >Ecosystem</a
+                                    ><a
+                                        href="https://github.com/c-u-l8er/AmpersandBoxDesign"
+                                        >GitHub</a
+                                    ><a
+                                        href="https://ampersandboxdesign.com/protocol.html"
+                                        >Protocol</a
+                                    >
+                                </div>
+                            </div>
+                            <div class="foot-right">
+                                <a
+                                    href="https://ampersandboxdesign.com"
+                                    class="foot-eco"
+                                    ><span class="amp">&amp;</span> Ampersand
+                                    Box Design</a
+                                >
+                                <span class="foot-status"
+                                    >All systems operational</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+            </div>
         </main>
 
-        <!-- Three.js (kept consistent with geofleetic.html) -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
         <script>
             "use strict";
-
-            // Basic DOM wiring
             document.getElementById("year").textContent =
                 new Date().getFullYear();
 
-            // Respect reduced motion
+            // Format code block with proper indentation and syntax highlighting
+            (function formatCode() {
+                const raw = [
+                    "{",
+                    '  "agent": "support-ops",',
+                    '  "capabilities": [',
+                    '    "&memory.graph",    // Graphonomous',
+                    '    "&reason.argument", // Deliberatic',
+                    '    "&time.anomaly"    // TickTickClock',
+                    "  ],",
+                    '  "runtime": "cloudflare",',
+                    '  "deploy":  "webhost.systems"',
+                    "}",
+                ];
+
+                const el = document.getElementById("code-block");
+                if (!el) return;
+
+                const highlighted = raw
+                    .map((line) => {
+                        return (
+                            line
+                                // Comments first
+                                .replace(
+                                    /(\/\/.*)$/g,
+                                    '<span class="c">$1</span>',
+                                )
+                                // String values (after colon)
+                                .replace(
+                                    /: "([^"]+)"/g,
+                                    ': <span class="s">"$1"</span>',
+                                )
+                                // String values (in arrays)
+                                .replace(
+                                    /"(&[^"]+)"/g,
+                                    '<span class="s">"$1"</span>',
+                                )
+                                // Keys
+                                .replace(
+                                    /"([^"]+)"(?=\s*:)/g,
+                                    '<span class="k">"$1"</span>',
+                                )
+                        );
+                    })
+                    .join("\n");
+
+                el.innerHTML = "<pre>" + highlighted + "</pre>";
+            })();
             const prefersReducedMotion = window.matchMedia(
                 "(prefers-reduced-motion: reduce)",
             ).matches;
-
             window.addEventListener("load", () => {
                 try {
                     initScene();
-                } catch (err) {
-                    // If WebGL fails, keep the page usable.
-                    console.error("WebGL init failed:", err);
+                } catch (e) {
+                    console.error("WebGL init failed:", e);
                 } finally {
-                    const loading = document.getElementById("loading");
-                    loading.style.opacity = "0";
-                    setTimeout(() => (loading.style.display = "none"), 320);
+                    const l = document.getElementById("loading");
+                    l.style.opacity = "0";
+                    setTimeout(() => (l.style.display = "none"), 320);
                 }
             });
 
             function initScene() {
                 const container = document.getElementById("canvas-container");
-
-                // Scene
                 const scene = new THREE.Scene();
                 scene.fog = new THREE.Fog(0x070710, 12, 70);
-
-                // Camera
-                // Tighter framing so the constellation reaches the screen edges.
                 const camera = new THREE.PerspectiveCamera(
                     46,
                     window.innerWidth / window.innerHeight,
@@ -659,8 +1517,6 @@
                     250,
                 );
                 camera.position.set(1.2, 0.15, 16.5);
-
-                // Renderer
                 const renderer = new THREE.WebGLRenderer({
                     antialias: true,
                     alpha: true,
@@ -676,69 +1532,44 @@
                 renderer.toneMappingExposure = 1.08;
                 renderer.physicallyCorrectLights = true;
                 container.appendChild(renderer.domElement);
-
-                // Lights (soft, mostly emissive look)
-                const ambient = new THREE.AmbientLight(0xffffff, 0.55);
-                scene.add(ambient);
-
+                scene.add(new THREE.AmbientLight(0xffffff, 0.55));
                 const key = new THREE.DirectionalLight(0xaab0ff, 0.55);
                 key.position.set(6, 8, 10);
                 scene.add(key);
-
                 const rim = new THREE.DirectionalLight(0xff7bd6, 0.35);
                 rim.position.set(-10, -6, 6);
                 scene.add(rim);
-
-                // Group that holds the whole "constellation"
                 const root = new THREE.Group();
                 scene.add(root);
 
-                // Fit/position the constellation so it "bleeds" to the viewport edges.
-                // (Keeps it slightly right-biased on wide screens so the headline stays readable.)
                 function applyLayout() {
                     const isNarrow = window.innerWidth < 940;
                     const aspect =
                         window.innerWidth / Math.max(1, window.innerHeight);
-
-                    // Slightly more right bias on desktop, but centered-ish on mobile.
                     root.position.set(
                         isNarrow ? 0.9 : 5.4,
                         0.1,
                         isNarrow ? -4.2 : -3.4,
                     );
                     root.rotation.y = isNarrow ? 0.35 : 0.55;
-
-                    // Make the constellation fill the viewport.
-                    // On ultra-wide screens we scale it up a touch more so it reaches the edges.
                     const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-                    const desktopScale = clamp(
-                        1.75 + (aspect - 1.6) * 0.35,
-                        1.75,
-                        2.2,
+                    root.scale.setScalar(
+                        isNarrow
+                            ? 1.55
+                            : clamp(1.75 + (aspect - 1.6) * 0.35, 1.75, 2.2),
                     );
-                    root.scale.setScalar(isNarrow ? 1.55 : desktopScale);
-
-                    // Keep camera framing consistent across aspect ratios.
                     camera.position.set(
                         isNarrow ? 0.7 : 1.2,
                         0.15,
                         isNarrow ? 18.5 : 16.5,
                     );
                 }
-
                 applyLayout();
 
-                // Orb layout: 12 nodes on a sphere (constellation / multi-tenant graph)
-                const ORB_COUNT = 12;
-                const ORB_RADIUS = 1.7;
-                const LAYOUT_RADIUS = 8.2;
-
-                const orbBasePositions = fibonacciSpherePoints(
-                    ORB_COUNT,
-                    LAYOUT_RADIUS,
-                );
-
-                // Materials
+                const N = 12,
+                    R = 1.7,
+                    LR = 8.2;
+                const bp = fibSphere(N, LR);
                 const shellMat = new THREE.MeshStandardMaterial({
                     color: 0x0f1026,
                     emissive: 0x23265a,
@@ -747,7 +1578,6 @@
                     transparent: true,
                     opacity: 0.3,
                 });
-
                 const wireMat = new THREE.MeshBasicMaterial({
                     color: 0x7c88ff,
                     transparent: true,
@@ -756,8 +1586,6 @@
                     depthWrite: false,
                     blending: THREE.AdditiveBlending,
                 });
-
-                // Inner glow via additive Points
                 const glowMat = new THREE.PointsMaterial({
                     color: 0xff7bd6,
                     size: 0.06,
@@ -766,28 +1594,19 @@
                     depthWrite: false,
                     blending: THREE.AdditiveBlending,
                 });
-
-                // Orb instances
-                const orbs = [];
-                const shellGeom = new THREE.SphereGeometry(ORB_RADIUS, 32, 32);
-                const wireGeom = new THREE.SphereGeometry(
-                    ORB_RADIUS * 1.03,
-                    16,
-                    16,
-                );
-
-                const haloTexture = createGlowTexture();
-                const haloBaseMat = new THREE.SpriteMaterial({
-                    map: haloTexture,
+                const sG = new THREE.SphereGeometry(R, 32, 32),
+                    wG = new THREE.SphereGeometry(R * 1.03, 16, 16);
+                const hTex = mkGlow();
+                const hMat = new THREE.SpriteMaterial({
+                    map: hTex,
                     color: 0x7c88ff,
                     transparent: true,
                     opacity: 0.42,
                     blending: THREE.AdditiveBlending,
                     depthWrite: false,
                 });
-
-                const coreGeom = new THREE.SphereGeometry(0.15, 14, 14);
-                const coreBaseMat = new THREE.MeshBasicMaterial({
+                const cG = new THREE.SphereGeometry(0.15, 14, 14);
+                const cMat = new THREE.MeshBasicMaterial({
                     color: 0x33d0ff,
                     transparent: true,
                     opacity: 0.95,
@@ -795,285 +1614,205 @@
                     depthWrite: false,
                 });
 
-                for (let i = 0; i < ORB_COUNT; i++) {
-                    const orbGroup = new THREE.Group();
-
-                    const shell = new THREE.Mesh(shellGeom, shellMat.clone());
-                    shell.material.emissiveIntensity = 1.0;
-
-                    const wire = new THREE.Mesh(wireGeom, wireMat.clone());
-
-                    // Inner glow: a small randomized point cloud inside the sphere
-                    const glowCount = 80;
-                    const glowPositions = new Float32Array(glowCount * 3);
-                    for (let p = 0; p < glowCount; p++) {
-                        const v = randomInSphere(ORB_RADIUS * 0.78);
-                        glowPositions[p * 3 + 0] = v.x;
-                        glowPositions[p * 3 + 1] = v.y;
-                        glowPositions[p * 3 + 2] = v.z;
+                const orbs = [];
+                for (let i = 0; i < N; i++) {
+                    const g = new THREE.Group();
+                    const sh = new THREE.Mesh(sG, shellMat.clone());
+                    sh.material.emissiveIntensity = 1;
+                    const wi = new THREE.Mesh(wG, wireMat.clone());
+                    const gc = 80,
+                        gp = new Float32Array(gc * 3);
+                    for (let p = 0; p < gc; p++) {
+                        const v = rndSph(R * 0.78);
+                        gp[p * 3] = v.x;
+                        gp[p * 3 + 1] = v.y;
+                        gp[p * 3 + 2] = v.z;
                     }
-                    const glowGeom = new THREE.BufferGeometry();
-                    glowGeom.setAttribute(
+                    const gg = new THREE.BufferGeometry();
+                    gg.setAttribute(
                         "position",
-                        new THREE.BufferAttribute(glowPositions, 3),
+                        new THREE.BufferAttribute(gp, 3),
                     );
-                    const glow = new THREE.Points(glowGeom, glowMat.clone());
-                    glow.material.color = new THREE.Color(
+                    const gl = new THREE.Points(gg, glowMat.clone());
+                    gl.material.color = new THREE.Color(
                         i % 2 === 0 ? 0x7c88ff : 0xff7bd6,
                     );
-
-                    // Halo sprite (makes each orb readable behind the veil)
-                    const halo = new THREE.Sprite(haloBaseMat.clone());
-                    halo.material.color = new THREE.Color(
+                    const ha = new THREE.Sprite(hMat.clone());
+                    ha.material.color = new THREE.Color(
                         i % 2 === 0 ? 0x7c88ff : 0xff7bd6,
                     );
-                    halo.material.opacity = 0.36;
-                    halo.scale.setScalar(ORB_RADIUS * 6.8);
-
-                    const core = new THREE.Mesh(coreGeom, coreBaseMat.clone());
-                    core.material.color = new THREE.Color(
+                    ha.material.opacity = 0.36;
+                    ha.scale.setScalar(R * 6.8);
+                    const co = new THREE.Mesh(cG, cMat.clone());
+                    co.material.color = new THREE.Color(
                         i % 2 === 0 ? 0x33d0ff : 0xff7bd6,
                     );
-
-                    orbGroup.add(shell);
-                    orbGroup.add(wire);
-                    orbGroup.add(glow);
-                    orbGroup.add(halo);
-                    orbGroup.add(core);
-
-                    orbGroup.position.copy(orbBasePositions[i]);
-                    orbGroup.userData.basePos = orbBasePositions[i].clone();
-                    orbGroup.userData.seed = Math.random() * Math.PI * 2;
-
-                    orbs.push(orbGroup);
-                    root.add(orbGroup);
+                    g.add(sh, wi, gl, ha, co);
+                    g.position.copy(bp[i]);
+                    g.userData.basePos = bp[i].clone();
+                    g.userData.seed = Math.random() * Math.PI * 2;
+                    orbs.push(g);
+                    root.add(g);
                 }
 
-                // Connection web: k-nearest neighbors + a few random long connections
-                let links = buildKnnLinks(orbBasePositions, 3);
-                links = addRandomLinks(links, ORB_COUNT, 10);
-
-                const linkGeom = new THREE.BufferGeometry();
-                const linkPositions = new Float32Array(links.length * 2 * 3);
-                linkGeom.setAttribute(
-                    "position",
-                    new THREE.BufferAttribute(linkPositions, 3),
+                let links = knnLinks(bp, 3);
+                links = addRndLinks(links, N, 10);
+                const lG = new THREE.BufferGeometry(),
+                    lP = new Float32Array(links.length * 6);
+                lG.setAttribute("position", new THREE.BufferAttribute(lP, 3));
+                root.add(
+                    new THREE.LineSegments(
+                        lG,
+                        new THREE.LineBasicMaterial({
+                            color: 0xb06cff,
+                            transparent: true,
+                            opacity: 0.44,
+                            blending: THREE.AdditiveBlending,
+                            depthWrite: false,
+                        }),
+                    ),
                 );
 
-                const linkMat = new THREE.LineBasicMaterial({
-                    color: 0xb06cff,
-                    transparent: true,
-                    opacity: 0.44,
-                    blending: THREE.AdditiveBlending,
-                    depthWrite: false,
-                });
-
-                const linkLines = new THREE.LineSegments(linkGeom, linkMat);
-                root.add(linkLines);
-
-                // Data packets traveling along the links
-                const packetGeom = new THREE.SphereGeometry(0.085, 12, 12);
-                const packetMat = new THREE.MeshBasicMaterial({
+                const pG = new THREE.SphereGeometry(0.085, 12, 12);
+                const pM = new THREE.MeshBasicMaterial({
                     color: 0x33d0ff,
                     transparent: true,
                     opacity: 0.9,
                     blending: THREE.AdditiveBlending,
                     depthWrite: false,
                 });
-
-                const PACKET_COUNT = 18;
-                const packets = [];
-                for (let i = 0; i < PACKET_COUNT; i++) {
-                    const mesh = new THREE.Mesh(packetGeom, packetMat.clone());
-                    mesh.material.color = new THREE.Color(
+                const pkts = [];
+                for (let i = 0; i < 18; i++) {
+                    const m = new THREE.Mesh(pG, pM.clone());
+                    m.material.color = new THREE.Color(
                         i % 3 === 0
                             ? 0x33d0ff
                             : i % 3 === 1
                               ? 0x7c88ff
                               : 0xff7bd6,
                     );
-                    mesh.userData.linkIndex = Math.floor(
+                    m.userData.linkIndex = Math.floor(
                         Math.random() * links.length,
                     );
-                    mesh.userData.t = Math.random();
-                    mesh.userData.speed = 0.08 + Math.random() * 0.12;
-                    packets.push(mesh);
-                    root.add(mesh);
+                    m.userData.t = Math.random();
+                    m.userData.speed = 0.08 + Math.random() * 0.12;
+                    pkts.push(m);
+                    root.add(m);
                 }
 
-                // Ambient starfield
-                const STAR_COUNT = 550;
-                const starGeom = new THREE.BufferGeometry();
-                const starPos = new Float32Array(STAR_COUNT * 3);
-                for (let i = 0; i < STAR_COUNT; i++) {
-                    starPos[i * 3 + 0] = (Math.random() - 0.5) * 120;
-                    starPos[i * 3 + 1] = (Math.random() - 0.5) * 90;
-                    starPos[i * 3 + 2] = (Math.random() - 0.5) * 120;
+                const SC = 550,
+                    stG = new THREE.BufferGeometry(),
+                    stP = new Float32Array(SC * 3);
+                for (let i = 0; i < SC; i++) {
+                    stP[i * 3] = (Math.random() - 0.5) * 120;
+                    stP[i * 3 + 1] = (Math.random() - 0.5) * 90;
+                    stP[i * 3 + 2] = (Math.random() - 0.5) * 120;
                 }
-                starGeom.setAttribute(
-                    "position",
-                    new THREE.BufferAttribute(starPos, 3),
+                stG.setAttribute("position", new THREE.BufferAttribute(stP, 3));
+                const stars = new THREE.Points(
+                    stG,
+                    new THREE.PointsMaterial({
+                        color: 0x7c88ff,
+                        size: 0.045,
+                        transparent: true,
+                        opacity: 0.28,
+                        depthWrite: false,
+                        blending: THREE.AdditiveBlending,
+                    }),
                 );
-                const starMat = new THREE.PointsMaterial({
-                    color: 0x7c88ff,
-                    size: 0.045,
-                    transparent: true,
-                    opacity: 0.28,
-                    depthWrite: false,
-                    blending: THREE.AdditiveBlending,
-                });
-                const stars = new THREE.Points(starGeom, starMat);
                 scene.add(stars);
 
-                // Mouse interaction
-                let mouseX = 0;
-                let mouseY = 0;
-
+                let mx = 0,
+                    my = 0;
                 document.addEventListener(
                     "mousemove",
-                    (event) => {
-                        mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-                        mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+                    (e) => {
+                        mx = (e.clientX / window.innerWidth) * 2 - 1;
+                        my = -(e.clientY / window.innerHeight) * 2 + 1;
                     },
                     { passive: true },
                 );
+                updLinks(lP, links, orbs);
 
-                // First link positions fill
-                updateLinks(linkPositions, links, orbs);
-
-                // Animation
-                const clock = new THREE.Clock();
-
-                // Reuse objects to avoid per-frame allocations
-                const orbitEuler = new THREE.Euler(0, 0, 0, "YXZ");
-                const wobble = new THREE.Vector3();
-
-                // Base drift rotation so it never feels static
-                let baseRotX = 0.0;
-                let baseRotY = 0.0;
+                const clock = new THREE.Clock(),
+                    oE = new THREE.Euler(0, 0, 0, "YXZ"),
+                    wb = new THREE.Vector3();
+                let brx = 0,
+                    bry = 0;
 
                 function animate() {
                     if (!prefersReducedMotion) requestAnimationFrame(animate);
-
                     const t = clock.getElapsedTime();
-
-                    // Keep the camera aimed at the cluster
                     camera.lookAt(root.position);
-
-                    // Mouse-driven orbit: the whole constellation rotates with you.
-                    // (This creates the "spheres rotate around" immersion.)
-                    const mouseRotY = mouseX * 0.85;
-                    const mouseRotX = mouseY * 0.55;
-
-                    // Slow base drift rotation (adds life)
-                    baseRotY += 0.0011;
-                    baseRotX += 0.00045;
-
-                    const targetRotY = baseRotY + mouseRotY;
-                    const targetRotX = baseRotX + mouseRotX;
-
-                    // Smooth interpolation
-                    root.rotation.y += (targetRotY - root.rotation.y) * 0.06;
-                    root.rotation.x += (targetRotX - root.rotation.x) * 0.06;
-
-                    // Orb breathing + extra mouse-driven orbiting (per-node)
-                    orbitEuler.set(mouseRotX * 0.55, mouseRotY * 0.55, 0);
-
+                    const mry = mx * 0.85,
+                        mrx = my * 0.55;
+                    bry += 0.0011;
+                    brx += 0.00045;
+                    root.rotation.y += (bry + mry - root.rotation.y) * 0.06;
+                    root.rotation.x += (brx + mrx - root.rotation.x) * 0.06;
+                    oE.set(mrx * 0.55, mry * 0.55, 0);
                     for (let i = 0; i < orbs.length; i++) {
-                        const g = orbs[i];
-                        const seed = g.userData.seed;
-
-                        const breathe = 0.065 + 0.03 * Math.sin(t * 1.1 + seed);
-                        g.scale.setScalar(1 + breathe);
-
-                        wobble.set(
-                            0.3 * Math.sin(t * 0.55 + seed),
-                            0.24 * Math.cos(t * 0.5 + seed * 1.3),
-                            0.28 * Math.sin(t * 0.45 + seed * 0.7),
+                        const g = orbs[i],
+                            s = g.userData.seed;
+                        g.scale.setScalar(
+                            1 + 0.065 + 0.03 * Math.sin(t * 1.1 + s),
                         );
-
-                        // Rotate the base position around the constellation center based on mouse,
-                        // so the nodes feel like they "swing" in 3D.
+                        wb.set(
+                            0.3 * Math.sin(t * 0.55 + s),
+                            0.24 * Math.cos(t * 0.5 + s * 1.3),
+                            0.28 * Math.sin(t * 0.45 + s * 0.7),
+                        );
                         g.position
                             .copy(g.userData.basePos)
-                            .applyEuler(orbitEuler)
-                            .add(wobble);
-
-                        // Pulse wire + halo a touch over time
-                        g.children.forEach((child) => {
-                            if (!child.material) return;
-
-                            if (child.material.wireframe) {
-                                child.material.opacity =
+                            .applyEuler(oE)
+                            .add(wb);
+                        g.children.forEach((c) => {
+                            if (!c.material) return;
+                            if (c.material.wireframe)
+                                c.material.opacity =
                                     0.16 +
-                                    0.14 *
-                                        (0.5 + 0.5 * Math.sin(t * 0.9 + seed));
-                            }
-
-                            // Sprite halo
-                            if (child.isSprite) {
-                                child.material.opacity =
+                                    0.14 * (0.5 + 0.5 * Math.sin(t * 0.9 + s));
+                            if (c.isSprite)
+                                c.material.opacity =
                                     0.26 +
-                                    0.18 *
-                                        (0.5 + 0.5 * Math.sin(t * 0.7 + seed));
-                            }
-
-                            // Core mesh (MeshBasicMaterial)
-                            if (child.isMesh && child.geometry === coreGeom) {
-                                child.material.opacity =
+                                    0.18 * (0.5 + 0.5 * Math.sin(t * 0.7 + s));
+                            if (c.isMesh && c.geometry === cG)
+                                c.material.opacity =
                                     0.7 +
-                                    0.25 *
-                                        (0.5 + 0.5 * Math.sin(t * 1.8 + seed));
-                            }
+                                    0.25 * (0.5 + 0.5 * Math.sin(t * 1.8 + s));
                         });
                     }
-
-                    // Update connection line segments (centers move)
-                    updateLinks(linkPositions, links, orbs);
-                    linkGeom.attributes.position.needsUpdate = true;
-
-                    // Animate data packets along links
-                    for (const p of packets) {
-                        const li = p.userData.linkIndex;
-                        const a = orbs[links[li][0]].position;
-                        const b = orbs[links[li][1]].position;
-
+                    updLinks(lP, links, orbs);
+                    lG.attributes.position.needsUpdate = true;
+                    for (const p of pkts) {
+                        const li = p.userData.linkIndex,
+                            a = orbs[links[li][0]].position,
+                            b = orbs[links[li][1]].position;
                         p.userData.t =
                             (p.userData.t + p.userData.speed * 0.008) % 1;
-
-                        // Slight curve by adding an offset towards camera
                         const mid = new THREE.Vector3()
                             .addVectors(a, b)
                             .multiplyScalar(0.5);
-                        const curve = mid
-                            .clone()
-                            .add(new THREE.Vector3(0, 0, 2.4));
-                        const pos = quadraticBezier(a, curve, b, p.userData.t);
-                        p.position.copy(pos);
-
-                        // Pulse brightness
-                        const pulse =
+                        p.position.copy(
+                            qBez(
+                                a,
+                                mid.clone().add(new THREE.Vector3(0, 0, 2.4)),
+                                b,
+                                p.userData.t,
+                            ),
+                        );
+                        const pu =
                             0.55 +
                             0.45 * Math.sin(t * 2.1 + p.userData.t * 6.28);
-                        p.material.opacity = 0.55 + pulse * 0.35;
-                        p.scale.setScalar(0.9 + pulse * 0.35);
+                        p.material.opacity = 0.55 + pu * 0.35;
+                        p.scale.setScalar(0.9 + pu * 0.35);
                     }
-
-                    // Star drift
                     stars.rotation.y += 0.00018;
                     stars.rotation.x += 0.00009;
-
                     renderer.render(scene, camera);
                 }
-
-                if (prefersReducedMotion) {
-                    // Render a single frame and stop.
-                    renderer.render(scene, camera);
-                } else {
-                    animate();
-                }
-
-                // Resize
+                if (prefersReducedMotion) renderer.render(scene, camera);
+                else animate();
                 window.addEventListener(
                     "resize",
                     () => {
@@ -1089,152 +1828,123 @@
                 );
             }
 
-            function updateLinks(outPositions, links, orbs) {
-                for (let i = 0; i < links.length; i++) {
-                    const a = orbs[links[i][0]].position;
-                    const b = orbs[links[i][1]].position;
-
-                    const base = i * 6;
-                    outPositions[base + 0] = a.x;
-                    outPositions[base + 1] = a.y;
-                    outPositions[base + 2] = a.z;
-                    outPositions[base + 3] = b.x;
-                    outPositions[base + 4] = b.y;
-                    outPositions[base + 5] = b.z;
+            function updLinks(o, l, orbs) {
+                for (let i = 0; i < l.length; i++) {
+                    const a = orbs[l[i][0]].position,
+                        b = orbs[l[i][1]].position,
+                        base = i * 6;
+                    o[base] = a.x;
+                    o[base + 1] = a.y;
+                    o[base + 2] = a.z;
+                    o[base + 3] = b.x;
+                    o[base + 4] = b.y;
+                    o[base + 5] = b.z;
                 }
             }
-
-            function createGlowTexture() {
-                const size = 128;
-                const canvas = document.createElement("canvas");
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext("2d");
-
-                const g = ctx.createRadialGradient(
-                    size / 2,
-                    size / 2,
-                    0,
-                    size / 2,
-                    size / 2,
-                    size / 2,
-                );
-                g.addColorStop(0.0, "rgba(255,255,255,1)");
+            function mkGlow() {
+                const s = 128,
+                    c = document.createElement("canvas");
+                c.width = s;
+                c.height = s;
+                const x = c.getContext("2d"),
+                    g = x.createRadialGradient(
+                        s / 2,
+                        s / 2,
+                        0,
+                        s / 2,
+                        s / 2,
+                        s / 2,
+                    );
+                g.addColorStop(0, "rgba(255,255,255,1)");
                 g.addColorStop(0.25, "rgba(255,255,255,0.45)");
                 g.addColorStop(0.55, "rgba(255,255,255,0.18)");
-                g.addColorStop(1.0, "rgba(255,255,255,0)");
-
-                ctx.fillStyle = g;
-                ctx.fillRect(0, 0, size, size);
-
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.minFilter = THREE.LinearFilter;
-                tex.magFilter = THREE.LinearFilter;
-                tex.generateMipmaps = false;
-                return tex;
+                g.addColorStop(1, "rgba(255,255,255,0)");
+                x.fillStyle = g;
+                x.fillRect(0, 0, s, s);
+                const t = new THREE.CanvasTexture(c);
+                t.minFilter = THREE.LinearFilter;
+                t.magFilter = THREE.LinearFilter;
+                t.generateMipmaps = false;
+                return t;
             }
-
-            function randomInSphere(radius) {
-                // Rejection sampling in unit sphere
+            function rndSph(r) {
                 while (true) {
-                    const x = (Math.random() * 2 - 1) * radius;
-                    const y = (Math.random() * 2 - 1) * radius;
-                    const z = (Math.random() * 2 - 1) * radius;
-                    if (x * x + y * y + z * z <= radius * radius) {
+                    const x = (Math.random() * 2 - 1) * r,
+                        y = (Math.random() * 2 - 1) * r,
+                        z = (Math.random() * 2 - 1) * r;
+                    if (x * x + y * y + z * z <= r * r)
                         return new THREE.Vector3(x, y, z);
-                    }
                 }
             }
-
-            function fibonacciSpherePoints(count, radius) {
-                // Even-ish distribution on a sphere using a Fibonacci spiral.
-                const pts = [];
-                const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-
-                for (let i = 0; i < count; i++) {
-                    const y = 1 - (i / (count - 1)) * 2; // 1..-1
-                    const r = Math.sqrt(Math.max(0, 1 - y * y));
-                    const theta = goldenAngle * i;
-
-                    const x = Math.cos(theta) * r;
-                    const z = Math.sin(theta) * r;
-
-                    // Slight jitter to avoid a perfect "diagram" look.
-                    const jitter = 0.35;
-                    pts.push(
+            function fibSphere(n, r) {
+                const p = [],
+                    ga = Math.PI * (3 - Math.sqrt(5));
+                for (let i = 0; i < n; i++) {
+                    const y = 1 - (i / (n - 1)) * 2,
+                        rd = Math.sqrt(Math.max(0, 1 - y * y)),
+                        th = ga * i,
+                        j = 0.35;
+                    p.push(
                         new THREE.Vector3(
-                            x * radius + (Math.random() - 0.5) * jitter,
-                            y * radius + (Math.random() - 0.5) * jitter,
-                            z * radius + (Math.random() - 0.5) * jitter,
+                            Math.cos(th) * rd * r + (Math.random() - 0.5) * j,
+                            y * r + (Math.random() - 0.5) * j,
+                            Math.sin(th) * rd * r + (Math.random() - 0.5) * j,
                         ),
                     );
                 }
-
-                return pts;
+                return p;
             }
-
-            function buildKnnLinks(points, k) {
-                const links = [];
-                const set = new Set();
-
-                for (let i = 0; i < points.length; i++) {
-                    const distances = points
-                        .map((p, idx) => ({ idx, d: points[i].distanceTo(p) }))
+            function knnLinks(pts, k) {
+                const l = [],
+                    s = new Set();
+                for (let i = 0; i < pts.length; i++) {
+                    const d = pts
+                        .map((p, idx) => ({ idx, d: pts[i].distanceTo(p) }))
                         .sort((a, b) => a.d - b.d);
-
-                    for (let n = 1; n <= k && n < distances.length; n++) {
-                        const j = distances[n].idx;
-                        const a = Math.min(i, j);
-                        const b = Math.max(i, j);
-                        const key = `${a}-${b}`;
-                        if (a !== b && !set.has(key)) {
-                            set.add(key);
-                            links.push([a, b]);
+                    for (let n = 1; n <= k && n < d.length; n++) {
+                        const j = d[n].idx,
+                            a = Math.min(i, j),
+                            b = Math.max(i, j),
+                            key = `${a}-${b}`;
+                        if (a !== b && !s.has(key)) {
+                            s.add(key);
+                            l.push([a, b]);
                         }
                     }
                 }
-
-                return links;
+                return l;
             }
-
-            function addRandomLinks(existingLinks, nodeCount, count) {
-                const links = existingLinks.slice();
-                const set = new Set(
-                    links.map(
-                        ([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`,
-                    ),
-                );
-
-                let guard = 0;
-                while (count > 0 && guard < 5000) {
-                    guard++;
-                    const a0 = Math.floor(Math.random() * nodeCount);
-                    const b0 = Math.floor(Math.random() * nodeCount);
+            function addRndLinks(ex, nc, ct) {
+                const l = ex.slice(),
+                    s = new Set(
+                        l.map(
+                            ([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`,
+                        ),
+                    );
+                let g = 0;
+                while (ct > 0 && g < 5e3) {
+                    g++;
+                    const a0 = Math.floor(Math.random() * nc),
+                        b0 = Math.floor(Math.random() * nc);
                     if (a0 === b0) continue;
-
-                    const a = Math.min(a0, b0);
-                    const b = Math.max(a0, b0);
-                    const key = `${a}-${b}`;
-                    if (set.has(key)) continue;
-
-                    set.add(key);
-                    links.push([a, b]);
-                    count--;
+                    const a = Math.min(a0, b0),
+                        b = Math.max(a0, b0),
+                        k = `${a}-${b}`;
+                    if (s.has(k)) continue;
+                    s.add(k);
+                    l.push([a, b]);
+                    ct--;
                 }
-
-                return links;
+                return l;
             }
-
-            function quadraticBezier(a, b, c, t) {
-                // (1-t)^2 a + 2(1-t)t b + t^2 c
-                const inv = 1 - t;
-                const inv2 = inv * inv;
-                const t2 = t * t;
-
+            function qBez(a, b, c, t) {
+                const i = 1 - t,
+                    i2 = i * i,
+                    t2 = t * t;
                 return new THREE.Vector3(
-                    inv2 * a.x + 2 * inv * t * b.x + t2 * c.x,
-                    inv2 * a.y + 2 * inv * t * b.y + t2 * c.y,
-                    inv2 * a.z + 2 * inv * t * b.z + t2 * c.z,
+                    i2 * a.x + 2 * i * t * b.x + t2 * c.x,
+                    i2 * a.y + 2 * i * t * b.y + t2 * c.y,
+                    i2 * a.z + 2 * i * t * b.z + t2 * c.z,
                 );
             }
         </script>

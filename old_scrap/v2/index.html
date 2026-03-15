@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="color-scheme" content="dark" />
+        <meta
+            name="description"
+            content="WebHost.Systems — a multi-runtime AI agent deployment and hosting platform with a TypeScript-first developer experience. Control plane (UI + APIs) for deploys, secrets, telemetry, billing; data plane on Cloudflare Workers + Durable Objects (default) and AWS Bedrock AgentCore (premium)."
+        />
+        <title>WebHost.Systems — AI Systems for Web Hosts</title>
+
+        <style>
+            :root {
+                --bg: #070710;
+                --fg: #eef0ff;
+                --muted: rgba(238, 240, 255, 0.72);
+                --muted2: rgba(238, 240, 255, 0.55);
+
+                --a1: #7c88ff;
+                --a2: #b06cff;
+                --a3: #ff7bd6;
+                --a4: #33d0ff;
+
+                --card: rgba(255, 255, 255, 0.06);
+                --cardBorder: rgba(255, 255, 255, 0.12);
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                height: 100%;
+            }
+
+            body {
+                font-family:
+                    ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    Roboto,
+                    "Helvetica Neue",
+                    Arial,
+                    "Noto Sans",
+                    "Apple Color Emoji",
+                    "Segoe UI Emoji";
+                background:
+                    radial-gradient(
+                        1200px 800px at 20% 20%,
+                        rgba(124, 136, 255, 0.14),
+                        transparent 60%
+                    ),
+                    radial-gradient(
+                        1000px 700px at 80% 30%,
+                        rgba(255, 123, 214, 0.1),
+                        transparent 55%
+                    ),
+                    radial-gradient(
+                        900px 900px at 60% 90%,
+                        rgba(51, 208, 255, 0.09),
+                        transparent 60%
+                    ),
+                    var(--bg);
+                color: var(--fg);
+                overflow-x: hidden;
+            }
+
+            a {
+                color: inherit;
+            }
+
+            /* WebGL canvas background */
+            #canvas-container {
+                position: fixed;
+                inset: 0;
+                z-index: 0;
+            }
+
+            /* Ensure the canvas always fills the viewport (prevents “half-screen” sizing) */
+            #canvas-container canvas {
+                width: 100% !important;
+                height: 100% !important;
+                display: block;
+            }
+
+            /* Subtle vignette + blur overlay to unify scene */
+            .veil {
+                position: fixed;
+                inset: 0;
+                z-index: 1;
+                pointer-events: none;
+                /* Keep hero readable while spotlighting the 3D constellation to the right */
+                background:
+                    radial-gradient(
+                        900px 680px at 72% 44%,
+                        rgba(7, 7, 16, 0.16),
+                        rgba(7, 7, 16, 0.48) 62%,
+                        rgba(7, 7, 16, 0.78)
+                    ),
+                    radial-gradient(
+                        1100px 760px at 45% 48%,
+                        transparent,
+                        rgba(7, 7, 16, 0.62) 70%,
+                        rgba(7, 7, 16, 0.88)
+                    ),
+                    linear-gradient(
+                        to bottom,
+                        rgba(7, 7, 16, 0.12),
+                        rgba(7, 7, 16, 0.5)
+                    );
+            }
+
+            /* Page content */
+            .page {
+                position: relative;
+                z-index: 10;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .topbar {
+                width: 100%;
+                padding: 28px 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .topbar-inner {
+                width: min(1100px, 100%);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+            }
+
+            .brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+                text-decoration: none;
+            }
+
+            .brand-mark {
+                width: 14px;
+                height: 14px;
+                border-radius: 999px;
+                background: linear-gradient(
+                    135deg,
+                    var(--a1),
+                    var(--a2),
+                    var(--a3)
+                );
+                box-shadow:
+                    0 0 0 6px rgba(124, 136, 255, 0.12),
+                    0 0 40px rgba(176, 108, 255, 0.25);
+            }
+
+            .brand-name {
+                font-size: 13px;
+                letter-spacing: 0.28em;
+                text-transform: uppercase;
+                color: rgba(238, 240, 255, 0.78);
+                font-weight: 500;
+            }
+
+            .navlinks {
+                display: inline-flex;
+                align-items: center;
+                gap: 14px;
+            }
+
+            .navlinks a {
+                text-decoration: none;
+                font-size: 12px;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: rgba(238, 240, 255, 0.62);
+                padding: 10px 12px;
+                border-radius: 999px;
+                transition:
+                    background 160ms ease,
+                    color 160ms ease;
+            }
+
+            .navlinks a:hover {
+                color: rgba(238, 240, 255, 0.92);
+                background: rgba(255, 255, 255, 0.06);
+            }
+
+            .hero {
+                flex: 1;
+                display: grid;
+                place-items: center;
+                padding: 28px 22px 40px;
+            }
+
+            .hero-inner {
+                width: min(1100px, 100%);
+                display: grid;
+                grid-template-columns: 1.2fr 0.8fr;
+                gap: 28px;
+                align-items: center;
+            }
+
+            .headline {
+                font-size: clamp(44px, 6.8vw, 88px);
+                line-height: 1.03;
+                font-weight: 900;
+                background: linear-gradient(
+                    135deg,
+                    var(--a1) 0%,
+                    var(--a2) 45%,
+                    var(--a3) 100%
+                );
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                letter-spacing: -0.02em;
+            }
+
+            .subhead {
+                margin-top: 16px;
+                font-size: clamp(16px, 2vw, 20px);
+                line-height: 1.55;
+                color: var(--muted);
+                max-width: 62ch;
+            }
+
+            .pillrow {
+                margin-top: 16px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .pill {
+                font-size: 12px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                padding: 10px 12px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                color: rgba(238, 240, 255, 0.72);
+                backdrop-filter: blur(8px);
+            }
+
+            .ctas {
+                margin-top: 24px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 16px 20px;
+                border-radius: 999px;
+                text-decoration: none;
+                font-weight: 650;
+                letter-spacing: 0.02em;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: rgba(255, 255, 255, 0.06);
+                backdrop-filter: blur(10px);
+                transition:
+                    transform 180ms ease,
+                    background 180ms ease,
+                    border-color 180ms ease,
+                    box-shadow 180ms ease;
+                user-select: none;
+            }
+
+            .button:hover {
+                transform: translateY(-2px);
+                border-color: rgba(255, 255, 255, 0.22);
+                background: rgba(255, 255, 255, 0.09);
+                box-shadow: 0 18px 55px rgba(124, 136, 255, 0.16);
+            }
+
+            .button.primary {
+                border-color: rgba(124, 136, 255, 0.35);
+                background: linear-gradient(
+                    135deg,
+                    rgba(124, 136, 255, 0.22),
+                    rgba(176, 108, 255, 0.18),
+                    rgba(255, 123, 214, 0.14)
+                );
+                box-shadow: 0 22px 70px rgba(176, 108, 255, 0.16);
+            }
+
+            .button svg {
+                width: 18px;
+                height: 18px;
+                opacity: 0.95;
+            }
+
+            .aside {
+                border-radius: 18px;
+                background: linear-gradient(
+                    180deg,
+                    rgba(255, 255, 255, 0.07),
+                    rgba(255, 255, 255, 0.04)
+                );
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                padding: 18px;
+                backdrop-filter: blur(12px);
+            }
+
+            .aside h2 {
+                font-size: 12px;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: rgba(238, 240, 255, 0.68);
+                margin-bottom: 12px;
+            }
+
+            .bullets {
+                list-style: none;
+                display: grid;
+                gap: 12px;
+            }
+
+            .bullets li {
+                display: grid;
+                grid-template-columns: 18px 1fr;
+                gap: 10px;
+                align-items: start;
+                color: var(--muted);
+                line-height: 1.45;
+                font-size: 14px;
+            }
+
+            .check {
+                width: 18px;
+                height: 18px;
+                border-radius: 6px;
+                background: rgba(124, 136, 255, 0.16);
+                border: 1px solid rgba(124, 136, 255, 0.3);
+                box-shadow: 0 10px 30px rgba(124, 136, 255, 0.1);
+                display: grid;
+                place-items: center;
+                margin-top: 2px;
+            }
+
+            .check svg {
+                width: 12px;
+                height: 12px;
+            }
+
+            .footer {
+                padding: 18px 22px 28px;
+                display: flex;
+                justify-content: center;
+            }
+
+            .footer-inner {
+                width: min(1100px, 100%);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 16px;
+                color: var(--muted2);
+                font-size: 12px;
+                letter-spacing: 0.06em;
+            }
+
+            .footer-inner .tagline {
+                text-transform: uppercase;
+                letter-spacing: 0.22em;
+                color: rgba(238, 240, 255, 0.52);
+            }
+
+            /* Loading */
+            .loading {
+                position: fixed;
+                inset: 0;
+                display: grid;
+                place-items: center;
+                z-index: 50;
+                background: rgba(7, 7, 16, 0.55);
+                backdrop-filter: blur(12px);
+                transition: opacity 300ms ease;
+            }
+
+            .spinner {
+                width: 52px;
+                height: 52px;
+                border: 3px solid rgba(124, 136, 255, 0.18);
+                border-top-color: rgba(255, 123, 214, 0.75);
+                border-radius: 999px;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* Responsive */
+            @media (max-width: 940px) {
+                .hero-inner {
+                    grid-template-columns: 1fr;
+                }
+
+                .navlinks {
+                    display: none;
+                }
+            }
+
+            /* Respect reduced motion */
+            @media (prefers-reduced-motion: reduce) {
+                * {
+                    scroll-behavior: auto !important;
+                    transition: none !important;
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="loading" id="loading" aria-hidden="true">
+            <div class="spinner" aria-hidden="true"></div>
+        </div>
+
+        <div id="canvas-container" aria-hidden="true"></div>
+        <div class="veil" aria-hidden="true"></div>
+
+        <main class="page">
+            <header class="topbar">
+                <div class="topbar-inner">
+                    <a class="brand" href="/" aria-label="WebHost.Systems home">
+                        <span class="brand-mark" aria-hidden="true"></span>
+                        <span class="brand-name">WebHost.Systems</span>
+                    </a>
+                    <nav class="navlinks" aria-label="Primary">
+                        <a href="#features">Features</a>
+                        <a href="#stack">Stack</a>
+                        <a href="#cta">Access</a>
+                    </nav>
+                </div>
+            </header>
+
+            <section class="hero" aria-label="Hero">
+                <div class="hero-inner">
+                    <div>
+                        <h1 class="headline">
+                            AI Systems<br />for<br />Web Hosts
+                        </h1>
+                        <p class="subhead">
+                            <strong>WebHost.Systems</strong> is a multi-runtime
+                            AI agent deployment and hosting platform. A
+                            <strong>control plane</strong> (UI + APIs) handles
+                            deploys, config/secrets, telemetry, and billing,
+                            while a <strong>data plane</strong> runs agents on
+                            <strong
+                                >Cloudflare Workers + Durable Objects</strong
+                            >
+                            (default) or <strong>AWS Bedrock AgentCore</strong>
+                            (premium). Built for a
+                            <strong>TypeScript-first</strong> developer
+                            experience with metering and limit enforcement.
+                        </p>
+
+                        <div class="pillrow" id="stack">
+                            <span class="pill">TypeScript</span>
+                            <span class="pill">Cloudflare Workers</span>
+                            <span class="pill">Durable Objects</span>
+                            <span class="pill">AWS Bedrock AgentCore</span>
+                            <span class="pill">Convex (Control Plane)</span>
+                            <span class="pill">Metering + Limits</span>
+                        </div>
+
+                        <div class="ctas" id="cta">
+                            <a
+                                class="button primary"
+                                href="https://app.webhost.systems"
+                            >
+                                <span>app.webhost.systems</span>
+                                <svg
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                    />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <aside class="aside" id="features" aria-label="Highlights">
+                        <h2>What you get</h2>
+                        <ul class="bullets">
+                            <li>
+                                <span class="check" aria-hidden="true">
+                                    <svg
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                </span>
+                                <span>
+                                    <strong>Multi-runtime portability</strong>
+                                    behind a single abstraction (Cloudflare by
+                                    default, AgentCore for premium/enterprise).
+                                </span>
+                            </li>
+                            <li>
+                                <span class="check" aria-hidden="true">
+                                    <svg
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                </span>
+                                <span>
+                                    <strong>Immutable deployments</strong> with
+                                    rollback via an active deployment pointer.
+                                </span>
+                            </li>
+                            <li>
+                                <span class="check" aria-hidden="true">
+                                    <svg
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                </span>
+                                <span>
+                                    <strong>Stable invocation</strong> via
+                                    <code>invoke/v1</code>, opaque session IDs,
+                                    and optional streaming (SSE).
+                                </span>
+                            </li>
+                            <li>
+                                <span class="check" aria-hidden="true">
+                                    <svg
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                </span>
+                                <span>
+                                    <strong>Secure metering + secrets</strong>:
+                                    signed telemetry events, usage aggregation
+                                    with plan limit enforcement, and no
+                                    plaintext secrets in the primary DB (use
+                                    provider-native secret mechanisms).
+                                </span>
+                            </li>
+                        </ul>
+                    </aside>
+                </div>
+            </section>
+
+            <footer class="footer" aria-label="Footer">
+                <div class="footer-inner">
+                    <span
+                        >© <span id="year"></span> WebHost.Systems ... Powered
+                        by
+                        <a href="https://ampersandboxdesign.com" target="_blank"
+                            >[&]</a
+                        ></span
+                    >
+                    <span class="tagline">Ship portable agents, faster</span>
+                </div>
+            </footer>
+        </main>
+
+        <!-- Three.js (kept consistent with geofleetic.html) -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+        <script>
+            "use strict";
+
+            // Basic DOM wiring
+            document.getElementById("year").textContent =
+                new Date().getFullYear();
+
+            // Respect reduced motion
+            const prefersReducedMotion = window.matchMedia(
+                "(prefers-reduced-motion: reduce)",
+            ).matches;
+
+            window.addEventListener("load", () => {
+                try {
+                    initScene();
+                } catch (err) {
+                    // If WebGL fails, keep the page usable.
+                    console.error("WebGL init failed:", err);
+                } finally {
+                    const loading = document.getElementById("loading");
+                    loading.style.opacity = "0";
+                    setTimeout(() => (loading.style.display = "none"), 320);
+                }
+            });
+
+            function initScene() {
+                const container = document.getElementById("canvas-container");
+
+                // Scene
+                const scene = new THREE.Scene();
+                scene.fog = new THREE.Fog(0x070710, 12, 70);
+
+                // Camera
+                // Tighter framing so the constellation reaches the screen edges.
+                const camera = new THREE.PerspectiveCamera(
+                    46,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    250,
+                );
+                camera.position.set(1.2, 0.15, 16.5);
+
+                // Renderer
+                const renderer = new THREE.WebGLRenderer({
+                    antialias: true,
+                    alpha: true,
+                    powerPreference: "high-performance",
+                });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(
+                    Math.min(window.devicePixelRatio || 1, 2),
+                );
+                renderer.setClearColor(0x070710, 0);
+                renderer.outputEncoding = THREE.sRGBEncoding;
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.08;
+                renderer.physicallyCorrectLights = true;
+                container.appendChild(renderer.domElement);
+
+                // Lights (soft, mostly emissive look)
+                const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+                scene.add(ambient);
+
+                const key = new THREE.DirectionalLight(0xaab0ff, 0.55);
+                key.position.set(6, 8, 10);
+                scene.add(key);
+
+                const rim = new THREE.DirectionalLight(0xff7bd6, 0.35);
+                rim.position.set(-10, -6, 6);
+                scene.add(rim);
+
+                // Group that holds the whole "constellation"
+                const root = new THREE.Group();
+                scene.add(root);
+
+                // Fit/position the constellation so it "bleeds" to the viewport edges.
+                // (Keeps it slightly right-biased on wide screens so the headline stays readable.)
+                function applyLayout() {
+                    const isNarrow = window.innerWidth < 940;
+                    const aspect =
+                        window.innerWidth / Math.max(1, window.innerHeight);
+
+                    // Slightly more right bias on desktop, but centered-ish on mobile.
+                    root.position.set(
+                        isNarrow ? 0.9 : 5.4,
+                        0.1,
+                        isNarrow ? -4.2 : -3.4,
+                    );
+                    root.rotation.y = isNarrow ? 0.35 : 0.55;
+
+                    // Make the constellation fill the viewport.
+                    // On ultra-wide screens we scale it up a touch more so it reaches the edges.
+                    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+                    const desktopScale = clamp(
+                        1.75 + (aspect - 1.6) * 0.35,
+                        1.75,
+                        2.2,
+                    );
+                    root.scale.setScalar(isNarrow ? 1.55 : desktopScale);
+
+                    // Keep camera framing consistent across aspect ratios.
+                    camera.position.set(
+                        isNarrow ? 0.7 : 1.2,
+                        0.15,
+                        isNarrow ? 18.5 : 16.5,
+                    );
+                }
+
+                applyLayout();
+
+                // Orb layout: 12 nodes on a sphere (constellation / multi-tenant graph)
+                const ORB_COUNT = 12;
+                const ORB_RADIUS = 1.7;
+                const LAYOUT_RADIUS = 8.2;
+
+                const orbBasePositions = fibonacciSpherePoints(
+                    ORB_COUNT,
+                    LAYOUT_RADIUS,
+                );
+
+                // Materials
+                const shellMat = new THREE.MeshStandardMaterial({
+                    color: 0x0f1026,
+                    emissive: 0x23265a,
+                    roughness: 0.32,
+                    metalness: 0.18,
+                    transparent: true,
+                    opacity: 0.3,
+                });
+
+                const wireMat = new THREE.MeshBasicMaterial({
+                    color: 0x7c88ff,
+                    transparent: true,
+                    opacity: 0.28,
+                    wireframe: true,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                });
+
+                // Inner glow via additive Points
+                const glowMat = new THREE.PointsMaterial({
+                    color: 0xff7bd6,
+                    size: 0.06,
+                    transparent: true,
+                    opacity: 0.88,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                });
+
+                // Orb instances
+                const orbs = [];
+                const shellGeom = new THREE.SphereGeometry(ORB_RADIUS, 32, 32);
+                const wireGeom = new THREE.SphereGeometry(
+                    ORB_RADIUS * 1.03,
+                    16,
+                    16,
+                );
+
+                const haloTexture = createGlowTexture();
+                const haloBaseMat = new THREE.SpriteMaterial({
+                    map: haloTexture,
+                    color: 0x7c88ff,
+                    transparent: true,
+                    opacity: 0.42,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                });
+
+                const coreGeom = new THREE.SphereGeometry(0.15, 14, 14);
+                const coreBaseMat = new THREE.MeshBasicMaterial({
+                    color: 0x33d0ff,
+                    transparent: true,
+                    opacity: 0.95,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                });
+
+                for (let i = 0; i < ORB_COUNT; i++) {
+                    const orbGroup = new THREE.Group();
+
+                    const shell = new THREE.Mesh(shellGeom, shellMat.clone());
+                    shell.material.emissiveIntensity = 1.0;
+
+                    const wire = new THREE.Mesh(wireGeom, wireMat.clone());
+
+                    // Inner glow: a small randomized point cloud inside the sphere
+                    const glowCount = 80;
+                    const glowPositions = new Float32Array(glowCount * 3);
+                    for (let p = 0; p < glowCount; p++) {
+                        const v = randomInSphere(ORB_RADIUS * 0.78);
+                        glowPositions[p * 3 + 0] = v.x;
+                        glowPositions[p * 3 + 1] = v.y;
+                        glowPositions[p * 3 + 2] = v.z;
+                    }
+                    const glowGeom = new THREE.BufferGeometry();
+                    glowGeom.setAttribute(
+                        "position",
+                        new THREE.BufferAttribute(glowPositions, 3),
+                    );
+                    const glow = new THREE.Points(glowGeom, glowMat.clone());
+                    glow.material.color = new THREE.Color(
+                        i % 2 === 0 ? 0x7c88ff : 0xff7bd6,
+                    );
+
+                    // Halo sprite (makes each orb readable behind the veil)
+                    const halo = new THREE.Sprite(haloBaseMat.clone());
+                    halo.material.color = new THREE.Color(
+                        i % 2 === 0 ? 0x7c88ff : 0xff7bd6,
+                    );
+                    halo.material.opacity = 0.36;
+                    halo.scale.setScalar(ORB_RADIUS * 6.8);
+
+                    const core = new THREE.Mesh(coreGeom, coreBaseMat.clone());
+                    core.material.color = new THREE.Color(
+                        i % 2 === 0 ? 0x33d0ff : 0xff7bd6,
+                    );
+
+                    orbGroup.add(shell);
+                    orbGroup.add(wire);
+                    orbGroup.add(glow);
+                    orbGroup.add(halo);
+                    orbGroup.add(core);
+
+                    orbGroup.position.copy(orbBasePositions[i]);
+                    orbGroup.userData.basePos = orbBasePositions[i].clone();
+                    orbGroup.userData.seed = Math.random() * Math.PI * 2;
+
+                    orbs.push(orbGroup);
+                    root.add(orbGroup);
+                }
+
+                // Connection web: k-nearest neighbors + a few random long connections
+                let links = buildKnnLinks(orbBasePositions, 3);
+                links = addRandomLinks(links, ORB_COUNT, 10);
+
+                const linkGeom = new THREE.BufferGeometry();
+                const linkPositions = new Float32Array(links.length * 2 * 3);
+                linkGeom.setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(linkPositions, 3),
+                );
+
+                const linkMat = new THREE.LineBasicMaterial({
+                    color: 0xb06cff,
+                    transparent: true,
+                    opacity: 0.44,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                });
+
+                const linkLines = new THREE.LineSegments(linkGeom, linkMat);
+                root.add(linkLines);
+
+                // Data packets traveling along the links
+                const packetGeom = new THREE.SphereGeometry(0.085, 12, 12);
+                const packetMat = new THREE.MeshBasicMaterial({
+                    color: 0x33d0ff,
+                    transparent: true,
+                    opacity: 0.9,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false,
+                });
+
+                const PACKET_COUNT = 18;
+                const packets = [];
+                for (let i = 0; i < PACKET_COUNT; i++) {
+                    const mesh = new THREE.Mesh(packetGeom, packetMat.clone());
+                    mesh.material.color = new THREE.Color(
+                        i % 3 === 0
+                            ? 0x33d0ff
+                            : i % 3 === 1
+                              ? 0x7c88ff
+                              : 0xff7bd6,
+                    );
+                    mesh.userData.linkIndex = Math.floor(
+                        Math.random() * links.length,
+                    );
+                    mesh.userData.t = Math.random();
+                    mesh.userData.speed = 0.08 + Math.random() * 0.12;
+                    packets.push(mesh);
+                    root.add(mesh);
+                }
+
+                // Ambient starfield
+                const STAR_COUNT = 550;
+                const starGeom = new THREE.BufferGeometry();
+                const starPos = new Float32Array(STAR_COUNT * 3);
+                for (let i = 0; i < STAR_COUNT; i++) {
+                    starPos[i * 3 + 0] = (Math.random() - 0.5) * 120;
+                    starPos[i * 3 + 1] = (Math.random() - 0.5) * 90;
+                    starPos[i * 3 + 2] = (Math.random() - 0.5) * 120;
+                }
+                starGeom.setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(starPos, 3),
+                );
+                const starMat = new THREE.PointsMaterial({
+                    color: 0x7c88ff,
+                    size: 0.045,
+                    transparent: true,
+                    opacity: 0.28,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                });
+                const stars = new THREE.Points(starGeom, starMat);
+                scene.add(stars);
+
+                // Mouse interaction
+                let mouseX = 0;
+                let mouseY = 0;
+
+                document.addEventListener(
+                    "mousemove",
+                    (event) => {
+                        mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                        mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+                    },
+                    { passive: true },
+                );
+
+                // First link positions fill
+                updateLinks(linkPositions, links, orbs);
+
+                // Animation
+                const clock = new THREE.Clock();
+
+                // Reuse objects to avoid per-frame allocations
+                const orbitEuler = new THREE.Euler(0, 0, 0, "YXZ");
+                const wobble = new THREE.Vector3();
+
+                // Base drift rotation so it never feels static
+                let baseRotX = 0.0;
+                let baseRotY = 0.0;
+
+                function animate() {
+                    if (!prefersReducedMotion) requestAnimationFrame(animate);
+
+                    const t = clock.getElapsedTime();
+
+                    // Keep the camera aimed at the cluster
+                    camera.lookAt(root.position);
+
+                    // Mouse-driven orbit: the whole constellation rotates with you.
+                    // (This creates the "spheres rotate around" immersion.)
+                    const mouseRotY = mouseX * 0.85;
+                    const mouseRotX = mouseY * 0.55;
+
+                    // Slow base drift rotation (adds life)
+                    baseRotY += 0.0011;
+                    baseRotX += 0.00045;
+
+                    const targetRotY = baseRotY + mouseRotY;
+                    const targetRotX = baseRotX + mouseRotX;
+
+                    // Smooth interpolation
+                    root.rotation.y += (targetRotY - root.rotation.y) * 0.06;
+                    root.rotation.x += (targetRotX - root.rotation.x) * 0.06;
+
+                    // Orb breathing + extra mouse-driven orbiting (per-node)
+                    orbitEuler.set(mouseRotX * 0.55, mouseRotY * 0.55, 0);
+
+                    for (let i = 0; i < orbs.length; i++) {
+                        const g = orbs[i];
+                        const seed = g.userData.seed;
+
+                        const breathe = 0.065 + 0.03 * Math.sin(t * 1.1 + seed);
+                        g.scale.setScalar(1 + breathe);
+
+                        wobble.set(
+                            0.3 * Math.sin(t * 0.55 + seed),
+                            0.24 * Math.cos(t * 0.5 + seed * 1.3),
+                            0.28 * Math.sin(t * 0.45 + seed * 0.7),
+                        );
+
+                        // Rotate the base position around the constellation center based on mouse,
+                        // so the nodes feel like they "swing" in 3D.
+                        g.position
+                            .copy(g.userData.basePos)
+                            .applyEuler(orbitEuler)
+                            .add(wobble);
+
+                        // Pulse wire + halo a touch over time
+                        g.children.forEach((child) => {
+                            if (!child.material) return;
+
+                            if (child.material.wireframe) {
+                                child.material.opacity =
+                                    0.16 +
+                                    0.14 *
+                                        (0.5 + 0.5 * Math.sin(t * 0.9 + seed));
+                            }
+
+                            // Sprite halo
+                            if (child.isSprite) {
+                                child.material.opacity =
+                                    0.26 +
+                                    0.18 *
+                                        (0.5 + 0.5 * Math.sin(t * 0.7 + seed));
+                            }
+
+                            // Core mesh (MeshBasicMaterial)
+                            if (child.isMesh && child.geometry === coreGeom) {
+                                child.material.opacity =
+                                    0.7 +
+                                    0.25 *
+                                        (0.5 + 0.5 * Math.sin(t * 1.8 + seed));
+                            }
+                        });
+                    }
+
+                    // Update connection line segments (centers move)
+                    updateLinks(linkPositions, links, orbs);
+                    linkGeom.attributes.position.needsUpdate = true;
+
+                    // Animate data packets along links
+                    for (const p of packets) {
+                        const li = p.userData.linkIndex;
+                        const a = orbs[links[li][0]].position;
+                        const b = orbs[links[li][1]].position;
+
+                        p.userData.t =
+                            (p.userData.t + p.userData.speed * 0.008) % 1;
+
+                        // Slight curve by adding an offset towards camera
+                        const mid = new THREE.Vector3()
+                            .addVectors(a, b)
+                            .multiplyScalar(0.5);
+                        const curve = mid
+                            .clone()
+                            .add(new THREE.Vector3(0, 0, 2.4));
+                        const pos = quadraticBezier(a, curve, b, p.userData.t);
+                        p.position.copy(pos);
+
+                        // Pulse brightness
+                        const pulse =
+                            0.55 +
+                            0.45 * Math.sin(t * 2.1 + p.userData.t * 6.28);
+                        p.material.opacity = 0.55 + pulse * 0.35;
+                        p.scale.setScalar(0.9 + pulse * 0.35);
+                    }
+
+                    // Star drift
+                    stars.rotation.y += 0.00018;
+                    stars.rotation.x += 0.00009;
+
+                    renderer.render(scene, camera);
+                }
+
+                if (prefersReducedMotion) {
+                    // Render a single frame and stop.
+                    renderer.render(scene, camera);
+                } else {
+                    animate();
+                }
+
+                // Resize
+                window.addEventListener(
+                    "resize",
+                    () => {
+                        camera.aspect = window.innerWidth / window.innerHeight;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(window.innerWidth, window.innerHeight);
+                        renderer.setPixelRatio(
+                            Math.min(window.devicePixelRatio || 1, 2),
+                        );
+                        applyLayout();
+                    },
+                    { passive: true },
+                );
+            }
+
+            function updateLinks(outPositions, links, orbs) {
+                for (let i = 0; i < links.length; i++) {
+                    const a = orbs[links[i][0]].position;
+                    const b = orbs[links[i][1]].position;
+
+                    const base = i * 6;
+                    outPositions[base + 0] = a.x;
+                    outPositions[base + 1] = a.y;
+                    outPositions[base + 2] = a.z;
+                    outPositions[base + 3] = b.x;
+                    outPositions[base + 4] = b.y;
+                    outPositions[base + 5] = b.z;
+                }
+            }
+
+            function createGlowTexture() {
+                const size = 128;
+                const canvas = document.createElement("canvas");
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext("2d");
+
+                const g = ctx.createRadialGradient(
+                    size / 2,
+                    size / 2,
+                    0,
+                    size / 2,
+                    size / 2,
+                    size / 2,
+                );
+                g.addColorStop(0.0, "rgba(255,255,255,1)");
+                g.addColorStop(0.25, "rgba(255,255,255,0.45)");
+                g.addColorStop(0.55, "rgba(255,255,255,0.18)");
+                g.addColorStop(1.0, "rgba(255,255,255,0)");
+
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, size, size);
+
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.minFilter = THREE.LinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                tex.generateMipmaps = false;
+                return tex;
+            }
+
+            function randomInSphere(radius) {
+                // Rejection sampling in unit sphere
+                while (true) {
+                    const x = (Math.random() * 2 - 1) * radius;
+                    const y = (Math.random() * 2 - 1) * radius;
+                    const z = (Math.random() * 2 - 1) * radius;
+                    if (x * x + y * y + z * z <= radius * radius) {
+                        return new THREE.Vector3(x, y, z);
+                    }
+                }
+            }
+
+            function fibonacciSpherePoints(count, radius) {
+                // Even-ish distribution on a sphere using a Fibonacci spiral.
+                const pts = [];
+                const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+                for (let i = 0; i < count; i++) {
+                    const y = 1 - (i / (count - 1)) * 2; // 1..-1
+                    const r = Math.sqrt(Math.max(0, 1 - y * y));
+                    const theta = goldenAngle * i;
+
+                    const x = Math.cos(theta) * r;
+                    const z = Math.sin(theta) * r;
+
+                    // Slight jitter to avoid a perfect "diagram" look.
+                    const jitter = 0.35;
+                    pts.push(
+                        new THREE.Vector3(
+                            x * radius + (Math.random() - 0.5) * jitter,
+                            y * radius + (Math.random() - 0.5) * jitter,
+                            z * radius + (Math.random() - 0.5) * jitter,
+                        ),
+                    );
+                }
+
+                return pts;
+            }
+
+            function buildKnnLinks(points, k) {
+                const links = [];
+                const set = new Set();
+
+                for (let i = 0; i < points.length; i++) {
+                    const distances = points
+                        .map((p, idx) => ({ idx, d: points[i].distanceTo(p) }))
+                        .sort((a, b) => a.d - b.d);
+
+                    for (let n = 1; n <= k && n < distances.length; n++) {
+                        const j = distances[n].idx;
+                        const a = Math.min(i, j);
+                        const b = Math.max(i, j);
+                        const key = `${a}-${b}`;
+                        if (a !== b && !set.has(key)) {
+                            set.add(key);
+                            links.push([a, b]);
+                        }
+                    }
+                }
+
+                return links;
+            }
+
+            function addRandomLinks(existingLinks, nodeCount, count) {
+                const links = existingLinks.slice();
+                const set = new Set(
+                    links.map(
+                        ([a, b]) => `${Math.min(a, b)}-${Math.max(a, b)}`,
+                    ),
+                );
+
+                let guard = 0;
+                while (count > 0 && guard < 5000) {
+                    guard++;
+                    const a0 = Math.floor(Math.random() * nodeCount);
+                    const b0 = Math.floor(Math.random() * nodeCount);
+                    if (a0 === b0) continue;
+
+                    const a = Math.min(a0, b0);
+                    const b = Math.max(a0, b0);
+                    const key = `${a}-${b}`;
+                    if (set.has(key)) continue;
+
+                    set.add(key);
+                    links.push([a, b]);
+                    count--;
+                }
+
+                return links;
+            }
+
+            function quadraticBezier(a, b, c, t) {
+                // (1-t)^2 a + 2(1-t)t b + t^2 c
+                const inv = 1 - t;
+                const inv2 = inv * inv;
+                const t2 = t * t;
+
+                return new THREE.Vector3(
+                    inv2 * a.x + 2 * inv * t * b.x + t2 * c.x,
+                    inv2 * a.y + 2 * inv * t * b.y + t2 * c.y,
+                    inv2 * a.z + 2 * inv * t * b.z + t2 * c.z,
+                );
+            }
+        </script>
+    </body>
+</html>
