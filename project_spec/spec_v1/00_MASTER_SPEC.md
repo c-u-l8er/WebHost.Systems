@@ -1,8 +1,8 @@
 # webhost.systems — MASTER ENGINEERING SPEC (v1)
-Version: 1.0  
-Status: Implementation-ready draft  
-Audience: Engineering (primary), Product/Security (secondary)  
-Last updated: 2026-01-21  
+Version: 1.1
+Status: Implementation-ready draft
+Audience: Engineering (primary), Product/Security (secondary)
+Last updated: 2026-03-28
 
 > Goal: This document is intended to be sufficient context for an engineer (or coding agent) to implement webhost.systems from scratch without needing additional specs.
 
@@ -17,7 +17,7 @@ webhost.systems is a multi-runtime AI agent deployment and hosting platform. It 
   - **Cloudflare Workers + Durable Objects** (default; global edge, strong economics; TypeScript-native),
   - **AWS Bedrock AgentCore** (premium/enterprise; long-running sessions, enterprise isolation and built-in tools ecosystem; **TypeScript-native** via `@aws-sdk/client-bedrock-agentcore` (runtime/control) and `bedrock-agentcore` (tools ecosystem, incl. Code Interpreter + Browser integrations)).
 
-A third system, **Convex (DB + server functions + optional “Convex Agents”)**, is used for control plane logic and dashboard automation—not primary agent hosting.
+A third system, **Supabase (PostgreSQL DB + Edge Functions + Realtime + Auth)**, is used for control plane logic and dashboard automation—not primary agent hosting.
 
 Core differentiator: **runtime portability under a single abstraction**, plus **first-class metering and limit enforcement**, delivered with a **TypeScript-first, end-to-end developer experience**.
 
@@ -25,7 +25,7 @@ Core differentiator: **runtime portability under a single abstraction**, plus **
 
 ## 1) Scope, goals, non-goals
 
-### 1.1 Goals (MVP → v1)
+### 1.1 Goals (MVP -> v1)
 The platform MUST support:
 1. **User auth** and per-tenant isolation for all data and actions.
 2. **Agent CRUD**: create/edit/delete agents with runtime selection.
@@ -53,12 +53,12 @@ The platform MUST support:
 ### 1.2 Non-goals (explicit)
 - Building an LLM provider (users bring their own model credentials or use runtime-native integrations).
 - Running arbitrary customer containers on the control plane.
-- Perfect cost accuracy at MVP (cost can be “estimated” until reconciled with provider billing exports).
+- Perfect cost accuracy at MVP (cost can be "estimated" until reconciled with provider billing exports).
 - Team/org/roles/SCIM in MVP (can be post-MVP unless required).
 
 ### 1.3 Assumptions
-- Control plane uses **Convex** as primary database and backend functions (or an equivalent serverless backend; if substituted, preserve schema + invariants).
-- Auth uses **Clerk** (or equivalent); spec assumes external IdP.
+- Control plane uses **Supabase** as primary database (PostgreSQL), backend functions (Edge Functions + PostgREST RPC), and realtime subscriptions (or an equivalent serverless backend; if substituted, preserve schema + invariants).
+- Auth uses **Supabase Auth** (email + OAuth providers: Google, GitHub); provides JWT tokens, user management, and Row-Level Security (RLS) integration out of the box.
 - Billing uses **LemonSqueezy** (or equivalent); spec assumes webhook-driven entitlement.
 - Runtime providers initially: Cloudflare Workers/DO and AWS AgentCore.
 
@@ -67,32 +67,32 @@ The platform MUST support:
 ## 2) Key decisions (ADR-style summaries)
 
 ### ADR-0001: Multi-runtime architecture
-**Decision:** Support multiple runtime providers behind a single abstraction.  
-**Rationale:** Avoid lock-in, optimize for cost/global edge for most users, offer enterprise-grade long-running isolation for premium customers.  
+**Decision:** Support multiple runtime providers behind a single abstraction.
+**Rationale:** Avoid lock-in, optimize for cost/global edge for most users, offer enterprise-grade long-running isolation for premium customers.
 **Consequences:** Requires a Runtime Provider Interface (RPI), consistent telemetry schema, and deployment packaging that can target multiple runtimes.
 
-### ADR-0002: Convex for control plane
-**Decision:** Use Convex for data + backend functions; optional Convex Agents for dashboard automation.  
-**Rationale:** Rapid development, strongly typed backend, good fit for control plane.  
-**Constraint:** Convex Agents are not used for primary agent hosting due to runtime/time limits and differing execution model.
+### ADR-0002: Supabase for control plane
+**Decision:** Use Supabase (PostgreSQL + Edge Functions + Realtime) for data + backend functions; optional dashboard assistant for automation.
+**Rationale:** Full PostgreSQL power (transactions, RLS, foreign keys, pg_cron), built-in auth, realtime subscriptions, Edge Functions for server-only logic, Supabase Vault for encrypted secret storage. Single platform replaces what previously required Convex + Clerk.
+**Constraint:** Supabase Edge Functions are not used for primary agent hosting due to runtime/time limits and differing execution model.
 
 ### ADR-0003: Secrets strategy
-**Decision:** Do not store plaintext secrets in Convex. Store only **secret metadata** (keys/names) and push secret values to provider secret mechanisms.  
+**Decision:** Do not store plaintext secrets in the primary database. Use **Supabase Vault** for encrypted secret storage and push secret values to provider secret mechanisms at deploy time.
 **Rationale:** Reduce breach impact and align with best practices.
 
 ### ADR-0004: Usage and cost
-**Decision:** Capture near-real-time usage events; compute **estimated cost** via provider-specific calculators at MVP; add reconciliation later.  
+**Decision:** Capture near-real-time usage events; compute **estimated cost** via provider-specific calculators at MVP; add reconciliation later.
 **Rationale:** Enables limits, billing UX, and pricing iteration early.
 
 ### ADR-0005: Deployment immutability + active pointer
-**Decision:** Deployments are immutable records; an agent has an `activeDeploymentId` pointer.  
+**Decision:** Deployments are immutable records; an agent has an `activeDeploymentId` pointer.
 **Rationale:** Rollbacks, audits, reproducibility, and safer operations.
 
 ---
 
 ## 3) Glossary (canonical terms)
 
-- **User**: authenticated account holder.
+- **User**: authenticated account holder (Supabase Auth user).
 - **Agent**: a logical AI service owned by a user; has a selected runtime provider and configuration.
 - **Deployment**: immutable version of an agent published to a runtime provider.
 - **Runtime Provider**: execution environment; initially `cloudflare` and `agentcore`.
@@ -101,28 +101,32 @@ The platform MUST support:
 - **Control Plane**: dashboard + APIs + DB + billing + deployment orchestration.
 - **Data Plane**: runtime execution environments.
 - **Telemetry Event**: per-invocation metrics emitted from data plane to control plane.
+- **Edge Function**: Supabase Edge Function (Deno-based); used for server-only control plane operations.
+- **RLS**: Row-Level Security; PostgreSQL policy enforcement for tenant isolation.
 
 ---
 
 ## 4) System architecture
 
 ### 4.1 High-level components
-1. **Web UI** (recommended: Next.js/React; can be substituted)
+1. **Web UI** (Vite + React)
    - Agents list/detail
    - Deploy flow
    - Logs/metrics view
    - Billing/plan view
-2. **Auth provider** (recommended: Clerk)
-3. **Control plane backend** (Convex functions/actions)
-   - agent CRUD
-   - deployment orchestration
-   - billing entitlement + enforcement
-   - telemetry ingestion + aggregation
+2. **Auth provider** (Supabase Auth — email, Google OAuth, GitHub OAuth)
+3. **Control plane backend** (Supabase: PostgreSQL + PostgREST + Edge Functions)
+   - agent CRUD (PostgREST / RPC functions)
+   - deployment orchestration (Edge Functions)
+   - billing entitlement + enforcement (Edge Functions + pg_cron)
+   - telemetry ingestion + aggregation (Edge Functions + pg_cron)
    - dashboard assistant (optional)
-4. **Runtime providers**
+4. **Realtime** (Supabase Realtime — PostgreSQL LISTEN/NOTIFY)
+   - Dashboard live updates for deployment status, metrics
+5. **Runtime providers**
    - Cloudflare Workers + Durable Objects (TypeScript)
    - AWS Bedrock AgentCore (TypeScript; AWS SDK: `@aws-sdk/client-bedrock-agentcore`; tools SDK: `bedrock-agentcore`)
-5. **Billing provider**
+6. **Billing provider**
    - checkout sessions
    - webhooks for subscription lifecycle
 
@@ -135,37 +139,37 @@ The platform MUST support:
 - Data plane:
   - executes customer agent code
   - emits telemetry events
-  - never has broad access to other tenants’ data
+  - never has broad access to other tenants' data
 
 ### 4.3 Request flows (canonical)
 
 #### Flow A — Create agent
-1. UI calls control plane: `agents.create`
+1. UI calls control plane: `POST /rest/v1/rpc/create_agent`
 2. Control plane creates `agents` row (status: `created`)
 3. UI shows agent detail page
 
 #### Flow B — Deploy agent
 1. UI uploads bundle OR provides repo reference (MVP can start with uploaded bundle)
-2. UI calls control plane: `deployments.createAndDeploy`
-3. Control plane:
+2. UI calls Edge Function: `POST /functions/v1/deploy`
+3. Edge Function:
    - validates inputs (size, required files, allowed runtime)
    - creates immutable `deployments` row (status: `deploying`)
    - invokes runtime provider adapter to deploy
-   - updates deployment status; sets `agents.activeDeploymentId` on success
+   - updates deployment status; sets `agents.active_deployment_id` on success
 
 #### Flow C — Invoke agent
-1. Client calls `POST /invoke/:agentId` (edge gateway) OR calls a generated SDK endpoint.
-2. Control plane:
-   - authenticates/authorizes
+1. Client calls `POST /functions/v1/invoke/:agentId` (Edge Function gateway)
+2. Edge Function:
+   - authenticates/authorizes via Supabase Auth JWT
    - checks plan limits and agent status
    - routes to runtime provider invocation endpoint
 3. Data plane runs agent, returns response (optionally streaming)
 4. Data plane emits telemetry event to control plane ingestion endpoint
 
 #### Flow D — Usage aggregation / billing
-1. Telemetry events stored in `metrics` table (raw)
-2. Scheduled job aggregates into `billingUsage` by user + period
-3. UI reads `billingUsage` and shows limits/overages
+1. Telemetry events stored in `metrics_events` table (raw)
+2. pg_cron scheduled job aggregates into `billing_usage` by user + period
+3. UI reads `billing_usage` and shows limits/overages
 
 ---
 
@@ -177,25 +181,25 @@ MUST:
   - `name` (unique per user, or unique within user namespace),
   - `description` (optional),
   - `framework` (enum/string; informational at MVP),
-  - `runtimeProvider` (`cloudflare` | `agentcore`),
-  - `envVarKeys` (list of keys; values handled separately),
+  - `runtime_provider` (`cloudflare` | `agentcore`),
+  - `env_var_keys` (list of keys; values handled separately via Supabase Vault),
   - `status` (`created` | `deploying` | `active` | `error` | `disabled`).
 - Edit agent metadata (name/description/framework/default runtime settings).
 - Disable an agent (invocations rejected).
 
 SHOULD:
-- “Clone agent” (copy config + latest deployment reference).
+- "Clone agent" (copy config + latest deployment reference).
 
 ### 5.2 Deployments
 MUST:
 - Keep immutable deployment history.
 - Store deployment inputs:
   - `version` (semver or monotonic int),
-  - `commitHash` (optional),
-  - `runtimeProvider`,
+  - `commit_hash` (optional),
+  - `runtime_provider`,
   - provider-specific reference fields,
   - timestamps, status transitions, and error messages.
-- Support rollback by switching `activeDeploymentId`.
+- Support rollback by switching `active_deployment_id`.
 
 ### 5.3 Invocation semantics
 MUST:
@@ -236,131 +240,107 @@ MUST:
 - Integrate billing provider:
   - create checkout
   - handle webhook events
-  - update `users.subscriptionTier` and entitlements
+  - update `users.subscription_tier` and entitlements
 
 ---
 
-## 6) Data model (Convex) — required schema + invariants
+## 6) Data model (PostgreSQL) — required schema + invariants
 
-> The schema below is normative. Field names can vary, but semantics and invariants must be preserved.
+> The schema below is normative. Field names can vary, but semantics and invariants must be preserved. Full DDL is in `30_DATA_MODEL.md`.
 
 ### 6.1 `users`
 Fields:
-- `_id`
-- `clerkId` (unique)
+- `id` (UUID, PK, default `auth.uid()`)
 - `email`
 - `name`
-- `subscriptionTier` (`free` | `starter` | `pro` | `enterprise`)
-- `defaultRuntimeProvider` (`cloudflare` | `agentcore`)
-- `createdAt`
+- `subscription_tier` (`free` | `starter` | `pro` | `enterprise`)
+- `default_runtime_provider` (`cloudflare` | `agentcore`)
+- `created_at`, `updated_at`
 
 Indexes:
-- by `clerkId`
-- by `email` (optional)
+- by `email` (unique)
 
 Invariants:
-- One user row per clerk identity.
+- One user row per Supabase Auth identity (linked via `auth.uid()`).
+- RLS policy: users can only read/update their own row.
 
 ### 6.2 `agents`
 Fields:
-- `_id`
-- `userId`
+- `id` (UUID, PK)
+- `user_id` (FK -> `users`)
 - `name`
-- `description?`
+- `description` (optional)
 - `framework` (string)
-- `runtimeProvider` (`cloudflare` | `agentcore`)
-- `activeDeploymentId?`
+- `runtime_provider` (`cloudflare` | `agentcore`)
+- `active_deployment_id` (FK -> `deployments`, optional)
 - `status` (`created` | `deploying` | `active` | `error` | `disabled`)
-- `envVarKeys` (string[])
-- `providerConfig`:
-  - for cloudflare: `{ workerName?, workerUrl?, durableObjectNamespace?, durableObjectId? }`
-  - for agentcore: `{ agentRuntimeArn?, agentRuntimeId?, runtimeId?, region?, vCpu?, memoryMb?, memoryEnabled?, codeInterpreterEnabled?, browserEnabled? }`
-- `createdAt`
-- `lastDeployedAt?`
+- `env_var_keys` (text[])
+- `provider_config` (JSONB)
+- `created_at`, `updated_at`, `last_deployed_at` (optional)
 
 Indexes:
-- by `userId`
-- by `userId + name` (for uniqueness checks)
-- by `activeDeploymentId` (optional)
+- by `user_id`
+- by `(user_id, name)` unique
 
 Invariants:
-- `userId` must exist.
-- `activeDeploymentId` (if present) must reference a deployment for this agent.
+- `user_id` must exist.
+- `active_deployment_id` (if present) must reference a deployment for this agent.
+- RLS policy: `auth.uid() = user_id`.
 
 ### 6.3 `deployments`
 Fields:
-- `_id`
-- `agentId`
+- `id` (UUID, PK)
+- `agent_id` (FK -> `agents`)
+- `user_id` (FK -> `users`, denormalized)
 - `version` (monotonic per agent)
-- `runtimeProvider`
+- `runtime_provider`
 - `status` (`deploying` | `active` | `failed` | `rolled_back`)
-- `commitHash?`
-- `artifact`:
-  - `type`: `uploaded_bundle` | `repo_ref`
-  - `sourceUri` or storage reference
-  - `checksum`
-  - `agentcore_container?`: derived build output for AgentCore deployments (container-based artifact)
-    - `imageUri` (e.g., ECR image URI)
-    - `imageDigest?`
-    - `buildId?`
-- `providerRef`:
-  - cloudflare: `{ workerUrl, durableObjectId? }`
-  - agentcore: `{ agentRuntimeArn, agentRuntimeId?, region?, qualifier? }`
-- `errorMessage?`
-- `logsRef?`
-- `deployedAt`
-- `deployedBy` (userId)
+- `commit_hash` (optional)
+- `artifact` (JSONB)
+- `provider_ref` (JSONB)
+- `error_message` (optional)
+- `deployed_at`, `finished_at` (optional)
+- `deployed_by_user_id` (FK -> `users`)
+- `created_at`
 
 Indexes:
-- by `agentId + deployedAt desc`
-- by `agentId + version`
+- by `(agent_id, created_at)`
+- by `(agent_id, version)` unique
 
 Invariants:
-- Deployment records are immutable after creation except status/error fields and providerRef.
+- Deployment records are immutable after creation except status/error fields and provider_ref.
+- RLS policy: `auth.uid() = user_id`.
 
-### 6.4 `metrics` (raw telemetry events)
+### 6.4 `metrics_events` (raw telemetry events)
 Fields:
-- `_id`
-- `userId`
-- `agentId`
-- `deploymentId?`
-- `runtimeProvider`
-- `timestamp`
-- `requests` (int; usually 1)
-- `llmTokens` (int; estimated or reported)
-- `computeMs` (int)
-- `errors` (int)
-- `errorClass?` (`auth` | `limit` | `runtime` | `tool` | `unknown`)
-- provider-specific:
-  - cloudflare: `{ durableObjectOps?, workersAICalls? }`
-  - agentcore: `{ sessionDurationMs?, toolInvocations?, browserInteractions? }`
-- `costUsd` (number; estimated at MVP)
-- `traceId?`
+- `id` (UUID, PK)
+- `user_id`, `agent_id`, `deployment_id`
+- `runtime_provider`
+- `timestamp_ms` (bigint)
+- `requests` (int), `llm_tokens` (int), `compute_ms` (int)
+- `errors` (int), `error_class`
+- `provider_details` (JSONB)
+- `cost_usd_estimated` (numeric)
+- `trace_id`
+- `created_at`
 
 Indexes:
-- by `agentId + timestamp`
-- by `userId + timestamp`
-- by `deploymentId + timestamp` (optional)
+- by `(agent_id, timestamp_ms)`
+- by `(user_id, timestamp_ms)`
 
-### 6.5 `billingUsage` (aggregated)
+### 6.5 `billing_usage` (aggregated)
 Fields:
-- `_id`
-- `userId`
-- `period` (e.g., `2026-01` or ISO range key)
-- totals:
-  - `totalRequests`
-  - `totalTokens`
-  - `totalComputeMs`
-  - `totalCostUsd`
-- per-runtime breakdown:
-  - `cloudflare: { requests, tokens, costUsd }`
-  - `agentcore: { requests, tokens, costUsd }`
+- `id` (UUID, PK)
+- `user_id` (FK -> `users`)
+- `period_key` (e.g., `2026-01`)
+- totals: `total_requests`, `total_tokens`, `total_compute_ms`, `total_cost_usd_estimated`
+- per-runtime breakdown (JSONB)
 - `paid` (boolean)
-- `invoiceId?`
-- `updatedAt`
+- `invoice_id` (optional)
+- `created_at`, `updated_at`
 
 Indexes:
-- by `userId + period`
+- by `(user_id, period_key)` unique
 
 ---
 
@@ -485,42 +465,42 @@ Invoke MUST:
 
 ## 11) Control plane API surface (normative)
 
-> Exact routing depends on chosen framework. If using Convex, implement as queries/mutations/actions with consistent naming.
+> Control plane is implemented via Supabase: PostgREST for CRUD, RPC functions for business logic, Edge Functions for server-only operations.
 
 ### 11.1 Auth
-- `auth.getCurrentUser()` -> user profile + tier
+- `auth.getUser()` -> user profile + tier (via Supabase Auth JWT + `users` table)
 
 ### 11.2 Agents
-- `agents.create({ name, description?, framework, runtimeProvider, envVarKeys })`
-- `agents.update({ agentId, ...fields })`
-- `agents.list()`
-- `agents.get({ agentId })`
-- `agents.disable({ agentId })`
-- `agents.delete({ agentId })` (should also revoke provider resources if possible)
+- `agents.create({ name, description?, framework, runtime_provider, env_var_keys })` — RPC function
+- `agents.update({ agent_id, ...fields })` — RPC function
+- `agents.list()` — PostgREST query (RLS-filtered)
+- `agents.get({ agent_id })` — PostgREST query (RLS-filtered)
+- `agents.disable({ agent_id })` — RPC function
+- `agents.delete({ agent_id })` — RPC function (soft delete; should also revoke provider resources if possible)
 
 ### 11.3 Deployments
-- `deployments.createAndDeploy({ agentId, artifactRef, commitHash?, version? })`
-- `deployments.list({ agentId })`
-- `deployments.rollback({ agentId, deploymentId })`
-- `deployments.getLogs({ deploymentId })` (can be stubbed in MVP)
+- `deployments.createAndDeploy({ agent_id, artifact_ref, commit_hash?, version? })` — Edge Function
+- `deployments.list({ agent_id })` — PostgREST query (RLS-filtered)
+- `deployments.rollback({ agent_id, deployment_id })` — Edge Function
+- `deployments.getLogs({ deployment_id })` — RPC function (can be stubbed in MVP)
 
 ### 11.4 Invocation gateway
-- `invoke({ agentId, input, sessionId?, options?, metadata? })` (server endpoint)
+- `invoke({ agentId, input, sessionId?, options?, metadata? })` — Edge Function
 - MUST:
-  - authorize user (or allow public agents if you later add that feature)
+  - authorize user (via Supabase Auth JWT)
   - check entitlements and limits
-  - route to active deployment’s runtime provider adapter
+  - route to active deployment's runtime provider adapter
 
 ### 11.5 Telemetry ingestion
-- `metrics.report(event)` (authenticated with shared secret or signed token from runtime)
+- `metrics.report(event)` — Edge Function (authenticated with shared secret or signed token from runtime)
 - MUST validate:
   - event attribution
   - prevent spoofing (HMAC signature or runtime-specific auth)
 
 ### 11.6 Billing
-- `billing.createCheckout({ tier })`
-- `billing.handleWebhook(payload)` (server-only)
-- `billing.getUsage({ period? })`
+- `billing.createCheckout({ tier })` — Edge Function
+- `billing.handleWebhook(payload)` — Edge Function (server-only)
+- `billing.getUsage({ period? })` — RPC function
 
 ---
 
@@ -533,8 +513,8 @@ Invoke MUST:
 - runtime access (AgentCore gated)
 
 ### 12.2 Enforcement points
-- At invocation time in control plane:
-  - read `billingUsage` current period (or a fast cached counter)
+- At invocation time in Edge Function gateway:
+  - read `billing_usage` current period (or a fast cached counter)
   - reject with `LIMIT_EXCEEDED` when over limit
 - At deploy time:
   - enforce runtime gating (e.g., free tier cannot deploy to AgentCore)
@@ -549,13 +529,13 @@ Invoke MUST:
 
 ### 13.1 Tenant isolation
 MUST:
-- Every control plane query/mutation checks `userId`.
+- Every control plane query/mutation uses RLS policies enforcing `auth.uid() = user_id`.
 - Runtime provider resources are namespaced per user (naming convention + tags).
 
 ### 13.2 Secrets handling
 MUST:
 - Never log secret values.
-- Never store plaintext secrets in Convex tables.
+- Never store plaintext secrets in PostgreSQL tables (use Supabase Vault for encrypted storage).
 - Provide secret rotation workflow (at least manual replace in UI).
 
 ### 13.3 Telemetry integrity
@@ -699,7 +679,7 @@ A control-plane agent that can:
 
 ### 16.2 Constraints
 MUST:
-- only access the authenticated user’s resources
+- only access the authenticated user's resources (enforced by RLS)
 - never execute user agent bundles
 - never expose secrets
 
@@ -719,28 +699,28 @@ MUST:
 
 ### 17.3 End-to-end (E2E)
 - user signup
-- create agent → deploy → invoke → view metrics → upgrade tier
+- create agent -> deploy -> invoke -> view metrics -> upgrade tier
 
 ---
 
 ## 18) Milestones (implementation plan)
 
 ### Phase 1 — Control plane foundation
-- Auth integration
-- Convex schema + CRUD
-- Basic dashboard UI
+- Supabase Auth integration
+- PostgreSQL schema + RLS policies + CRUD functions
+- Basic dashboard UI (Vite + React)
 - Billing tier model stub (no payment yet)
 
 ### Phase 2 — Cloudflare runtime
 - Cloudflare deploy adapter
-- Invocation gateway routing to Cloudflare
+- Invocation gateway routing to Cloudflare (Edge Function)
 - Telemetry ingestion from DO/Worker
 - Usage UI
 
 ### Phase 3 — Billing + enforcement
-- Checkout + webhooks
+- Checkout + webhooks (Edge Functions)
 - Limit enforcement on invoke and deploy
-- Retention policies (basic)
+- Retention policies (pg_cron jobs)
 
 ### Phase 4 — AgentCore runtime
 - AgentCore deploy/invoke adapter (TypeScript)
@@ -766,9 +746,10 @@ MUST:
 
 ## 20) Acceptance criteria (definition of done for v1)
 The implementation is considered v1-complete when:
-- A user can sign up, create an agent, deploy to Cloudflare, invoke it, and see metrics in the dashboard.
+- A user can sign up (via Supabase Auth), create an agent, deploy to Cloudflare, invoke it, and see metrics in the dashboard.
 - A paid tier user can deploy to AgentCore (if enabled) and invoke successfully.
 - Limits are enforced reliably and errors are normalized.
-- No plaintext secrets are stored in the primary database.
+- No plaintext secrets are stored in the primary database (Supabase Vault used for encrypted storage).
 - Deployments are immutable and rollback works.
 - Telemetry events are authenticated and attributable to user/agent/deployment.
+- RLS policies enforce tenant isolation on every table.
