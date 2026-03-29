@@ -40,20 +40,30 @@ npm run format:check           # Prettier check
 
 ```
 npm run dev                    # Vite dev server (apps/web)
-npx supabase start             # Local Supabase dev stack (DB, Auth, Edge Functions)
+cd .. && supabase start        # Local Supabase from repo root (all ecosystem schemas)
 ```
 
 ## Monorepo structure
 
 - `apps/web/` — Dashboard frontend (Vite + React + Supabase Auth)
-- `supabase/` — Supabase project (migrations, Edge Functions, seed data)
 - `packages/` — shared packages
+
+## Shared Supabase data layer
+
+WebHost.Systems uses the **shared ecosystem Supabase** at the repo root (`/supabase/`), not a local supabase directory. Its tables live in the `webhost.*` PostgreSQL schema.
+
+- Schema: `/supabase/migrations/020_webhost_schema.sql`
+- RLS: `/supabase/migrations/021_webhost_rls.sql`
+- Cron jobs: `/supabase/migrations/022_webhost_cron.sql`
+- Architecture: `/supabase/ARCHITECTURE.md`
+
+Run `supabase start` from the repo root to start the full ecosystem DB.
 
 ## Key details
 
 - Node >= 20 required
-- Supabase for backend — PostgreSQL + RLS + Edge Functions in `supabase/`
-- Supabase Auth for authentication
+- Supabase for backend — PostgreSQL + RLS + Edge Functions in root `supabase/`
+- Supabase Auth for authentication (shared across all [&] ecosystem apps)
 - Zod for runtime validation
 - TypeScript strict mode
 - ESLint + Prettier enforced
