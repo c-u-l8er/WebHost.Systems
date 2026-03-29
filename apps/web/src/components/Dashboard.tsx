@@ -1,57 +1,34 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useWorkspace } from "../lib/WorkspaceProvider";
 import {
-  ControlPlaneApiError,
+  ApiError,
+  listAgents,
+  getBillingUsage,
   type Agent,
-  type CurrentUsageResponse,
-} from "../lib/controlPlaneClient";
-import { useControlPlaneClient } from "../lib/useControlPlaneClient";
-
-/**
- * Read-only Dashboard (Stats Overview)
- *
- * This page is intentionally "overview only":
- * - High-level agent stats (counts by status)
- * - Current billing/usage snapshot
- *
- * Detailed agent operations (create/deploy/invoke/telemetry drilldowns) live on the Agents page.
- */
+  type BillingUsage,
+} from "../lib/supabaseApi";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
 
 function summarizeError(err: unknown): string {
-  if (err instanceof ControlPlaneApiError) {
-    const rid = err.requestId ? ` requestId=${err.requestId}` : "";
-    const status = ` status=${err.status}`;
-    const retryable =
-      typeof err.retryable === "boolean" ? ` retryable=${err.retryable}` : "";
-
-    let details = "";
-    if (err.details !== undefined) {
-      try {
-        details = ` details=${JSON.stringify(err.details)}`;
-      } catch {
-        details = " details=[unserializable]";
-      }
-    }
-
-    return `${err.code}: ${err.message} (${status}${rid}${retryable})${details}`;
+  if (err instanceof ApiError) {
+    return `${err.code}: ${err.message} (status=${err.status})`;
   }
-
   if (err instanceof Error) return err.message;
   return "Unknown error";
 }
 
-function formatMs(ms?: number): string {
-  if (!ms) return "—";
+function formatTs(ts?: string | null): string {
+  if (!ts) return "\u2014";
   try {
-    return new Date(ms).toLocaleString();
+    return new Date(ts).toLocaleString();
   } catch {
-    return String(ms);
+    return ts;
   }
 }
 
 function formatNumber(n: number | undefined | null): string {
-  if (n === undefined || n === null) return "—";
+  if (n === undefined || n === null) return "\u2014";
   try {
     return new Intl.NumberFormat().format(n);
   } catch {
@@ -60,7 +37,7 @@ function formatNumber(n: number | undefined | null): string {
 }
 
 function formatUsd(n: number | undefined | null): string {
-  if (n === undefined || n === null) return "—";
+  if (n === undefined || n === null) return "\u2014";
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
@@ -72,56 +49,44 @@ function formatUsd(n: number | undefined | null): string {
   }
 }
 
-
-
 export default function Dashboard(): React.ReactElement {
-  const { client, controlPlaneUrl } = useControlPlaneClient();
-  const canUseApi = !!client;
+  const { workspace } = useWorkspace();
 
-  // Agents (read-only)
   const [agentsStatus, setAgentsStatus] = useState<AsyncStatus>("idle");
   const [agentsError, setAgentsError] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
 
-  // Usage (read-only)
   const [usageStatus, setUsageStatus] = useState<AsyncStatus>("idle");
   const [usageError, setUsageError] = useState<string | null>(null);
-  const [usage, setUsage] = useState<CurrentUsageResponse | null>(null);
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
 
   const refreshAgents = useCallback(async () => {
-    if (!client) return;
-
+    if (!workspace) return;
     setAgentsStatus("loading");
     setAgentsError(null);
-
     try {
-      const list = await client.listAgents({
-        limit: 200,
-        includeDeleted: false,
-      });
+      const list = await listAgents(workspace.id, { limit: 200 });
       setAgents(list);
       setAgentsStatus("success");
     } catch (err) {
       setAgentsStatus("error");
       setAgentsError(summarizeError(err));
     }
-  }, [client]);
+  }, [workspace]);
 
   const refreshUsage = useCallback(async () => {
-    if (!client) return;
-
+    if (!workspace) return;
     setUsageStatus("loading");
     setUsageError(null);
-
     try {
-      const u = await client.getCurrentUsage();
+      const u = await getBillingUsage(workspace.id);
       setUsage(u);
       setUsageStatus("success");
     } catch (err) {
       setUsageStatus("error");
       setUsageError(summarizeError(err));
     }
-  }, [client]);
+  }, [workspace]);
 
   const refreshAll = useCallback(async () => {
     await Promise.all([refreshAgents(), refreshUsage()]);
@@ -140,55 +105,51 @@ export default function Dashboard(): React.ReactElement {
     const total = agents.length;
     const active = byStatus.active ?? 0;
     const deploying = byStatus.deploying ?? 0;
-    const ready = byStatus.ready ?? 0;
-    const draft = byStatus.draft ?? 0;
+    const created = byStatus.created ?? 0;
     const error = byStatus.error ?? 0;
     const disabled = byStatus.disabled ?? 0;
 
     const withActiveDeployment = agents.filter(
-      (a) => !!a.activeDeploymentId,
+      (a) => !!a.active_deployment_id,
     ).length;
 
     const newest = agents.length
-      ? agents.slice().sort((a, b) => b.createdAtMs - a.createdAtMs)[0]
+      ? agents.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
       : null;
 
     const lastUpdated = agents.length
-      ? agents.slice().sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]
+      ? agents.slice().sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0]
       : null;
 
     return {
       total,
       active,
       deploying,
-      ready,
-      draft,
+      created,
       error,
       disabled,
       withActiveDeployment,
-      newestCreatedAtMs: newest?.createdAtMs,
-      lastUpdatedAtMs: lastUpdated?.updatedAtMs,
+      newestCreatedAt: newest?.created_at,
+      lastUpdatedAt: lastUpdated?.updated_at,
     };
   }, [agents]);
 
   const topAgents = useMemo(() => {
     return agents
       .slice()
-      .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
       .slice(0, 12);
   }, [agents]);
 
   const usageKpis = useMemo(() => {
-    const u = usage?.usage;
+    const t = usage?.totals;
     return {
-      periodKey: usage?.periodKey ?? "—",
-      tier: usage?.tier ?? "—",
-      requests: u?.requests,
-      llmTokens: u?.llmTokens,
-      computeMs: u?.computeMs,
-      toolCalls: u?.toolCalls,
-      costUsdEstimated: u?.costUsdEstimated,
-      updatedAtMs: u?.updatedAtMs,
+      periodKey: usage?.period_key ?? "\u2014",
+      requests: t?.requests,
+      tokens: t?.tokens,
+      computeMs: t?.compute_ms,
+      costUsdEstimated: t?.cost_usd_estimated,
+      lastAggregatedAt: usage?.last_aggregated_at,
     };
   }, [usage]);
 
@@ -207,33 +168,31 @@ export default function Dashboard(): React.ReactElement {
             <div className="spacer" />
 
             <span className="badge">
-              <span className="muted">control plane</span>{" "}
-              <code>{controlPlaneUrl || "(set VITE_CONTROL_PLANE_URL)"}</code>
+              <span className="muted">workspace</span>{" "}
+              <code>{workspace?.name ?? "(none)"}</code>
             </span>
 
             <button
               className="button"
               onClick={() => void refreshAll()}
               disabled={
-                !canUseApi ||
+                !workspace ||
                 agentsStatus === "loading" ||
                 usageStatus === "loading"
               }
             >
               {agentsStatus === "loading" || usageStatus === "loading"
-                ? "Refreshing…"
+                ? "Refreshing\u2026"
                 : "Refresh"}
             </button>
           </div>
         </div>
       </div>
 
-      {!controlPlaneUrl ? (
+      {!workspace ? (
         <div className="panel" style={{ padding: 12, marginBottom: 12 }}>
           <div className="muted">
-            Set <code>VITE_CONTROL_PLANE_URL</code> in <code>.env.local</code>{" "}
-            to your Convex HTTP base URL (e.g.{" "}
-            <code>https://&lt;deployment&gt;.convex.site</code>).
+            No workspace found. One will be auto-created on next page load.
           </div>
         </div>
       ) : null}
@@ -310,15 +269,9 @@ export default function Dashboard(): React.ReactElement {
                 </div>
               </div>
               <div className="kpi">
-                <div className="kpi-label">Ready</div>
+                <div className="kpi-label">Created</div>
                 <div className="kpi-value">
-                  {formatNumber(agentCounts.ready)}
-                </div>
-              </div>
-              <div className="kpi">
-                <div className="kpi-label">Draft</div>
-                <div className="kpi-value">
-                  {formatNumber(agentCounts.draft)}
+                  {formatNumber(agentCounts.created)}
                 </div>
               </div>
               <div className="kpi">
@@ -342,11 +295,11 @@ export default function Dashboard(): React.ReactElement {
               </span>
               <span className="badge">
                 <span className="muted">newest</span>{" "}
-                {formatMs(agentCounts.newestCreatedAtMs)}
+                {formatTs(agentCounts.newestCreatedAt)}
               </span>
               <span className="badge">
                 <span className="muted">last updated</span>{" "}
-                {formatMs(agentCounts.lastUpdatedAtMs)}
+                {formatTs(agentCounts.lastUpdatedAt)}
               </span>
             </div>
 
@@ -362,7 +315,7 @@ export default function Dashboard(): React.ReactElement {
               >
                 {topAgents.map((a) => (
                   <div
-                    key={a._id}
+                    key={a.id}
                     style={{
                       border: "1px solid var(--border)",
                       borderRadius: 10,
@@ -375,7 +328,7 @@ export default function Dashboard(): React.ReactElement {
                       <span className="badge">
                         <span className="muted">status</span> {a.status}
                       </span>
-                      {a.activeDeploymentId ? (
+                      {a.active_deployment_id ? (
                         <span className="badge">
                           <span className="muted">active deployment</span> yes
                         </span>
@@ -386,7 +339,7 @@ export default function Dashboard(): React.ReactElement {
                       )}
                       <div className="spacer" />
                       <span className="muted" style={{ fontSize: 12 }}>
-                        {formatMs(a.updatedAtMs)}
+                        {formatTs(a.updated_at)}
                       </span>
                     </div>
 
@@ -404,7 +357,7 @@ export default function Dashboard(): React.ReactElement {
                       style={{ marginTop: 6, fontSize: 12 }}
                     >
                       <span className="muted">agentId:</span>{" "}
-                      <code>{a._id}</code>
+                      <code>{a.id}</code>
                     </div>
                   </div>
                 ))}
@@ -423,7 +376,7 @@ export default function Dashboard(): React.ReactElement {
                 <span className="muted">period</span> {usageKpis.periodKey}
               </span>
               <span className="badge">
-                <span className="muted">tier</span> {String(usageKpis.tier)}
+                <span className="muted">plan</span> {workspace?.plan ?? "\u2014"}
               </span>
             </div>
           </div>
@@ -439,7 +392,7 @@ export default function Dashboard(): React.ReactElement {
               <div className="kpi">
                 <div className="kpi-label">LLM tokens</div>
                 <div className="kpi-value">
-                  {formatNumber(usageKpis.llmTokens)}
+                  {formatNumber(usageKpis.tokens)}
                 </div>
               </div>
               <div className="kpi">
@@ -449,21 +402,15 @@ export default function Dashboard(): React.ReactElement {
                 </div>
               </div>
               <div className="kpi">
-                <div className="kpi-label">Tool calls</div>
-                <div className="kpi-value">
-                  {formatNumber(usageKpis.toolCalls)}
-                </div>
-              </div>
-              <div className="kpi">
                 <div className="kpi-label">Est. cost</div>
                 <div className="kpi-value">
                   {formatUsd(usageKpis.costUsdEstimated)}
                 </div>
               </div>
               <div className="kpi">
-                <div className="kpi-label">Updated</div>
+                <div className="kpi-label">Aggregated</div>
                 <div className="kpi-value" style={{ fontSize: 12 }}>
-                  {formatMs(usageKpis.updatedAtMs)}
+                  {formatTs(usageKpis.lastAggregatedAt)}
                 </div>
               </div>
             </div>
@@ -483,11 +430,11 @@ export default function Dashboard(): React.ReactElement {
                 maxHeight: 320,
               }}
             >
-              {usage ? JSON.stringify(usage, null, 2) : "—"}
+              {usage ? JSON.stringify(usage, null, 2) : "\u2014"}
             </pre>
           </div>
         </section>
       </div>
     </div>
-  )
+  );
 }

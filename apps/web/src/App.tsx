@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
+import { useSupabaseAuth } from "./lib/SupabaseAuthProvider";
 import AccountPage from "./components/AccountPage";
 import AgentsPage from "./components/AgentsPage";
 import Dashboard from "./components/Dashboard";
@@ -14,16 +14,6 @@ type AuthedRoute =
   | { key: "docs" };
 
 function parseAuthedSearch(search: string): AuthedRoute {
-  // Query-string routing to avoid conflicts with in-page anchors (hash).
-  //
-  // Supported:
-  // - ?page=dashboard
-  // - ?page=agents
-  // - ?page=agent&agentId=<agentId>
-  // - ?page=account
-  // - ?page=docs
-  // Back-compat:
-  // - ?agentId=<agentId> implies agent detail
   const sp = new URLSearchParams(search || "");
   const pageRaw = (sp.get("page") || "").trim().toLowerCase();
 
@@ -36,19 +26,16 @@ function parseAuthedSearch(search: string): AuthedRoute {
   if (pageRaw === "account") return { key: "account" };
   if (pageRaw === "docs" || pageRaw === "documentation") return { key: "docs" };
   if (pageRaw === "dashboard" || pageRaw === "") {
-    // If agentId is present without an explicit page, treat it as a deep-link to detail.
     if (agentId) return { key: "agentDetail", agentId };
     return { key: "dashboard" };
   }
 
-  // Unknown page => default
   return agentId ? { key: "agentDetail", agentId } : { key: "dashboard" };
 }
 
 function setAuthedSearch(route: AuthedRoute, mode: "push" | "replace" = "push"): void {
   const url = new URL(window.location.href);
 
-  // Preserve hash for in-page anchors. Only change query params.
   if (route.key === "dashboard") {
     url.searchParams.set("page", "dashboard");
     url.searchParams.delete("agentId");
@@ -74,12 +61,12 @@ function setAuthedSearch(route: AuthedRoute, mode: "push" | "replace" = "push"):
 }
 
 export default function App() {
+  const { user, loading, signOut } = useSupabaseAuth();
+
   const [route, setRoute] = useState<AuthedRoute>(() =>
     parseAuthedSearch(window.location.search),
   );
 
-  // Emit a custom location-change event when code calls pushState/replaceState.
-  // (This app uses query-string routing, so hash stays reserved for in-page anchors.)
   useEffect(() => {
     const dispatch = () => window.dispatchEvent(new Event("wh:locationchange"));
 
@@ -133,8 +120,6 @@ export default function App() {
     [],
   );
 
-
-
   const goNav = useCallback((key: "dashboard" | "agents" | "account" | "docs") => {
     if (key === "dashboard") setAuthedSearch({ key: "dashboard" });
     else if (key === "account") setAuthedSearch({ key: "account" });
@@ -142,53 +127,63 @@ export default function App() {
     else setAuthedSearch({ key: "agentsList" });
   }, []);
 
+  if (loading) {
+    return (
+      <div className="page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div className="muted">Loading...</div>
+      </div>
+    );
+  }
+
+  const isSignedIn = !!user;
+
   return (
     <div className="page">
-      <SignedOut>
-        <header className="header">
-          <div className="container header-inner">
-            <div className="brand" style={{ gap: 4 }}>
-              <div className="brand-title">
-                <a href="https://webhost.systems">WebHost.Systems</a>
+      {!isSignedIn ? (
+        <>
+          <header className="header">
+            <div className="container header-inner">
+              <div className="brand" style={{ gap: 4 }}>
+                <div className="brand-title">
+                  <a href="https://webhost.systems">WebHost.Systems</a>
+                </div>
+                <div className="brand-subtitle">AI Systems for Web Hosts</div>
               </div>
-              <div className="brand-subtitle">AI Systems for Web Hosts</div>
+
+              <div className="row">
+                <nav className="row" aria-label="Marketing">
+                  <a className="muted" href="#product">
+                    Product
+                  </a>
+                  <a className="muted" href="#how-it-works">
+                    How it works
+                  </a>
+                  <a className="muted" href="#pricing">
+                    Pricing
+                  </a>
+                </nav>
+
+                <div style={{ width: 10 }} />
+
+                <a
+                  className="button button-primary"
+                  href="https://github.com/c-u-l8er/WebHost.Systems"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open source
+                </a>
+              </div>
             </div>
+          </header>
 
-            <div className="row">
-              <nav className="row" aria-label="Marketing">
-                <a className="muted" href="#product">
-                  Product
-                </a>
-                <a className="muted" href="#how-it-works">
-                  How it works
-                </a>
-                <a className="muted" href="#pricing">
-                  Pricing
-                </a>
-              </nav>
-
-              <div style={{ width: 10 }} />
-
-              <a
-                className="button button-primary"
-                href="https://github.com/c-u-l8er/WebHost.Systems"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open source
-              </a>
+          <main className="main">
+            <div className="container">
+              <LandingPage />
             </div>
-          </div>
-        </header>
-
-        <main className="main">
-          <div className="container">
-            <LandingPage />
-          </div>
-        </main>
-      </SignedOut>
-
-      <SignedIn>
+          </main>
+        </>
+      ) : (
         <div className="acp-shell">
           <aside className="acp-sidebar" aria-label="Admin sidebar">
             <div className="acp-sidebar-inner">
@@ -286,7 +281,19 @@ export default function App() {
               <div className="spacer" />
 
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <UserButton />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {user.email}
+                  </span>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => void signOut()}
+                    style={{ fontSize: 12 }}
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
             </div>
           </aside>
@@ -314,7 +321,7 @@ export default function App() {
             )}
           </div>
         </div>
-      </SignedIn>
+      )}
     </div>
   );
 }

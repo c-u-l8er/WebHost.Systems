@@ -1,35 +1,20 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useUser } from "@clerk/clerk-react";
-import { ControlPlaneApiError, type CurrentUsageResponse } from "../lib/controlPlaneClient";
-import useControlPlaneClient from "../lib/useControlPlaneClient";
+import { useSupabaseAuth } from "../lib/SupabaseAuthProvider";
+import { useWorkspace } from "../lib/WorkspaceProvider";
+import { ApiError, getBillingUsage, type BillingUsage } from "../lib/supabaseApi";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
 
 function summarizeError(err: unknown): string {
-  if (err instanceof ControlPlaneApiError) {
-    const rid = err.requestId ? ` requestId=${err.requestId}` : "";
-    const status = ` status=${err.status}`;
-    const retryable =
-      typeof err.retryable === "boolean" ? ` retryable=${err.retryable}` : "";
-
-    let details = "";
-    if (err.details !== undefined) {
-      try {
-        details = ` details=${JSON.stringify(err.details)}`;
-      } catch {
-        details = " details=[unserializable]";
-      }
-    }
-
-    return `${err.code}: ${err.message} (${status}${rid}${retryable})${details}`;
+  if (err instanceof ApiError) {
+    return `${err.code}: ${err.message} (status=${err.status})`;
   }
-
   if (err instanceof Error) return err.message;
   return "Unknown error";
 }
 
 function formatNumber(n: number | undefined | null): string {
-  if (n === undefined || n === null) return "—";
+  if (n === undefined || n === null) return "\u2014";
   try {
     return new Intl.NumberFormat().format(n);
   } catch {
@@ -38,7 +23,7 @@ function formatNumber(n: number | undefined | null): string {
 }
 
 function formatUsd(n: number | undefined | null): string {
-  if (n === undefined || n === null) return "—";
+  if (n === undefined || n === null) return "\u2014";
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
@@ -51,42 +36,37 @@ function formatUsd(n: number | undefined | null): string {
 }
 
 export default function AccountPage(): React.ReactElement {
-  const { user } = useUser();
-
-  const { client, controlPlaneUrl } = useControlPlaneClient();
+  const { user } = useSupabaseAuth();
+  const { workspace } = useWorkspace();
 
   const [usageStatus, setUsageStatus] = useState<AsyncStatus>("idle");
   const [usageError, setUsageError] = useState<string | null>(null);
-  const [usage, setUsage] = useState<CurrentUsageResponse | null>(null);
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
 
   const refreshUsage = useCallback(async () => {
-    if (!client) return;
+    if (!workspace) return;
 
     setUsageStatus("loading");
     setUsageError(null);
 
     try {
-      const u = await client.getCurrentUsage();
+      const u = await getBillingUsage(workspace.id);
       setUsage(u);
       setUsageStatus("success");
     } catch (err) {
       setUsageStatus("error");
       setUsageError(summarizeError(err));
     }
-  }, [client]);
+  }, [workspace]);
 
   useEffect(() => {
     void refreshUsage();
   }, [refreshUsage]);
 
-  const email =
-    user?.primaryEmailAddress?.emailAddress ||
-    user?.emailAddresses?.[0]?.emailAddress ||
-    "—";
-
-  const tier = usage?.tier ?? "—";
-  const periodKey = usage?.periodKey ?? "—";
-  const u = usage?.usage;
+  const email = user?.email ?? "\u2014";
+  const tier = workspace?.plan ?? "\u2014";
+  const periodKey = usage?.period_key ?? "\u2014";
+  const t = usage?.totals;
 
   return (
     <div className="panel">
@@ -102,27 +82,25 @@ export default function AccountPage(): React.ReactElement {
           <div className="spacer" />
 
           <span className="badge">
-            <span className="muted">control plane</span>{" "}
-            <code>{controlPlaneUrl || "(set VITE_CONTROL_PLANE_URL)"}</code>
+            <span className="muted">workspace</span>{" "}
+            <code>{workspace?.name ?? "(none)"}</code>
           </span>
 
           <button
             className="button"
             onClick={() => void refreshUsage()}
-            disabled={!client || usageStatus === "loading"}
+            disabled={!workspace || usageStatus === "loading"}
           >
-            {usageStatus === "loading" ? "Refreshing…" : "Refresh"}
+            {usageStatus === "loading" ? "Refreshing\u2026" : "Refresh"}
           </button>
         </div>
       </div>
 
       <div className="panel-body">
-        {!controlPlaneUrl ? (
+        {!workspace ? (
           <div className="panel" style={{ padding: 12, marginBottom: 12 }}>
             <div className="muted">
-              Set <code>VITE_CONTROL_PLANE_URL</code> in <code>.env.local</code>{" "}
-              to your Convex HTTP base URL (e.g.{" "}
-              <code>https://&lt;deployment&gt;.convex.site</code>).
+              No workspace found. One will be auto-created on next page load.
             </div>
           </div>
         ) : null}
@@ -137,10 +115,10 @@ export default function AccountPage(): React.ReactElement {
         >
           <div className="panel" id="identity" style={{ padding: 12 }}>
             <div className="row" style={{ marginBottom: 10 }}>
-              <strong>Identity (Clerk)</strong>
+              <strong>Identity (Supabase Auth)</strong>
               <div className="spacer" />
               <span className="badge">
-                <span className="muted">auth</span> clerk
+                <span className="muted">auth</span> supabase
               </span>
             </div>
 
@@ -151,15 +129,17 @@ export default function AccountPage(): React.ReactElement {
                 gap: 8,
               }}
             >
-              <div className="muted">Name</div>
-              <div>{user?.fullName || user?.username || "—"}</div>
-
               <div className="muted">Email</div>
               <div>{email}</div>
 
-              <div className="muted">Clerk userId</div>
+              <div className="muted">User ID</div>
               <div>
-                <code>{user?.id || "—"}</code>
+                <code>{user?.id ?? "\u2014"}</code>
+              </div>
+
+              <div className="muted">Workspace</div>
+              <div>
+                <code>{workspace?.slug ?? "\u2014"}</code>
               </div>
             </div>
 
@@ -170,7 +150,7 @@ export default function AccountPage(): React.ReactElement {
 
           <div className="panel" id="usage" style={{ padding: 12 }}>
             <div className="row" style={{ marginBottom: 10 }}>
-              <strong>Tier & usage (control plane)</strong>
+              <strong>Tier & usage</strong>
               <div className="spacer" />
               <span className="badge">
                 <span className="muted">period</span> {periodKey}
@@ -202,24 +182,21 @@ export default function AccountPage(): React.ReactElement {
               }}
             >
               <div className="muted">Requests</div>
-              <div>{formatNumber(u?.requests)}</div>
+              <div>{formatNumber(t?.requests)}</div>
 
               <div className="muted">LLM tokens</div>
-              <div>{formatNumber(u?.llmTokens)}</div>
+              <div>{formatNumber(t?.tokens)}</div>
 
               <div className="muted">Compute (ms)</div>
-              <div>{formatNumber(u?.computeMs)}</div>
-
-              <div className="muted">Tool calls</div>
-              <div>{formatNumber(u?.toolCalls)}</div>
+              <div>{formatNumber(t?.compute_ms)}</div>
 
               <div className="muted">Estimated cost</div>
-              <div>{formatUsd(u?.costUsdEstimated)}</div>
+              <div>{formatUsd(t?.cost_usd_estimated)}</div>
             </div>
 
             <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
               Tier upgrades + billing webhooks are not implemented yet; this view
-              is driven by the control plane entitlements mapping.
+              is driven by the billing_usage aggregation.
             </div>
           </div>
         </div>

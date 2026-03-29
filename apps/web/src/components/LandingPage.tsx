@@ -1,20 +1,9 @@
-import React from "react";
-import { SignInButton, SignUpButton } from "@clerk/clerk-react";
+import React, { useState } from "react";
+import { useSupabaseAuth } from "../lib/SupabaseAuthProvider";
 
 export type LandingPageProps = {
-  /**
-   * Optional: show a compact variant (useful if you embed this in a smaller panel).
-   */
   variant?: "default" | "compact";
-
-  /**
-   * Optional: if you want to override the headline from the parent.
-   */
   headline?: string;
-
-  /**
-   * Optional: if you want to override the subheadline from the parent.
-   */
   subheadline?: string;
 };
 
@@ -46,18 +35,7 @@ export default function LandingPage({
             </div>
           </div>
           <div className="spacer" />
-          <div className="row" style={{ gap: 10 }}>
-            <SignInButton>
-              <button className="button" type="button">
-                Sign in
-              </button>
-            </SignInButton>
-            <SignUpButton>
-              <button className="button button-primary" type="button">
-                Get started
-              </button>
-            </SignUpButton>
-          </div>
+          <AuthButtons />
         </div>
 
         <div style={{ height: 14 }} />
@@ -214,7 +192,7 @@ export default function LandingPage({
             <li>
               <strong>Create an agent</strong>
               <div className="muted" style={{ marginTop: 4 }}>
-                Define the agent’s metadata and (optionally) required env keys.
+                Define the agent's metadata and (optionally) required env keys.
               </div>
             </li>
             <li style={{ marginTop: 10 }}>
@@ -227,7 +205,7 @@ export default function LandingPage({
             <li style={{ marginTop: 10 }}>
               <strong>Invoke</strong>
               <div className="muted" style={{ marginTop: 4 }}>
-                The gateway routes via the agent’s active deployment. Streaming
+                The gateway routes via the agent's active deployment. Streaming
                 uses SSE with ordered events.
               </div>
             </li>
@@ -329,11 +307,7 @@ export default function LandingPage({
           </div>
 
           <div className="row" style={{ justifyContent: "flex-end" }}>
-            <SignUpButton>
-              <button className="button button-primary" type="button">
-                Create account
-              </button>
-            </SignUpButton>
+            <AuthButtons />
           </div>
         </div>
       </section>
@@ -344,6 +318,99 @@ export default function LandingPage({
         © {new Date().getFullYear()} WebHost.Systems ... Powered by <a href="https://ampersandboxdesign.com">[&]</a>
       </div>
     </div>
+  );
+}
+
+function AuthButtons(): React.ReactElement {
+  const { signIn, signUp } = useSupabaseAuth();
+  const [mode, setMode] = useState<"idle" | "signIn" | "signUp">("idle");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  if (mode === "idle") {
+    return (
+      <div className="row" style={{ gap: 10 }}>
+        <button className="button" type="button" onClick={() => setMode("signIn")}>
+          Sign in
+        </button>
+        <button className="button button-primary" type="button" onClick={() => setMode("signUp")}>
+          Get started
+        </button>
+      </div>
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      if (mode === "signIn") {
+        await signIn(email, password);
+      } else {
+        await signUp(email, password);
+      }
+    } catch (err: any) {
+      setError(err.message ?? "Authentication failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 260 }}>
+      <div className="row" style={{ gap: 8 }}>
+        <strong>{mode === "signIn" ? "Sign in" : "Create account"}</strong>
+        <div className="spacer" />
+        <button
+          type="button"
+          className="button"
+          style={{ fontSize: 11 }}
+          onClick={() => { setMode("idle"); setError(null); }}
+        >
+          Cancel
+        </button>
+      </div>
+
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        autoFocus
+        style={{ padding: "6px 8px", fontSize: 13 }}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        minLength={6}
+        style={{ padding: "6px 8px", fontSize: 13 }}
+      />
+
+      {error ? (
+        <div style={{ color: "var(--danger, #f66)", fontSize: 12 }}>{error}</div>
+      ) : null}
+
+      <div className="row" style={{ gap: 8 }}>
+        <button className="button button-primary" type="submit" disabled={submitting}>
+          {submitting ? "..." : mode === "signIn" ? "Sign in" : "Sign up"}
+        </button>
+        <button
+          type="button"
+          className="button"
+          style={{ fontSize: 12 }}
+          onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setError(null); }}
+        >
+          {mode === "signIn" ? "Need an account?" : "Already have one?"}
+        </button>
+      </div>
+    </form>
   );
 }
 
