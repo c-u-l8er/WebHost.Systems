@@ -4,10 +4,10 @@
 - **Date:** 2026-01-21
 - **Owners:** Engineering
 - **Related docs:**
-  - `WebHost.Systems/project_spec/spec_v1/00_MASTER_SPEC.md`
-  - `WebHost.Systems/project_spec/spec_v1/10_API_CONTRACTS.md`
-  - `WebHost.Systems/project_spec/spec_v1/20_RUNTIME_PROVIDER_INTERFACE.md`
-  - `WebHost.Systems/project_spec/spec_v1/40_SECURITY_SECRETS_COMPLIANCE.md`
+  - `WebHost.Systems/docs/spec/00_MASTER_SPEC.md`
+  - `WebHost.Systems/docs/spec/10_API_CONTRACTS.md`
+  - `WebHost.Systems/docs/spec/20_RUNTIME_PROVIDER_INTERFACE.md`
+  - `WebHost.Systems/docs/spec/40_SECURITY_SECRETS_COMPLIANCE.md`
 
 ## Context
 

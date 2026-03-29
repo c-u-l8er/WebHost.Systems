@@ -3,10 +3,10 @@ Status: Accepted (v1)
 Date: 2026-01-21  
 Decision Makers: Engineering  
 Related Docs:
-- `WebHost.Systems/project_spec/spec_v1/00_MASTER_SPEC.md`
-- `WebHost.Systems/project_spec/spec_v1/20_RUNTIME_PROVIDER_INTERFACE.md`
-- `WebHost.Systems/project_spec/spec_v1/50_OBSERVABILITY_BILLING_LIMITS.md`
-- `WebHost.Systems/project_spec/spec_v1/40_SECURITY_SECRETS_COMPLIANCE.md`
+- `WebHost.Systems/docs/spec/00_MASTER_SPEC.md`
+- `WebHost.Systems/docs/spec/20_RUNTIME_PROVIDER_INTERFACE.md`
+- `WebHost.Systems/docs/spec/50_OBSERVABILITY_BILLING_LIMITS.md`
+- `WebHost.Systems/docs/spec/40_SECURITY_SECRETS_COMPLIANCE.md`
 
 ## Context
 webhost.systems is a platform for deploying, running, and observing AI agents. The platform must serve two competing needs:

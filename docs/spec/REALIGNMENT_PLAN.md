@@ -4,7 +4,7 @@ Status: Actionable checklist (spec → code)
 Audience: Engineering  
 Last updated: 2026-01-24  
 
-This document is a **realignment checklist** to ensure the WebHost.Systems implementation matches the v1 spec set under `project_spec/spec_v1/`. It is designed to be used whether you are building from scratch or bringing an existing codebase into compliance.
+This document is a **realignment checklist** to ensure the WebHost.Systems implementation matches the v1 spec set under `docs/spec/`. It is designed to be used whether you are building from scratch or bringing an existing codebase into compliance.
 
 ---
 

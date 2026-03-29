@@ -5,13 +5,13 @@
 - **Applies to:** `webhost.systems` control plane
 - **Decision Scope:** Add a service-authenticated “delegated invocation” mode so trusted backend systems (e.g., workflow orchestrators) can invoke WHS agents on behalf of an end user without forwarding browser tokens.
 - **Related Specs:**
-  - `project_spec/spec_v1/00_MASTER_SPEC.md` (control plane vs data plane boundary; invocation semantics)
-  - `project_spec/spec_v1/10_API_CONTRACTS.md` (invocation gateway; normalized errors; telemetry auth model)
-  - `project_spec/spec_v1/20_RUNTIME_PROVIDER_INTERFACE.md` (invoke contract)
-  - `project_spec/spec_v1/30_DATA_MODEL_CONVEX.md` (tenant isolation; access control)
-  - `project_spec/spec_v1/40_SECURITY_SECRETS_COMPLIANCE.md` (threat model; secrets; abuse controls)
-  - `project_spec/spec_v1/adr/ADR-0004-telemetry-integrity.md` (HMAC over raw bytes precedent)
-  - External integration: `ProjectWHS/agentromatic.com/project_spec/whs_integration.md` (consumer contract)
+  - `docs/spec/00_MASTER_SPEC.md` (control plane vs data plane boundary; invocation semantics)
+  - `docs/spec/10_API_CONTRACTS.md` (invocation gateway; normalized errors; telemetry auth model)
+  - `docs/spec/20_RUNTIME_PROVIDER_INTERFACE.md` (invoke contract)
+  - `docs/spec/30_DATA_MODEL_CONVEX.md` (tenant isolation; access control)
+  - `docs/spec/40_SECURITY_SECRETS_COMPLIANCE.md` (threat model; secrets; abuse controls)
+  - `docs/spec/adr/ADR-0004-telemetry-integrity.md` (HMAC over raw bytes precedent)
+  - External integration: `ProjectWHS/agentromatic.com/docs/spec/whs_integration.md` (consumer contract)
 
 ---
 

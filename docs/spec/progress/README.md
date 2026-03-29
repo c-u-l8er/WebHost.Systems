@@ -1,9 +1,9 @@
-# project_spec/progress — Daily Engineering Progress Logs
+# docs/spec/progress — Daily Engineering Progress Logs
 
 This folder contains **daily, append-only engineering progress logs** for the `webhost.systems` implementation effort.
 
 - These logs are **non-normative** (they do not define requirements).
-- The **normative spec** remains `project_spec/spec_v1/` (especially `00_MASTER_SPEC.md` and `10_API_CONTRACTS.md`).
+- The **normative spec** remains `docs/spec/` (especially `00_MASTER_SPEC.md` and `10_API_CONTRACTS.md`).
 - The purpose here is to document **what changed**, **why**, and **what’s next**, day-by-day, in a way that’s easy to audit.
 
 ---
@@ -155,4 +155,4 @@ This folder supports:
 - implementation pacing (“are we converging on v1 acceptance criteria?”),
 - easier handoffs and reviews.
 
-If a log conflicts with `project_spec/spec_v1/`, the spec wins.
+If a log conflicts with `docs/spec/`, the spec wins.

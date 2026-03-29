@@ -25,7 +25,7 @@ Built entirely on Supabase + Vite/React + Cloudflare/AWS runtimes.
 - A practical quickstart that gets a local dev environment running with Supabase, Vite, and Edge Functions
 - Architecture documentation covering the control plane / data plane split, RPI abstraction, and request flows
 - Skills guides for every operational surface — agent management, deployment, invocation, billing, security, and [&] Protocol integration
-- Spec references pointing to the authoritative engineering spec in `project_spec/spec_v1/`
+- Spec references pointing to the authoritative engineering spec in `docs/spec/spec_v1/`
 
 ---
 
@@ -50,6 +50,15 @@ Built entirely on Supabase + Vite/React + Cloudflare/AWS runtimes.
 Graphonomous <https://graphonomous.com>
 BendScript <https://bendscript.com>
 WebHost.Systems <https://webhost.systems>
+Agentelic <https://agentelic.com>
+AgenTroMatic <https://agentromatic.com>
+Delegatic <https://delegatic.com>
+Deliberatic <https://deliberatic.com>
+FleetPrompt <https://fleetprompt.com>
+GeoFleetic <https://geofleetic.com>
+OpenSentience <https://opensentience.org>
+SpecPrompt <https://specprompt.com>
+TickTickClock <https://ticktickclock.com>
 ```
 
 ```{toctree}
@@ -60,6 +69,15 @@ WebHost.Systems <https://webhost.systems>
 Graphonomous Docs <https://docs.graphonomous.com>
 BendScript Docs <https://docs.bendscript.com>
 WebHost.Systems Docs <https://docs.webhost.systems>
+Agentelic Docs <https://docs.agentelic.com>
+AgenTroMatic Docs <https://docs.agentromatic.com>
+Delegatic Docs <https://docs.delegatic.com>
+Deliberatic Docs <https://docs.deliberatic.com>
+FleetPrompt Docs <https://docs.fleetprompt.com>
+GeoFleetic Docs <https://docs.geofleetic.com>
+OpenSentience Docs <https://docs.opensentience.org>
+SpecPrompt Docs <https://docs.specprompt.com>
+TickTickClock Docs <https://docs.ticktickclock.com>
 ```
 
 ```{toctree}
@@ -68,6 +86,8 @@ WebHost.Systems Docs <https://docs.webhost.systems>
 
 quickstart
 architecture
+spec/spec_v1/00_MASTER_SPEC
+spec/spec_v1/README
 ```
 
 ```{toctree}
@@ -168,7 +188,7 @@ regardless of which cloud actually executes the code.
 
 ## Spec References
 
-The authoritative engineering spec lives in `project_spec/spec_v1/`:
+The authoritative engineering spec lives in `docs/spec/spec_v1/`:
 
 - `00_MASTER_SPEC.md` — Self-contained master spec
 - `10_API_CONTRACTS.md` — API contracts and error codes
@@ -191,8 +211,8 @@ WebHost.Systems/
     control-plane/    -- Supabase backend (Edge Functions + RPC)
   supabase/           -- Supabase project (migrations, Edge Functions, seed)
   packages/           -- Shared packages
-  project_spec/       -- Authoritative engineering spec
   docs/               -- This documentation
+    spec/             -- Authoritative engineering spec
     skills/           -- Operational skills reference
 ```
 
@@ -200,7 +220,7 @@ WebHost.Systems/
 
 ## Project Links
 
-- **Master spec:** `WebHost.Systems/project_spec/spec_v1/00_MASTER_SPEC.md`
-- **ADRs:** `WebHost.Systems/project_spec/spec_v1/adr/`
-- **[&] Protocol integration:** `WebHost.Systems/project_spec/spec_v1/70_AMPERSAND_PROTOCOL_INTEGRATION.md`
+- **Master spec:** [Engineering Specification](spec/spec_v1/00_MASTER_SPEC.md)
+- **ADRs:** `docs/spec/spec_v1/adr/`
+- **[&] Protocol integration:** [Ampersand Integration](spec/spec_v1/70_AMPERSAND_PROTOCOL_INTEGRATION.md)
 - **[&] Protocol ecosystem:** `AmpersandBoxDesign/`

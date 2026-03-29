@@ -4,7 +4,7 @@
 - **Date:** 2026-03-28
 - **Supersedes:** ADR-0002 (Convex, 2026-01-21)
 - **Owners:** webhost.systems engineering
-- **Related docs:** `project_spec/spec_v1/00_MASTER_SPEC.md`, `project_spec/spec_v1/10_API_CONTRACTS.md`, `project_spec/spec_v1/30_DATA_MODEL_SUPABASE.md`, `project_spec/spec_v1/40_SECURITY_SECRETS_COMPLIANCE.md`
+- **Related docs:** `docs/spec/00_MASTER_SPEC.md`, `docs/spec/10_API_CONTRACTS.md`, `docs/spec/30_DATA_MODEL_SUPABASE.md`, `docs/spec/40_SECURITY_SECRETS_COMPLIANCE.md`
 
 ---
 

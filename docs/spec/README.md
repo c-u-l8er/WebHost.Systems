@@ -80,7 +80,7 @@ Minimum v1 must-haves:
 
 ## Notes on older drafts
 
-This folder is intended to supersede earlier rough drafts in `project_spec/`. The older drafts are useful as background, but **implementation should follow `spec_v1/`**.
+This folder is intended to supersede earlier rough drafts in `docs/spec/`. The older drafts are useful as background, but **implementation should follow `spec_v1/`**.
 
 If any contradictions are found:
 1. Prefer `00_MASTER_SPEC.md` and `10_API_CONTRACTS.md` for canonical behavior.
