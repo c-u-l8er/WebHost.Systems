@@ -6,61 +6,57 @@ import React, {
   useState,
 } from "react";
 import {
-  ControlPlaneApiError,
+  ApiError,
   type Agent,
-  type CurrentUsageResponse,
+  type BillingUsage,
   type Deployment,
   type InvokeV1Request,
   type InvokeV1Response,
   type MetricsEvent,
   type SseEvent,
-} from "../lib/controlPlaneClient";
-import { useControlPlaneClient } from "../lib/useControlPlaneClient";
+  listAgents,
+  createAgent as apiCreateAgent,
+  deleteAgent as apiDeleteAgent,
+  deployAgent as apiDeployAgent,
+  activateDeployment as apiActivateDeployment,
+  invoke as apiInvoke,
+  invokeStream as apiInvokeStream,
+  listDeployments,
+  listRecentMetrics,
+  getBillingUsage,
+} from "../lib/supabaseApi";
+import { useWorkspace } from "../lib/WorkspaceProvider";
 
 /**
- * Agents UI (Slice B)
+ * Agents UI
  *
  * Dedicated Agents page:
  * - Left sidebar: list/create agents
  * - Detail view: actions and data for the selected agent
  *
- * Uses `ControlPlaneClient` for:
- * - Agents: list/create/update/disable/delete
- * - Deploy: deployAgent (Cloudflare)
- * - Invoke: non-streaming + SSE streaming
- * - Deployments: activateDeployment (rollback pointer flip)
- *
- * Telemetry:
- * - This UI includes usage + recent metrics events panels when the read endpoints are available.
+ * Uses `supabaseApi` for:
+ * - Agents: list/create/delete (PostgREST + RPC)
+ * - Deploy: deployAgent (Edge Function)
+ * - Invoke: non-streaming + SSE streaming (Edge Function)
+ * - Deployments: activateDeployment / rollback (Edge Function)
+ * - Telemetry: billing usage + recent metrics (PostgREST)
  */
 
 type RuntimeProvider = "cloudflare" | "agentcore";
 
-type TelemetryEvent = MetricsEvent;
-
-type UsageSummary = CurrentUsageResponse;
-
 type AsyncStatus = "idle" | "loading" | "success" | "error";
 
-function formatMs(ms?: number): string {
-  if (!ms) return "—";
+function formatDate(iso?: string | null): string {
+  if (!iso) return "—";
   try {
-    return new Date(ms).toLocaleString();
+    return new Date(iso).toLocaleString();
   } catch {
-    return String(ms);
+    return String(iso);
   }
 }
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
-}
-
-function safeJsonParse(text: string): any | null {
-  try {
-    return text ? JSON.parse(text) : null;
-  } catch {
-    return null;
-  }
 }
 
 function stringifyJson(value: unknown): string {
@@ -72,8 +68,7 @@ function stringifyJson(value: unknown): string {
 }
 
 function summarizeError(err: unknown): string {
-  if (err instanceof ControlPlaneApiError) {
-    const rid = err.requestId ? ` requestId=${err.requestId}` : "";
+  if (err instanceof ApiError) {
     const status = ` status=${err.status}`;
     const retryable =
       typeof err.retryable === "boolean" ? ` retryable=${err.retryable}` : "";
@@ -87,57 +82,27 @@ function summarizeError(err: unknown): string {
       }
     }
 
-    return `${err.code}: ${err.message} (${status}${rid}${retryable})${details}`;
+    return `${err.code}: ${err.message} (${status}${retryable})${details}`;
   }
 
   if (err instanceof Error) return err.message;
   return "Unknown error";
 }
 
-async function readTextSafe(res: Response): Promise<string> {
-  try {
-    return await res.text();
-  } catch {
-    return "";
-  }
-}
-
 export type AgentsPageMode = "list" | "detail" | "combined";
 
 export type AgentsPageProps = {
-  /**
-   * "list": show only the agents list/table (no detail panels)
-   * "detail": show only the selected agent detail panels (no list)
-   * "combined": show both (back-compat / transitional)
-   */
   mode?: AgentsPageMode;
-
-  /**
-   * When provided, the page treats this as the selected agent id (detail context).
-   * The caller owns routing; this component should not touch window.location.
-   */
   agentId?: string;
-
-  /**
-   * Optional navigation callback for list row clicks.
-   * If omitted, selection stays internal (back-compat).
-   */
   onNavigateToAgent?: (agentId: string) => void;
-
-  /**
-   * Optional navigation callback for the "Back" button on the detail page.
-   * If omitted, selection is cleared internally (back-compat).
-   */
   onBackToList?: () => void;
 };
-
-// Uses shared `useControlPlaneClient()` hook (see `src/lib/useControlPlaneClient.ts`) to avoid
-// duplicating base URL normalization + Clerk JWT template logic across pages.
 
 export default function AgentsPage(
   props: AgentsPageProps = {},
 ): React.ReactElement {
-  const { client, controlPlaneUrl, canUseApi } = useControlPlaneClient();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace?.id ?? "";
 
   /* -------------------------------------------------------------------------------------------------
    * Agents
@@ -146,11 +111,11 @@ export default function AgentsPage(
   type AgentSortKey =
     | "name"
     | "status"
-    | "preferredRuntimeProvider"
+    | "runtime_provider"
     | "hasActiveDeployment"
-    | "updatedAtMs"
-    | "createdAtMs"
-    | "_id";
+    | "updated_at"
+    | "created_at"
+    | "id";
   type SortDir = "asc" | "desc";
 
   const [agentsStatus, setAgentsStatus] = useState<AsyncStatus>("idle");
@@ -161,8 +126,6 @@ export default function AgentsPage(
   const viewMode: AgentsPageMode = props.mode ?? "combined";
   const routeAgentId = props.agentId ?? "";
 
-  // If the route provides an agentId, ensure it becomes selected (detail page).
-  // This component must not mutate the URL; the caller owns routing.
   useEffect(() => {
     if (routeAgentId) setSelectedAgentId(routeAgentId);
   }, [routeAgentId]);
@@ -197,26 +160,26 @@ export default function AgentsPage(
   const [agentDeploymentFilter, setAgentDeploymentFilter] = useState<
     "all" | "has" | "none"
   >("all");
-  const [agentSortKey, setAgentSortKey] = useState<AgentSortKey>("updatedAtMs");
+
+  const [agentSortKey, setAgentSortKey] = useState<AgentSortKey>("updated_at");
   const [agentSortDir, setAgentSortDir] = useState<SortDir>("desc");
 
   const selectedAgent = useMemo(
-    () => agents.find((a) => a._id === selectedAgentId) ?? null,
+    () => agents.find((a) => a.id === selectedAgentId) ?? null,
     [agents, selectedAgentId],
   );
 
   const defaultSortDirFor = useCallback((key: AgentSortKey): SortDir => {
     switch (key) {
-      case "updatedAtMs":
-      case "createdAtMs":
+      case "updated_at":
+      case "created_at":
         return "desc";
       case "hasActiveDeployment":
-        // Most useful default: agents with a deployment first
         return "desc";
       case "name":
       case "status":
-      case "preferredRuntimeProvider":
-      case "_id":
+      case "runtime_provider":
+      case "id":
       default:
         return "asc";
     }
@@ -249,14 +212,14 @@ export default function AgentsPage(
       if (agentStatusFilter !== "all" && a.status !== agentStatusFilter)
         return false;
 
-      const runtime = (a.preferredRuntimeProvider ?? "unknown") as
+      const runtime = (a.runtime_provider ?? "unknown") as
         | RuntimeProvider
         | "unknown";
 
       if (agentRuntimeFilter !== "all" && runtime !== agentRuntimeFilter)
         return false;
 
-      const hasDep = !!a.activeDeploymentId;
+      const hasDep = !!a.active_deployment_id;
       if (agentDeploymentFilter === "has" && !hasDep) return false;
       if (agentDeploymentFilter === "none" && hasDep) return false;
 
@@ -265,11 +228,11 @@ export default function AgentsPage(
       const hay = [
         a.name,
         a.description ?? "",
-        a._id,
+        a.id,
         a.status,
         runtime,
         hasDep ? "hasDeployment" : "noDeployment",
-        a.activeDeploymentId ?? "",
+        a.active_deployment_id ?? "",
       ]
         .join(" ")
         .toLowerCase();
@@ -278,17 +241,17 @@ export default function AgentsPage(
     };
 
     const getSortValue = (a: Agent, key: AgentSortKey): string | number => {
-      const runtime = (a.preferredRuntimeProvider ?? "unknown") as
+      const runtime = (a.runtime_provider ?? "unknown") as
         | RuntimeProvider
         | "unknown";
 
       if (key === "name") return a.name ?? "";
       if (key === "status") return a.status ?? "";
-      if (key === "preferredRuntimeProvider") return runtime;
-      if (key === "hasActiveDeployment") return a.activeDeploymentId ? 1 : 0;
-      if (key === "createdAtMs") return a.createdAtMs ?? 0;
-      if (key === "updatedAtMs") return a.updatedAtMs ?? 0;
-      if (key === "_id") return a._id ?? "";
+      if (key === "runtime_provider") return runtime;
+      if (key === "hasActiveDeployment") return a.active_deployment_id ? 1 : 0;
+      if (key === "created_at") return a.created_at ?? "";
+      if (key === "updated_at") return a.updated_at ?? "";
+      if (key === "id") return a.id ?? "";
       return 0;
     };
 
@@ -322,35 +285,31 @@ export default function AgentsPage(
   ]);
 
   const refreshAgents = useCallback(async () => {
-    if (!client) return;
+    if (!workspaceId) return;
 
     setAgentsStatus("loading");
     setAgentsError(null);
 
     try {
-      const list = await client.listAgents({
+      const list = await listAgents(workspaceId, {
         limit: 200,
         includeDeleted: false,
       });
       setAgents(list);
 
       if (list.length > 0) {
-        // Keep selection stable if it still exists.
         const stillExists =
-          selectedAgentId && list.some((a) => a._id === selectedAgentId);
+          selectedAgentId && list.some((a) => a.id === selectedAgentId);
 
         if (!stillExists) {
-          // If the caller is driving a detail route, honor it.
-          if (routeAgentId && list.some((a) => a._id === routeAgentId)) {
+          if (routeAgentId && list.some((a) => a.id === routeAgentId)) {
             setSelectedAgentId(routeAgentId);
           } else if (viewMode === "combined") {
-            // Back-compat: in combined mode we pick a default selection.
             const newest = [...list].sort(
-              (a, b) => b.createdAtMs - a.createdAtMs,
+              (a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""),
             )[0];
-            setSelectedAgentId(newest._id);
+            setSelectedAgentId(newest.id);
           } else {
-            // In list/detail modes, the route should drive selection; don't guess.
             setSelectedAgentId("");
           }
         }
@@ -363,7 +322,7 @@ export default function AgentsPage(
       setAgentsStatus("error");
       setAgentsError(summarizeError(err));
     }
-  }, [client, routeAgentId, selectedAgentId]);
+  }, [workspaceId, routeAgentId, selectedAgentId]);
 
   useEffect(() => {
     void refreshAgents();
@@ -376,7 +335,7 @@ export default function AgentsPage(
   const [createError, setCreateError] = useState<string | null>(null);
 
   const createAgent = useCallback(async () => {
-    if (!client) return;
+    if (!workspaceId) return;
 
     const name = createName.trim();
     if (!name) {
@@ -389,23 +348,21 @@ export default function AgentsPage(
     setCreateError(null);
 
     try {
-      const agent = await client.createAgent({
+      const agent = await apiCreateAgent({
+        workspace_id: workspaceId,
         name,
         description: createDescription.trim() || undefined,
-        envVarKeys: [],
-        preferredRuntimeProvider: "cloudflare",
+        env_var_keys: [],
+        runtime_provider: "cloudflare",
       });
 
       // Optimistic insert
       setAgents((prev) => [agent, ...prev]);
 
-      // List vs detail routing:
-      // - On the list page, creating an agent should take you to its detail page.
-      // - In combined/back-compat mode, we just select it in-place.
       if (viewMode === "list" && props.onNavigateToAgent) {
-        props.onNavigateToAgent(agent._id);
+        props.onNavigateToAgent(agent.id);
       } else {
-        setSelectedAgentId(agent._id);
+        setSelectedAgentId(agent.id);
       }
 
       setCreateStatus("success");
@@ -413,7 +370,7 @@ export default function AgentsPage(
       setCreateStatus("error");
       setCreateError(summarizeError(err));
     }
-  }, [client, createDescription, createName]);
+  }, [workspaceId, createDescription, createName]);
 
   /* -------------------------------------------------------------------------------------------------
    * Delete agent
@@ -423,7 +380,6 @@ export default function AgentsPage(
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const deleteSelectedAgent = useCallback(async () => {
-    if (!client) return;
     if (!selectedAgent) return;
 
     const ok = window.confirm(
@@ -435,11 +391,10 @@ export default function AgentsPage(
     setDeleteError(null);
 
     try {
-      await client.deleteAgent(selectedAgent._id);
+      await apiDeleteAgent(selectedAgent.id);
 
-      // Optimistic remove + clear selection (refresh will reconcile).
-      setAgents((prev) => prev.filter((a) => a._id !== selectedAgent._id));
-      if (selectedAgentId === selectedAgent._id) {
+      setAgents((prev) => prev.filter((a) => a.id !== selectedAgent.id));
+      if (selectedAgentId === selectedAgent.id) {
         setSelectedAgentId("");
       }
 
@@ -449,7 +404,7 @@ export default function AgentsPage(
       setDeleteStatus("error");
       setDeleteError(summarizeError(err));
     }
-  }, [client, refreshAgents, selectedAgent, selectedAgentId]);
+  }, [refreshAgents, selectedAgent, selectedAgentId]);
 
   /* -------------------------------------------------------------------------------------------------
    * Deploy
@@ -464,7 +419,6 @@ export default function AgentsPage(
     useState<string>("");
 
   const deploySelected = useCallback(async () => {
-    if (!client) return;
     if (!selectedAgent) return;
 
     setDeployStatus("loading");
@@ -472,8 +426,7 @@ export default function AgentsPage(
     setDeployResult(null);
 
     try {
-      const deployment = await client.deployAgent(selectedAgent._id, {
-        // Slice B: omit moduleCode to use the built-in deterministic worker template
+      const deployment = await apiDeployAgent(selectedAgent.id, {
         invokePath: deployInvokePath.trim() || undefined,
         compatibilityDate: deployCompatibilityDate.trim() || undefined,
       });
@@ -481,7 +434,6 @@ export default function AgentsPage(
       setDeployResult(deployment);
       setDeployStatus("success");
 
-      // Deploy finalization is async; refresh immediately and again shortly after.
       await refreshAgents();
       setTimeout(() => void refreshAgents(), 1500);
       setTimeout(() => void refreshAgents(), 3500);
@@ -490,7 +442,6 @@ export default function AgentsPage(
       setDeployError(summarizeError(err));
     }
   }, [
-    client,
     deployCompatibilityDate,
     deployInvokePath,
     refreshAgents,
@@ -507,7 +458,6 @@ export default function AgentsPage(
 
   const activateDeployment = useCallback(
     async (deploymentIdOverride?: string) => {
-      if (!client) return;
       if (!selectedAgent) return;
 
       const deploymentId = (
@@ -519,7 +469,7 @@ export default function AgentsPage(
       setActivateError(null);
 
       try {
-        await client.activateDeployment(selectedAgent._id, deploymentId, {
+        await apiActivateDeployment(selectedAgent.id, deploymentId, {
           reason: "dashboard activation",
         });
 
@@ -530,7 +480,7 @@ export default function AgentsPage(
         setActivateError(summarizeError(err));
       }
     },
-    [activateDeploymentId, client, refreshAgents, selectedAgent],
+    [activateDeploymentId, refreshAgents, selectedAgent],
   );
 
   /* -------------------------------------------------------------------------------------------------
@@ -555,7 +505,6 @@ export default function AgentsPage(
   const streamAbortRef = useRef<AbortController | null>(null);
 
   const invokeSelected = useCallback(async () => {
-    if (!client) return;
     if (!selectedAgent) return;
 
     setInvokeStatus("loading");
@@ -572,19 +521,18 @@ export default function AgentsPage(
       const session = invokeSessionId.trim();
       if (session) req.sessionId = session;
 
-      const resp = await client.invoke(selectedAgent._id, req);
+      const resp = await apiInvoke(selectedAgent.id, req);
 
       setInvokeResponse(resp);
       setInvokeRaw(stringifyJson(resp));
       setInvokeStatus("success");
 
-      // Preserve session id if returned
       if (resp.sessionId) setInvokeSessionId(resp.sessionId);
     } catch (err) {
       setInvokeStatus("error");
       setInvokeError(summarizeError(err));
     }
-  }, [client, invokePrompt, invokeSessionId, selectedAgent]);
+  }, [invokePrompt, invokeSessionId, selectedAgent]);
 
   const stopStreaming = useCallback(() => {
     streamAbortRef.current?.abort();
@@ -593,7 +541,6 @@ export default function AgentsPage(
   }, []);
 
   const invokeSelectedStream = useCallback(async () => {
-    if (!client) return;
     if (!selectedAgent) return;
 
     // Cancel any previous stream
@@ -616,7 +563,7 @@ export default function AgentsPage(
       const session = invokeSessionId.trim();
       if (session) req.sessionId = session;
 
-      for await (const evt of client.invokeStream(selectedAgent._id, req, {
+      for await (const evt of apiInvokeStream(selectedAgent.id, req, {
         signal: controller.signal,
       })) {
         if (controller.signal.aborted) break;
@@ -634,7 +581,7 @@ export default function AgentsPage(
         streamAbortRef.current = null;
       }
     }
-  }, [client, invokePrompt, invokeSessionId, selectedAgent]);
+  }, [invokePrompt, invokeSessionId, selectedAgent]);
 
   const handleSseEvent = (evt: SseEvent) => {
     if (evt.event === "meta") {
@@ -655,7 +602,6 @@ export default function AgentsPage(
       return;
     }
     if (evt.event === "error") {
-      // Control plane emits `{ error: { ... } }` as data for error events
       setStreamError(stringifyJson(evt.data));
       setStreamStatus("error");
       return;
@@ -674,7 +620,6 @@ export default function AgentsPage(
   const [deployments, setDeployments] = useState<Deployment[]>([]);
 
   const refreshDeployments = useCallback(async () => {
-    if (!client) return;
     if (!selectedAgent) {
       setDeployments([]);
       setDeploymentsStatus("idle");
@@ -686,8 +631,7 @@ export default function AgentsPage(
     setDeploymentsError(null);
 
     try {
-      const list = await client.listDeployments(selectedAgent._id, {
-        includeInactive: true,
+      const list = await listDeployments(selectedAgent.id, {
         limit: 50,
       });
       setDeployments(list);
@@ -696,22 +640,22 @@ export default function AgentsPage(
       setDeploymentsStatus("error");
       setDeploymentsError(summarizeError(err));
     }
-  }, [client, selectedAgent]);
+  }, [selectedAgent]);
 
   /* -------------------------------------------------------------------------------------------------
-   * Telemetry (live; read endpoints are now available)
+   * Telemetry (live; read endpoints)
    * ------------------------------------------------------------------------------------------------- */
 
   const [usageStatus, setUsageStatus] = useState<AsyncStatus>("idle");
   const [usageError, setUsageError] = useState<string | null>(null);
-  const [usage, setUsage] = useState<UsageSummary | null>(null);
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
 
   const [eventsStatus, setEventsStatus] = useState<AsyncStatus>("idle");
   const [eventsError, setEventsError] = useState<string | null>(null);
-  const [events, setEvents] = useState<TelemetryEvent[]>([]);
+  const [events, setEvents] = useState<MetricsEvent[]>([]);
 
   const refreshUsageAndTelemetry = useCallback(async () => {
-    if (!client) return;
+    if (!workspaceId) return;
 
     setUsageStatus("loading");
     setUsageError(null);
@@ -720,7 +664,7 @@ export default function AgentsPage(
     setEventsError(null);
 
     try {
-      const usageResult = await client.getCurrentUsage();
+      const usageResult = await getBillingUsage(workspaceId);
       setUsage(usageResult);
       setUsageStatus("success");
     } catch (err) {
@@ -736,9 +680,9 @@ export default function AgentsPage(
         return;
       }
 
-      const sinceMs = Date.now() - 60 * 60 * 1000; // last hour
-      const recent = await client.listRecentMetricsEvents(selectedAgent._id, {
-        sinceMs,
+      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const recent = await listRecentMetrics(selectedAgent.id, {
+        since,
         limit: 50,
       });
 
@@ -748,10 +692,9 @@ export default function AgentsPage(
       setEventsStatus("error");
       setEventsError(summarizeError(err));
     }
-  }, [client, selectedAgent]);
+  }, [workspaceId, selectedAgent]);
 
   // Refresh deployments and telemetry when selection changes.
-  // Also reset destructive-action UI state so it doesn't "stick" when switching agents.
   useEffect(() => {
     if (viewMode === "list") return;
 
@@ -764,7 +707,7 @@ export default function AgentsPage(
 
   // Live telemetry polling (best-effort).
   useEffect(() => {
-    if (!client) return;
+    if (!workspaceId) return;
     if (viewMode === "list") return;
     if (!selectedAgent) return;
 
@@ -772,13 +715,13 @@ export default function AgentsPage(
       void refreshUsageAndTelemetry();
     }, 5000);
     return () => clearInterval(id);
-  }, [client, refreshUsageAndTelemetry, selectedAgent, viewMode]);
+  }, [workspaceId, refreshUsageAndTelemetry, selectedAgent, viewMode]);
 
   /* -------------------------------------------------------------------------------------------------
    * Render
    * ------------------------------------------------------------------------------------------------- */
 
-  // `canUseApi` is already provided by `useControlPlaneClient()`.
+  const canUseApi = !!workspaceId;
 
   return (
     <>
@@ -793,8 +736,8 @@ export default function AgentsPage(
             </div>
             <div className="spacer" />
             <span className="badge">
-              <span className="muted">control plane</span>{" "}
-              <code>{controlPlaneUrl || "(set VITE_CONTROL_PLANE_URL)"}</code>
+              <span className="muted">workspace</span>{" "}
+              <code>{workspace?.name ?? "(loading)"}</code>
             </span>
             <button
               className="button"
@@ -808,12 +751,13 @@ export default function AgentsPage(
       </div>
 
       <div>
-          {!controlPlaneUrl ? (
+          {!canUseApi ? (
             <div className="panel" style={{ padding: 12, marginBottom: 12 }}>
               <div className="muted">
-                Set <code>VITE_CONTROL_PLANE_URL</code> in{" "}
-                <code>.env.local</code> to your Convex HTTP base URL (e.g.{" "}
-                <code>https://&lt;deployment&gt;.convex.site</code>).
+                Waiting for workspace to load. If this persists, check that{" "}
+                <code>VITE_SUPABASE_URL</code> and{" "}
+                <code>VITE_SUPABASE_ANON_KEY</code> are set in{" "}
+                <code>.env</code>.
               </div>
             </div>
           ) : null}
@@ -888,13 +832,11 @@ export default function AgentsPage(
                             aria-label="Filter by status"
                           >
                             <option value="all">All statuses</option>
-                            <option value="draft">draft</option>
-                            <option value="ready">ready</option>
+                            <option value="created">created</option>
                             <option value="deploying">deploying</option>
                             <option value="active">active</option>
                             <option value="error">error</option>
                             <option value="disabled">disabled</option>
-                            <option value="deleted">deleted</option>
                           </select>
 
                           <select
@@ -941,7 +883,7 @@ export default function AgentsPage(
                                 setAgentStatusFilter("all");
                                 setAgentRuntimeFilter("all");
                                 setAgentDeploymentFilter("all");
-                                setAgentSortKey("updatedAtMs");
+                                setAgentSortKey("updated_at");
                                 setAgentSortDir("desc");
                               }}
                               disabled={!canUseApi}
@@ -1026,9 +968,9 @@ export default function AgentsPage(
                                     cursor: "pointer",
                                     whiteSpace: "nowrap",
                                   }}
-                                  onClick={() => toggleSort("preferredRuntimeProvider")}
+                                  onClick={() => toggleSort("runtime_provider")}
                                   aria-sort={
-                                    agentSortKey === "preferredRuntimeProvider"
+                                    agentSortKey === "runtime_provider"
                                       ? agentSortDir === "asc"
                                         ? "ascending"
                                         : "descending"
@@ -1036,7 +978,7 @@ export default function AgentsPage(
                                   }
                                   title="Sort by runtime"
                                 >
-                                  Runtime{sortIndicator("preferredRuntimeProvider")}
+                                  Runtime{sortIndicator("runtime_provider")}
                                 </th>
 
                                 <th
@@ -1074,9 +1016,9 @@ export default function AgentsPage(
                                     cursor: "pointer",
                                     whiteSpace: "nowrap",
                                   }}
-                                  onClick={() => toggleSort("updatedAtMs")}
+                                  onClick={() => toggleSort("updated_at")}
                                   aria-sort={
-                                    agentSortKey === "updatedAtMs"
+                                    agentSortKey === "updated_at"
                                       ? agentSortDir === "asc"
                                         ? "ascending"
                                         : "descending"
@@ -1084,7 +1026,7 @@ export default function AgentsPage(
                                   }
                                   title="Sort by last updated"
                                 >
-                                  Updated{sortIndicator("updatedAtMs")}
+                                  Updated{sortIndicator("updated_at")}
                                 </th>
 
                                 <th
@@ -1098,9 +1040,9 @@ export default function AgentsPage(
                                     cursor: "pointer",
                                     whiteSpace: "nowrap",
                                   }}
-                                  onClick={() => toggleSort("createdAtMs")}
+                                  onClick={() => toggleSort("created_at")}
                                   aria-sort={
-                                    agentSortKey === "createdAtMs"
+                                    agentSortKey === "created_at"
                                       ? agentSortDir === "asc"
                                         ? "ascending"
                                         : "descending"
@@ -1108,7 +1050,7 @@ export default function AgentsPage(
                                   }
                                   title="Sort by created time"
                                 >
-                                  Created{sortIndicator("createdAtMs")}
+                                  Created{sortIndicator("created_at")}
                                 </th>
 
                                 <th
@@ -1122,9 +1064,9 @@ export default function AgentsPage(
                                     cursor: "pointer",
                                     whiteSpace: "nowrap",
                                   }}
-                                  onClick={() => toggleSort("_id")}
+                                  onClick={() => toggleSort("id")}
                                   aria-sort={
-                                    agentSortKey === "_id"
+                                    agentSortKey === "id"
                                       ? agentSortDir === "asc"
                                         ? "ascending"
                                         : "descending"
@@ -1132,23 +1074,23 @@ export default function AgentsPage(
                                   }
                                   title="Sort by agent id"
                                 >
-                                  ID{sortIndicator("_id")}
+                                  ID{sortIndicator("id")}
                                 </th>
                               </tr>
                             </thead>
 
                             <tbody>
                               {visibleAgents.map((a) => {
-                                const active = a._id === selectedAgentId;
+                                const active = a.id === selectedAgentId;
                                 const rowBg = active
                                   ? "rgba(110, 168, 254, 0.10)"
                                   : "transparent";
 
-                                const runtime = a.preferredRuntimeProvider ?? "unknown";
+                                const runtime = a.runtime_provider ?? "unknown";
 
                                 return (
                                   <tr
-                                    key={a._id}
+                                    key={a.id}
                                     style={{
                                       background: rowBg,
                                       borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -1158,9 +1100,9 @@ export default function AgentsPage(
                                       <button
                                         type="button"
                                         className={active ? "button button-primary" : "button"}
-                                        onClick={() => handleSelectAgent(a._id)}
+                                        onClick={() => handleSelectAgent(a.id)}
                                         disabled={!canUseApi}
-                                        title={a._id}
+                                        title={a.id}
                                         style={{
                                           width: "100%",
                                           textAlign: "left",
@@ -1169,7 +1111,7 @@ export default function AgentsPage(
                                       >
                                         <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                                           <span style={{ fontWeight: 800 }}>{a.name}</span>
-                                          {a.activeDeploymentId ? (
+                                          {a.active_deployment_id ? (
                                             <span className="badge" style={{ flex: "0 0 auto" }}>
                                               <span className="muted">active</span> dep
                                             </span>
@@ -1202,10 +1144,10 @@ export default function AgentsPage(
                                     </td>
 
                                     <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
-                                      {a.activeDeploymentId ? (
+                                      {a.active_deployment_id ? (
                                         <span className="badge">
                                           <span className="muted">dep</span>{" "}
-                                          <code>{a.activeDeploymentId}</code>
+                                          <code>{a.active_deployment_id}</code>
                                         </span>
                                       ) : (
                                         <span className="badge">
@@ -1215,15 +1157,15 @@ export default function AgentsPage(
                                     </td>
 
                                     <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
-                                      {formatMs(a.updatedAtMs)}
+                                      {formatDate(a.updated_at)}
                                     </td>
 
                                     <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
-                                      {formatMs(a.createdAtMs)}
+                                      {formatDate(a.created_at)}
                                     </td>
 
                                     <td style={{ padding: "8px 6px", verticalAlign: "top", whiteSpace: "nowrap" }}>
-                                      <code>{a._id}</code>
+                                      <code>{a.id}</code>
                                     </td>
                                   </tr>
                                 );
@@ -1309,7 +1251,7 @@ export default function AgentsPage(
                       }}
                       title="Back to agents list"
                     >
-                      ← Back
+                      &larr; Back
                     </button>
 
                     <strong>Selected agent</strong>
@@ -1322,15 +1264,13 @@ export default function AgentsPage(
                           className="button"
                           type="button"
                           onClick={() => {
-                            const text = selectedAgent._id;
+                            const text = selectedAgent.id;
 
-                            // Best-effort clipboard copy (no UI toast yet; keep this a quick win).
                             if (navigator.clipboard?.writeText) {
                               void navigator.clipboard.writeText(text);
                               return;
                             }
 
-                            // Fallback for older browsers / insecure contexts.
                             const el = document.createElement("textarea");
                             el.value = text;
                             el.style.position = "fixed";
@@ -1364,7 +1304,7 @@ export default function AgentsPage(
                         </button>
 
                         <a className="button" href="#deployments" title="Jump to deployments">
-                          Deployments ↓
+                          Deployments &darr;
                         </a>
                       </div>
                     ) : null}
@@ -1407,7 +1347,7 @@ export default function AgentsPage(
                             Agent ID
                           </div>
                           <div>
-                            <code>{selectedAgent._id}</code>
+                            <code>{selectedAgent.id}</code>
                           </div>
 
                           <div style={{ height: 8 }} />
@@ -1417,7 +1357,7 @@ export default function AgentsPage(
                           </div>
                           <div>
                             <code>
-                              {selectedAgent.activeDeploymentId ?? "(none)"}
+                              {selectedAgent.active_deployment_id ?? "(none)"}
                             </code>
                           </div>
                         </div>
@@ -1426,14 +1366,14 @@ export default function AgentsPage(
                           <div className="muted" style={{ fontSize: 12 }}>
                             Created
                           </div>
-                          <div>{formatMs(selectedAgent.createdAtMs)}</div>
+                          <div>{formatDate(selectedAgent.created_at)}</div>
 
                           <div style={{ height: 8 }} />
 
                           <div className="muted" style={{ fontSize: 12 }}>
                             Updated
                           </div>
-                          <div>{formatMs(selectedAgent.updatedAtMs)}</div>
+                          <div>{formatDate(selectedAgent.updated_at)}</div>
                         </div>
                       </div>
 
@@ -1485,7 +1425,7 @@ export default function AgentsPage(
                     <strong>Deploy (Cloudflare)</strong>
                     <div className="spacer" />
                     <span className="badge">
-                      <span className="muted">Slice B</span> template worker
+                      <span className="muted">runtime</span> template worker
                     </span>
                   </div>
                 </div>
@@ -1814,7 +1754,7 @@ export default function AgentsPage(
                     <div className="spacer" />
                     <span className="badge">
                       <span className="muted">agent</span>{" "}
-                      <code>{selectedAgent?._id ?? "—"}</code>
+                      <code>{selectedAgent?.id ?? "—"}</code>
                     </span>
                     <button
                       className="button"
@@ -1852,10 +1792,10 @@ export default function AgentsPage(
                         .sort((a, b) => b.version - a.version)
                         .map((d) => {
                           const isActivePointer =
-                            selectedAgent.activeDeploymentId === d._id;
+                            selectedAgent.active_deployment_id === d.id;
                           return (
                             <div
-                              key={d._id}
+                              key={d.id}
                               style={{
                                 border: "1px solid var(--border)",
                                 borderRadius: 10,
@@ -1876,7 +1816,7 @@ export default function AgentsPage(
                                 </span>
                                 <span className="badge">
                                   <span className="muted">runtime</span>{" "}
-                                  {d.runtimeProvider}
+                                  {d.runtime_provider}
                                 </span>
                                 {isActivePointer ? (
                                   <span className="badge">
@@ -1888,8 +1828,8 @@ export default function AgentsPage(
                                 <button
                                   className="button"
                                   onClick={() => {
-                                    setActivateDeploymentId(d._id);
-                                    void activateDeployment(d._id);
+                                    setActivateDeploymentId(d.id);
+                                    void activateDeployment(d.id);
                                   }}
                                   disabled={
                                     activateStatus === "loading" ||
@@ -1908,23 +1848,23 @@ export default function AgentsPage(
                               <div style={{ marginTop: 8 }} className="muted">
                                 <div>
                                   <span className="muted">deploymentId:</span>{" "}
-                                  <code>{d._id}</code>
+                                  <code>{d.id}</code>
                                 </div>
                                 <div>
                                   <span className="muted">created:</span>{" "}
-                                  {formatMs(d.createdAtMs)}
+                                  {formatDate(d.created_at)}
                                 </div>
                                 <div>
                                   <span className="muted">deployed:</span>{" "}
-                                  {formatMs(d.deployedAtMs)}
+                                  {formatDate(d.deployed_at)}
                                 </div>
                                 <div>
                                   <span className="muted">finished:</span>{" "}
-                                  {formatMs(d.finishedAtMs)}
+                                  {formatDate(d.finished_at)}
                                 </div>
-                                {d.errorMessage ? (
+                                {d.error_message ? (
                                   <div style={{ color: "var(--danger)" }}>
-                                    {d.errorMessage}
+                                    {d.error_message}
                                   </div>
                                 ) : null}
                               </div>
@@ -1959,7 +1899,7 @@ export default function AgentsPage(
                         style={{ fontSize: 12, marginBottom: 10 }}
                       >
                         Enter a <code>deploymentId</code> to activate. This
-                        updates <code>agents.activeDeploymentId</code>.
+                        updates <code>agents.active_deployment_id</code>.
                       </div>
 
                       <div
@@ -2051,12 +1991,13 @@ export default function AgentsPage(
                         {usage ? (
                           <span className="badge">
                             <span className="muted">period</span>{" "}
-                            {usage.periodKey}
+                            {usage.period_key}
                           </span>
                         ) : null}
                         {usage ? (
                           <span className="badge">
-                            <span className="muted">tier</span> {usage.tier}
+                            <span className="muted">paid</span>{" "}
+                            {usage.paid ? "yes" : "no"}
                           </span>
                         ) : null}
                       </div>
@@ -2092,7 +2033,7 @@ export default function AgentsPage(
                         <div className="spacer" />
                         <span className="badge">
                           <span className="muted">agent</span>{" "}
-                          <code>{selectedAgent?._id ?? "—"}</code>
+                          <code>{selectedAgent?.id ?? "—"}</code>
                         </span>
                       </div>
 
@@ -2132,41 +2073,4 @@ export default function AgentsPage(
       </div>
     </>
   );
-}
-
-/**
- * Convert a raw (status, body) into an "ApiError-like" object that `summarizeError` can render.
- * This is used only for the optional, best-effort telemetry read calls until proper client methods exist.
- */
-function toApiErrorLike(
-  status: number,
-  json: any,
-  fallbackText: string,
-): ControlPlaneApiError {
-  if (
-    json &&
-    typeof json === "object" &&
-    json.error &&
-    typeof json.error.code === "string"
-  ) {
-    const e = json.error as any;
-    return new ControlPlaneApiError({
-      status,
-      code: String(e.code),
-      message: typeof e.message === "string" ? e.message : "Request failed",
-      details:
-        typeof e.details === "object" && e.details ? e.details : undefined,
-      retryable: typeof e.retryable === "boolean" ? e.retryable : status >= 500,
-      requestId: typeof e.requestId === "string" ? e.requestId : undefined,
-    });
-  }
-
-  return new ControlPlaneApiError({
-    status,
-    code: status === 404 ? "NOT_FOUND" : "REQUEST_FAILED",
-    message: fallbackText?.trim()
-      ? fallbackText.trim().slice(0, 300)
-      : `Request failed (${status})`,
-    retryable: status >= 500,
-  });
 }
