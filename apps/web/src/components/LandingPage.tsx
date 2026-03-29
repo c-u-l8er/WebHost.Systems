@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useSupabaseAuth } from "../lib/SupabaseAuthProvider";
+import React from "react";
 
 export type LandingPageProps = {
   variant?: "default" | "compact";
@@ -25,21 +24,6 @@ export default function LandingPage({
             "radial-gradient(1200px 500px at 20% 0%, rgba(110, 168, 254, 0.18), transparent 60%), var(--panel)",
         }}
       >
-        <div className="row" style={{ alignItems: "baseline", gap: 10 }}>
-          <div className="brand" style={{ gap: 6 }}>
-            <div className="brand-title" style={{ fontSize: 16 }}>
-              WebHost.Systems
-            </div>
-            <div className="brand-subtitle">
-              Control plane for multi-runtime agent hosting
-            </div>
-          </div>
-          <div className="spacer" />
-          <AuthButtons />
-        </div>
-
-        <div style={{ height: 14 }} />
-
         <h1
           style={{
             margin: 0,
@@ -241,33 +225,22 @@ export default function LandingPage({
               gap: 12,
             }}
           >
-            <div
-              className="panel"
-              style={{ padding: 14, background: "var(--panel-2)" }}
-            >
+            <div className="panel" style={{ padding: 14, background: "var(--panel-2)" }}>
               <div style={{ fontWeight: 700 }}>Free</div>
               <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>
-                Get started on Cloudflare Workers/DO with request limits and
-                basic usage visibility.
+                Get started on Cloudflare Workers/DO with request limits and basic usage visibility.
               </div>
             </div>
-            <div
-              className="panel"
-              style={{ padding: 14, background: "var(--panel-2)" }}
-            >
+            <div className="panel" style={{ padding: 14, background: "var(--panel-2)" }}>
               <div style={{ fontWeight: 700 }}>Pro</div>
               <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>
                 Higher limits, better retention, and more operational headroom.
               </div>
             </div>
-            <div
-              className="panel"
-              style={{ padding: 14, background: "var(--panel-2)" }}
-            >
+            <div className="panel" style={{ padding: 14, background: "var(--panel-2)" }}>
               <div style={{ fontWeight: 700 }}>Enterprise</div>
               <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>
-                AgentCore runtime access and capability gating with stronger
-                controls.
+                AgentCore runtime access and capability gating with stronger controls.
               </div>
             </div>
           </div>
@@ -279,138 +252,13 @@ export default function LandingPage({
         </div>
       </section>
 
-      <div style={{ height: 12 }} />
-
-      {/* Footer / CTA */}
-      <section
-        className="panel"
-        style={{
-          padding: 14,
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--panel)",
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isCompact ? "1fr" : "1fr auto",
-            gap: 12,
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <strong>Ready to try the dashboard?</strong>
-            <div className="muted" style={{ marginTop: 6 }}>
-              Sign up to create an agent, deploy to Cloudflare, invoke via the
-              gateway, and view usage/telemetry.
-            </div>
-          </div>
-
-          <div className="row" style={{ justifyContent: "flex-end" }}>
-            <AuthButtons />
-          </div>
-        </div>
-      </section>
-
       <div style={{ height: 10 }} />
 
       <div className="muted" style={{ fontSize: 12, textAlign: "center" }}>
-        © {new Date().getFullYear()} WebHost.Systems ... Powered by <a href="https://ampersandboxdesign.com">[&]</a>
+        &copy; {new Date().getFullYear()} WebHost.Systems &mdash; Powered by{" "}
+        <a href="https://ampersandboxdesign.com">[&]</a>
       </div>
     </div>
-  );
-}
-
-function AuthButtons(): React.ReactElement {
-  const { signIn, signUp } = useSupabaseAuth();
-  const [mode, setMode] = useState<"idle" | "signIn" | "signUp">("idle");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  if (mode === "idle") {
-    return (
-      <div className="row" style={{ gap: 10 }}>
-        <button className="button" type="button" onClick={() => setMode("signIn")}>
-          Sign in
-        </button>
-        <button className="button button-primary" type="button" onClick={() => setMode("signUp")}>
-          Get started
-        </button>
-      </div>
-    );
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      if (mode === "signIn") {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Authentication failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 260 }}>
-      <div className="row" style={{ gap: 8 }}>
-        <strong>{mode === "signIn" ? "Sign in" : "Create account"}</strong>
-        <div className="spacer" />
-        <button
-          type="button"
-          className="button"
-          style={{ fontSize: 11 }}
-          onClick={() => { setMode("idle"); setError(null); }}
-        >
-          Cancel
-        </button>
-      </div>
-
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        autoFocus
-        style={{ padding: "6px 8px", fontSize: 13 }}
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-        minLength={6}
-        style={{ padding: "6px 8px", fontSize: 13 }}
-      />
-
-      {error ? (
-        <div style={{ color: "var(--danger, #f66)", fontSize: 12 }}>{error}</div>
-      ) : null}
-
-      <div className="row" style={{ gap: 8 }}>
-        <button className="button button-primary" type="submit" disabled={submitting}>
-          {submitting ? "..." : mode === "signIn" ? "Sign in" : "Sign up"}
-        </button>
-        <button
-          type="button"
-          className="button"
-          style={{ fontSize: 12 }}
-          onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setError(null); }}
-        >
-          {mode === "signIn" ? "Need an account?" : "Already have one?"}
-        </button>
-      </div>
-    </form>
   );
 }
 
@@ -422,17 +270,9 @@ function FeatureCard({
   body: string;
 }): React.ReactElement {
   return (
-    <div
-      className="panel"
-      style={{
-        padding: 14,
-        background: "var(--panel-2)",
-      }}
-    >
+    <div className="panel" style={{ padding: 14, background: "var(--panel-2)" }}>
       <div style={{ fontWeight: 700, marginBottom: 6 }}>{title}</div>
-      <div className="muted" style={{ fontSize: 13 }}>
-        {body}
-      </div>
+      <div className="muted" style={{ fontSize: 13 }}>{body}</div>
     </div>
   );
 }
