@@ -67,9 +67,9 @@ export function WorkspaceProvider({
       const { error: rpcError } = await supabase.rpc("ensure_user_workspace");
       if (rpcError) throw rpcError;
 
-      // Load all workspaces the user is a member of
-      // Note: amp core tables live in `public` on hosted Supabase
+      // Load all workspaces the user is a member of (amp schema)
       const { data, error: queryError } = await supabase
+        .schema("amp")
         .from("workspace_members")
         .select("workspace:workspaces(id, name, slug, plan, created_at)")
         .eq("user_id", user.id);
