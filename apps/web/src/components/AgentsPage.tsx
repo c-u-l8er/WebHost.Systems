@@ -42,7 +42,7 @@ import { useWorkspace } from "../lib/WorkspaceProvider";
  * - Telemetry: billing usage + recent metrics (PostgREST)
  */
 
-type RuntimeProvider = "cloudflare" | "agentcore";
+type RuntimeProvider = "cloudflare" | "agentcore" | "openrouter";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
 
@@ -330,6 +330,8 @@ export default function AgentsPage(
 
   const [createName, setCreateName] = useState("demo-agent");
   const [createDescription, setCreateDescription] = useState("");
+  const [createSystemPrompt, setCreateSystemPrompt] = useState("");
+  const [createModel, setCreateModel] = useState("anthropic/claude-sonnet-4-20250514");
 
   const [createStatus, setCreateStatus] = useState<AsyncStatus>("idle");
   const [createError, setCreateError] = useState<string | null>(null);
@@ -353,7 +355,9 @@ export default function AgentsPage(
         name,
         description: createDescription.trim() || undefined,
         env_var_keys: [],
-        runtime_provider: "cloudflare",
+        runtime_provider: "openrouter",
+        system_prompt: createSystemPrompt.trim() || undefined,
+        model: createModel.trim() || undefined,
       });
 
       // Optimistic insert
@@ -370,7 +374,7 @@ export default function AgentsPage(
       setCreateStatus("error");
       setCreateError(summarizeError(err));
     }
-  }, [workspaceId, createDescription, createName]);
+  }, [workspaceId, createDescription, createName, createSystemPrompt, createModel]);
 
   /* -------------------------------------------------------------------------------------------------
    * Delete agent
@@ -852,6 +856,7 @@ export default function AgentsPage(
                             aria-label="Filter by runtime"
                           >
                             <option value="all">All runtimes</option>
+                            <option value="openrouter">openrouter</option>
                             <option value="cloudflare">cloudflare</option>
                             <option value="agentcore">agentcore</option>
                             <option value="unknown">unknown</option>
@@ -1210,6 +1215,54 @@ export default function AgentsPage(
                     value={createDescription}
                     onChange={(e) => setCreateDescription(e.target.value)}
                     placeholder="A minimal agent"
+                    disabled={!canUseApi || createStatus === "loading"}
+                  />
+
+                  <label className="muted" style={{ fontSize: 12 }}>
+                    Model
+                  </label>
+                  <select
+                    className="button"
+                    style={{ width: "100%", textAlign: "left" }}
+                    value={createModel}
+                    onChange={(e) => setCreateModel(e.target.value)}
+                    disabled={!canUseApi || createStatus === "loading"}
+                  >
+                    <optgroup label="Anthropic">
+                      <option value="anthropic/claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                      <option value="anthropic/claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                      <option value="anthropic/claude-opus-4-20250514">Claude Opus 4</option>
+                    </optgroup>
+                    <optgroup label="OpenAI">
+                      <option value="openai/gpt-4o">GPT-4o</option>
+                      <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                      <option value="openai/o3-mini">o3-mini</option>
+                    </optgroup>
+                    <optgroup label="Google">
+                      <option value="google/gemini-2.5-pro-preview">Gemini 2.5 Pro</option>
+                      <option value="google/gemini-2.5-flash-preview">Gemini 2.5 Flash</option>
+                    </optgroup>
+                    <optgroup label="Meta">
+                      <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
+                      <option value="meta-llama/llama-4-scout">Llama 4 Scout</option>
+                    </optgroup>
+                  </select>
+
+                  <label className="muted" style={{ fontSize: 12 }}>
+                    System prompt (optional)
+                  </label>
+                  <textarea
+                    className="button"
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      minHeight: 80,
+                      resize: "vertical",
+                      fontFamily: "inherit",
+                    }}
+                    value={createSystemPrompt}
+                    onChange={(e) => setCreateSystemPrompt(e.target.value)}
+                    placeholder="You are a helpful assistant..."
                     disabled={!canUseApi || createStatus === "loading"}
                   />
 

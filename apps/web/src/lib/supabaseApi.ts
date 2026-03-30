@@ -19,11 +19,13 @@ export type Agent = {
   name: string;
   description: string | null;
   framework: string | null;
-  runtime_provider: "cloudflare" | "agentcore";
+  runtime_provider: "cloudflare" | "agentcore" | "openrouter";
   status: "created" | "deploying" | "active" | "error" | "disabled";
   active_deployment_id: string | null;
   env_var_keys: string[];
   provider_config: Record<string, unknown>;
+  system_prompt: string | null;
+  model: string | null;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
@@ -36,7 +38,7 @@ export type Deployment = {
   workspace_id: string;
   agent_id: string;
   version: number;
-  runtime_provider: "cloudflare" | "agentcore";
+  runtime_provider: "cloudflare" | "agentcore" | "openrouter";
   status: "deploying" | "active" | "failed" | "rolled_back";
   commit_hash: string | null;
   artifact: Record<string, unknown>;
@@ -58,7 +60,7 @@ export type MetricsEvent = {
   workspace_id: string;
   agent_id: string;
   deployment_id: string | null;
-  runtime_provider: "cloudflare" | "agentcore";
+  runtime_provider: "cloudflare" | "agentcore" | "openrouter";
   timestamp: string;
   requests: number;
   llm_tokens: number;
@@ -257,15 +259,19 @@ export async function createAgent(args: {
   workspace_id: string;
   name: string;
   description?: string;
-  runtime_provider?: "cloudflare" | "agentcore";
+  runtime_provider?: "cloudflare" | "agentcore" | "openrouter";
   env_var_keys?: string[];
+  system_prompt?: string;
+  model?: string;
 }): Promise<Agent> {
   const { data, error } = await supabase.rpc("create_agent", {
     p_workspace_id: args.workspace_id,
     p_name: args.name,
     p_description: args.description ?? null,
-    p_runtime_provider: args.runtime_provider ?? "cloudflare",
+    p_runtime_provider: args.runtime_provider ?? "openrouter",
     p_env_var_keys: args.env_var_keys ?? [],
+    p_system_prompt: args.system_prompt ?? null,
+    p_model: args.model ?? null,
   });
 
   if (error) throw toApiError(error);
@@ -276,8 +282,10 @@ export async function updateAgent(args: {
   agent_id: string;
   name?: string;
   description?: string;
-  runtime_provider?: "cloudflare" | "agentcore";
+  runtime_provider?: "cloudflare" | "agentcore" | "openrouter";
   env_var_keys?: string[];
+  system_prompt?: string;
+  model?: string;
 }): Promise<Agent> {
   const { data, error } = await supabase.rpc("update_agent", {
     p_agent_id: args.agent_id,
@@ -285,6 +293,8 @@ export async function updateAgent(args: {
     p_description: args.description ?? null,
     p_runtime_provider: args.runtime_provider ?? null,
     p_env_var_keys: args.env_var_keys ?? null,
+    p_system_prompt: args.system_prompt ?? null,
+    p_model: args.model ?? null,
   });
 
   if (error) throw toApiError(error);
@@ -482,10 +492,31 @@ function toApiError(error: any): ApiError {
 }
 
 function toEdgeFnError(error: any): ApiError {
+  // Supabase FunctionsHttpError: status is on error.context (the Response object)
+  // Supabase FunctionsRelayError/FunctionsFetchError: no status, just message
+  const status =
+    error?.context?.status ?? error?.status ?? 500;
+  const name = error?.name ?? "";
+
+  let message = error?.message ?? "Edge function error";
+
+  // FunctionsHttpError wraps the response — try to extract the real error
+  if (name === "FunctionsHttpError" && error?.context) {
+    // The context is the parsed response body (JSON or text)
+    const ctx = error.context;
+    if (ctx?.error?.message) {
+      message = ctx.error.message;
+    } else if (typeof ctx === "string") {
+      message = ctx;
+    }
+  }
+
+  console.error("[EdgeFn]", name, status, message, error);
+
   return new ApiError({
-    status: error.status ?? 500,
-    code: "EDGE_FUNCTION_ERROR",
-    message: error.message ?? "Edge function error",
-    retryable: (error.status ?? 500) >= 500,
+    status,
+    code: error?.context?.error?.code ?? "EDGE_FUNCTION_ERROR",
+    message,
+    retryable: status >= 500,
   });
 }
