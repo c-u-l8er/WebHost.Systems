@@ -1,9 +1,6 @@
 /**
  * Supabase API client for the webhost.systems dashboard.
  *
- * Replaces controlPlaneClient.ts (669 lines, Clerk JWT + Convex HTTP).
- *
- * Strategy per Graphonomous plan:
  * - Direct PostgREST for reads (agents, deployments, metrics, billing)
  * - RPC functions for transactional writes (create/update/disable/delete agent, billing, metrics)
  * - Edge Functions for server-only operations (deploy, activate, invoke, delegated-invoke, telemetry, billing-webhook)
@@ -117,7 +114,7 @@ export type SseEvent<T = unknown> = {
 };
 
 // ---------------------------------------------------------------------------
-// Error class (compatible with old ControlPlaneApiError interface)
+// Error class
 // ---------------------------------------------------------------------------
 
 export class ApiError extends Error {
@@ -142,8 +139,6 @@ export class ApiError extends Error {
   }
 }
 
-// Re-export as ControlPlaneApiError for backwards compat during migration
-export { ApiError as ControlPlaneApiError };
 
 // ---------------------------------------------------------------------------
 // PostgREST reads

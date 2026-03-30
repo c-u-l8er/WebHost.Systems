@@ -1,7 +1,5 @@
 /**
  * Supabase client singleton for the webhost.systems dashboard.
- *
- * Replaces the Clerk + Convex-based auth/API layer.
  * Reads VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from env.
  */
 

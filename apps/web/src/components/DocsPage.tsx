@@ -37,14 +37,14 @@ export default function DocsPage(): React.ReactElement {
               <strong>Spec v1 (normative)</strong>
               <div className="spacer" />
               <span className="badge">
-                <span className="muted">folder</span> project_spec/spec_v1
+                <span className="muted">folder</span> docs/spec/spec_v1
               </span>
             </div>
 
             <div className="row">
               <a
                 className="button"
-                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/project_spec/spec_v1"
+                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec/spec_v1"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -52,7 +52,7 @@ export default function DocsPage(): React.ReactElement {
               </a>
               <a
                 className="button"
-                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/project_spec/spec_v1/adr"
+                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec/spec_v1/adr"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -81,7 +81,7 @@ export default function DocsPage(): React.ReactElement {
               <strong>Quickstart (local)</strong>
               <div className="spacer" />
               <span className="badge">
-                <span className="muted">apps</span> web + control-plane
+                <span className="muted">apps</span> web + supabase
               </span>
             </div>
 
@@ -91,29 +91,23 @@ export default function DocsPage(): React.ReactElement {
               </div>
               <ul>
                 <li>
-                  <code>VITE_CLERK_PUBLISHABLE_KEY</code>
+                  <code>VITE_SUPABASE_URL</code> (from <code>supabase start</code>)
                 </li>
                 <li>
-                  <code>VITE_CONTROL_PLANE_URL</code> (Convex HTTP base URL)
-                </li>
-                <li>
-                  <code>VITE_CLERK_JWT_TEMPLATE</code> (optional; defaults to
-                  <code>convex</code>)
+                  <code>VITE_SUPABASE_ANON_KEY</code> (publishable key)
                 </li>
               </ul>
 
               <div style={{ marginTop: 10 }}>
-                Control plane must be configured with:
+                Start the shared Supabase instance:
               </div>
               <ul>
                 <li>
-                  <code>CLERK_JWT_ISSUER_DOMAIN</code>
+                  <code>supabase start</code> from the repo root
                 </li>
                 <li>
-                  Cloudflare deploy credentials (see yesterday’s progress log)
-                </li>
-                <li>
-                  <code>CONTROL_PLANE_TELEMETRY_REPORT_URL</code>
+                  Edge Functions served automatically via{" "}
+                  <code>supabase/functions/</code>
                 </li>
               </ul>
             </div>
@@ -127,27 +121,22 @@ export default function DocsPage(): React.ReactElement {
             <strong>Endpoints you can exercise from the UI</strong>
             <div className="spacer" />
             <span className="badge">
-              <span className="muted">auth</span> Clerk JWT
+              <span className="muted">auth</span> Supabase JWT
             </span>
           </div>
 
           <div className="muted">
             <ul>
               <li>
-                <code>GET /v1/agents</code>, <code>POST /v1/agents</code>
+                <strong>PostgREST reads:</strong> agents, deployments, metrics,
+                billing usage
               </li>
               <li>
-                <code>POST /v1/agents/:agentId/deploy</code>
+                <strong>RPC writes:</strong> create/update/disable/delete agent
               </li>
               <li>
-                <code>POST /v1/invoke/:agentId</code> and
-                <code>POST /v1/invoke/:agentId/stream</code>
-              </li>
-              <li>
-                <code>GET /v1/usage/current</code>
-              </li>
-              <li>
-                <code>GET /v1/metrics/recent</code>
+                <strong>Edge Functions:</strong> deploy, invoke, invoke/stream,
+                activate-deployment, telemetry, billing-webhook
               </li>
             </ul>
           </div>
