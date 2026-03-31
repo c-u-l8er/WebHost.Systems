@@ -25,7 +25,7 @@ Built entirely on Supabase + Vite/React + Cloudflare/AWS runtimes.
 - A practical quickstart that gets a local dev environment running with Supabase, Vite, and Edge Functions
 - Architecture documentation covering the control plane / data plane split, RPI abstraction, and request flows
 - Skills guides for every operational surface — agent management, deployment, invocation, billing, security, and [&] Protocol integration
-- Spec references pointing to the authoritative engineering spec in `docs/spec/spec_v1/`
+- Spec references pointing to the authoritative engineering spec in `docs/spec/`
 
 ---
 
@@ -86,8 +86,8 @@ TickTickClock Docs <https://docs.ticktickclock.com>
 
 quickstart
 architecture
-spec/spec_v1/00_MASTER_SPEC
-spec/spec_v1/README
+spec/00_MASTER_SPEC
+spec/README
 ```
 
 ```{toctree}
@@ -188,7 +188,7 @@ regardless of which cloud actually executes the code.
 
 ## Spec References
 
-The authoritative engineering spec lives in `docs/spec/spec_v1/`:
+The authoritative engineering spec lives in `docs/spec/`:
 
 - `00_MASTER_SPEC.md` — Self-contained master spec
 - `10_API_CONTRACTS.md` — API contracts and error codes
@@ -220,7 +220,7 @@ WebHost.Systems/
 
 ## Project Links
 
-- **Master spec:** [Engineering Specification](spec/spec_v1/00_MASTER_SPEC.md)
-- **ADRs:** `docs/spec/spec_v1/adr/`
-- **[&] Protocol integration:** [Ampersand Integration](spec/spec_v1/70_AMPERSAND_PROTOCOL_INTEGRATION.md)
+- **Master spec:** [Engineering Specification](spec/00_MASTER_SPEC.md)
+- **ADRs:** `docs/spec/adr/`
+- **[&] Protocol integration:** [Ampersand Integration](spec/70_AMPERSAND_PROTOCOL_INTEGRATION.md)
 - **[&] Protocol ecosystem:** `AmpersandBoxDesign/`

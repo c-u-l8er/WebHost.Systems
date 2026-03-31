@@ -20,7 +20,7 @@
 The canonical WHS invocation endpoint (`POST /v1/invoke/:agentId`) is authenticated using the product’s normal control-plane auth mechanism (e.g., Clerk JWT). This works for browser clients and first-party UIs.
 
 However, some portfolio systems execute server-side and need to invoke WHS agents as part of durable orchestration. Example:
-- Agentromatic executes workflow runs in its backend (Convex action), and wants to run an “agent step” by invoking a WHS agent.
+- Agentromatic executes workflow runs in its backend (server-side action), and wants to run an “agent step” by invoking a WHS agent.
 
 Constraints:
 - Server-side orchestrators should **not** rely on browser tokens.

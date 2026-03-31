@@ -119,7 +119,7 @@ Navigate to the agent detail page in the dashboard to see:
 
 - Read the [Architecture Overview](architecture.md) for system design context
 - See [Skills Reference](skills/SKILLS.md) for operational guides
-- Review the [Master Spec](../project_spec/spec_v1/00_MASTER_SPEC.md) for full requirements
+- Review the [Master Spec](spec/00_MASTER_SPEC.md) for full requirements
 
 ---
 

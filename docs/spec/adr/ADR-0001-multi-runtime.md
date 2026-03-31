@@ -47,7 +47,7 @@ Adopt a **multi-runtime architecture** with a single **control plane** and multi
 
 ### TypeScript support across runtimes (explicit)
 webhost.systems is intended to be **TypeScript-native end-to-end**:
-- Control plane: TypeScript (Convex backend + UI types)
+- Control plane: TypeScript (Supabase backend + UI types)
 - Cloudflare runtime: TypeScript (Workers/DO)
 - AgentCore runtime: TypeScript SDK support for both management/invocation and tool ecosystems
 
@@ -168,7 +168,7 @@ This decision is successful if:
 - Adding a new provider would require implementing a new adapter without major changes to the control plane schemas and APIs.
 
 ## Follow-ups / next ADRs
-- ADR-0002: Control plane backend choice (Convex) and why.
+- ADR-0002: Control plane backend choice (Supabase; supersedes original Convex choice).
 - ADR-0003: Secrets strategy (no plaintext in DB; provider injection).
 - ADR-0004: Telemetry integrity model (deployment-scoped signing) and ingestion validation.
 - ADR-0005: Deployment immutability + active pointer model.

@@ -90,7 +90,7 @@ Adopt a **deployment-scoped signed telemetry event** model with **ownership cros
 
 6. **Secrets are never stored as plaintext in the primary DB**  
    - The primary DB stores only metadata and secret references (e.g., provider secret name/id).
-   - The `telemetrySecret` value MUST NOT be stored in plaintext in Convex.
+   - The `telemetrySecret` value MUST NOT be stored in plaintext in the primary database (Supabase).
 
 ### Provider-specific telemetry capabilities (implementation guidance)
 This ADR standardizes telemetry ingestion on **deployment-scoped signed events** for all runtimes. Provider capabilities vary, but the v1 baseline remains consistent.

@@ -37,14 +37,14 @@ export default function DocsPage(): React.ReactElement {
               <strong>Spec v1 (normative)</strong>
               <div className="spacer" />
               <span className="badge">
-                <span className="muted">folder</span> docs/spec/spec_v1
+                <span className="muted">folder</span> docs/spec
               </span>
             </div>
 
             <div className="row">
               <a
                 className="button"
-                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec/spec_v1"
+                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -52,7 +52,7 @@ export default function DocsPage(): React.ReactElement {
               </a>
               <a
                 className="button"
-                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec/spec_v1/adr"
+                href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec/adr"
                 target="_blank"
                 rel="noreferrer"
               >

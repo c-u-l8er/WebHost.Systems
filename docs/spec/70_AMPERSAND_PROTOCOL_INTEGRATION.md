@@ -319,7 +319,7 @@ This document extends (does not replace) the following v1 spec sections:
 | `00_MASTER_SPEC.md` §5.1 Agent management | Add `ampersandManifest`, `capabilitiesUsed`, `capabilitiesProvided` fields |
 | `10_API_CONTRACTS.md` | Add `/api/v1/a2a/invoke`, capability filter on agent list |
 | `20_RUNTIME_PROVIDER_INTERFACE.md` | Add linked service methods to RPI |
-| `30_DATA_MODEL_CONVEX.md` | Add `linkedServices`, `skillRegistry` tables; extend `agents` |
+| `30_DATA_MODEL_SUPABASE.md` | Add `linkedServices`, `skillRegistry` tables; extend `agents` |
 | `40_SECURITY_SECRETS_COMPLIANCE.md` | Governance constraints as security policy |
 | `50_OBSERVABILITY_BILLING_LIMITS.md` | Provenance fields in telemetry; capability-aware metering |
 | `60_TESTING_ACCEPTANCE.md` | Acceptance tests for manifest validation, A2A routing, governance checks |

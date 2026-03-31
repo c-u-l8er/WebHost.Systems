@@ -18,7 +18,7 @@ This folder is the **canonical v1 specification** for implementing webhost.syste
    - `20_RUNTIME_PROVIDER_INTERFACE.md` — Runtime Provider Interface (RPI) that all runtimes must implement, plus adapter guidance (including AgentCore TypeScript adapter guidance using `@aws-sdk/client-bedrock-agentcore`, and notes on the `bedrock-agentcore` tools SDK ecosystem).
 
 4. **Build your control-plane data layer**
-   - `30_DATA_MODEL_CONVEX.md` — Convex schema, indexes, invariants, access control rules, retention and deletion semantics.
+   - `30_DATA_MODEL_SUPABASE.md` — Supabase/PostgreSQL schema, indexes, invariants, RLS policies, retention and deletion semantics.
 
 5. **Lock down security and secrets**
    - `40_SECURITY_SECRETS_COMPLIANCE.md` — threat model, secrets strategy requirements, telemetry integrity, webhook integrity, artifact safety, acceptance criteria.
@@ -34,7 +34,7 @@ This folder is the **canonical v1 specification** for implementing webhost.syste
 ADRs document the “why” behind major choices and define additional constraints that implementations must satisfy.
 
 - `adr/ADR-0001-multi-runtime.md` — Multi-runtime strategy (Cloudflare default + AgentCore premium), explicitly TypeScript-first across both runtimes (AgentCore SDKs: `@aws-sdk/client-bedrock-agentcore` and `bedrock-agentcore`).
-- `adr/ADR-0002-convex-control-plane.md` — Convex as control-plane backend; Convex Agents for dashboard automation only.
+- `adr/ADR-0002-supabase-control-plane.md` — Supabase as control-plane backend (supersedes original Convex choice); Edge Functions for server-only logic.
 - `adr/ADR-0003-secrets-strategy.md` — No plaintext secrets in DB; provider-native secret injection; write-only secrets API.
 - `adr/ADR-0004-telemetry-integrity.md` — Deployment-scoped signed telemetry events + ownership cross-check.
 - `adr/ADR-0005-deployment-immutability.md` — Immutable deployment records + `activeDeploymentId` routing pointer + rollback.
@@ -80,7 +80,7 @@ Minimum v1 must-haves:
 
 ## Notes on older drafts
 
-This folder is intended to supersede earlier rough drafts in `docs/spec/`. The older drafts are useful as background, but **implementation should follow `spec_v1/`**.
+This folder is the canonical spec. Earlier rough drafts (if any remain) are useful as background, but **implementation should follow this folder**.
 
 If any contradictions are found:
 1. Prefer `00_MASTER_SPEC.md` and `10_API_CONTRACTS.md` for canonical behavior.

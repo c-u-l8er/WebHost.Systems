@@ -81,7 +81,7 @@ The core workflow is: **create agent -> deploy bundle -> invoke -> observe metri
 
 These skills summarize and operationalize the authoritative spec:
 
-- `project_spec/spec_v1/00_MASTER_SPEC.md` -- Master engineering spec
-- `project_spec/spec_v1/10_API_CONTRACTS.md` -- API contracts
-- `project_spec/spec_v1/20_RUNTIME_PROVIDER_INTERFACE.md` -- RPI spec
-- `project_spec/spec_v1/70_AMPERSAND_PROTOCOL_INTEGRATION.md` -- [&] Protocol integration
+- `docs/spec/00_MASTER_SPEC.md` -- Master engineering spec
+- `docs/spec/10_API_CONTRACTS.md` -- API contracts
+- `docs/spec/20_RUNTIME_PROVIDER_INTERFACE.md` -- RPI spec
+- `docs/spec/70_AMPERSAND_PROTOCOL_INTEGRATION.md` -- [&] Protocol integration

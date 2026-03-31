@@ -164,5 +164,5 @@ All tables enforce RLS: `auth.uid() = user_id`.
 ## Further Reading
 
 - [Skills Reference](skills/SKILLS.md) -- Operational guides
-- [Master Spec](../project_spec/spec_v1/00_MASTER_SPEC.md) -- Full engineering spec
-- [RPI Spec](../project_spec/spec_v1/20_RUNTIME_PROVIDER_INTERFACE.md) -- Provider adapter contracts
+- [Master Spec](spec/00_MASTER_SPEC.md) -- Full engineering spec
+- [RPI Spec](spec/20_RUNTIME_PROVIDER_INTERFACE.md) -- Provider adapter contracts

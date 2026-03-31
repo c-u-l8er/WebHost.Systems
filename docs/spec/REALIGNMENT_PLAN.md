@@ -13,12 +13,12 @@ This document is a **realignment checklist** to ensure the WebHost.Systems imple
    - `00_MASTER_SPEC.md` (goals, boundaries, flows, definitions)
    - `10_API_CONTRACTS.md` (HTTP contracts, error envelopes, auth modes)
    - `20_RUNTIME_PROVIDER_INTERFACE.md` (provider adapter contract)
-   - `30_DATA_MODEL_CONVEX.md` (tables/invariants)
+   - `30_DATA_MODEL_SUPABASE.md` (tables/invariants)
    - `40_SECURITY_SECRETS_COMPLIANCE.md` (security posture)
    - `50_OBSERVABILITY_BILLING_LIMITS.md` (usage, limits, retention)
    - `60_TESTING_ACCEPTANCE.md` (definition of done tests)
 2. Work through sections 1–10 in order. Each item is written as a measurable “done when…”.
-3. Any deviation must be captured as an ADR in `spec_v1/adr/` (don’t silently drift).
+3. Any deviation must be captured as an ADR in `adr/` (don’t silently drift).
 
 ---
 
@@ -64,12 +64,12 @@ Done when:
 
 ---
 
-## 4) Data model realignment (Convex schema + invariants)
-**Spec sources:** `30_DATA_MODEL_CONVEX.md`
+## 4) Data model realignment (Supabase schema + invariants)
+**Spec sources:** `30_DATA_MODEL_SUPABASE.md`
 
 ### 4.1 Tables existence
 Checklist:
-- [ ] `users` exists with `clerkId` (or `externalId`) unique index.
+- [ ] `users` exists with Supabase Auth `id` (maps to `auth.uid()`) as primary key.
 - [ ] `agents` exists and is indexed by `userId` (+ optional `userId+name` uniqueness).
 - [ ] `deployments` exists with immutable history and `agentId+version` monotonic enforcement.
 - [ ] `metrics` raw telemetry exists and can store per-invocation events.

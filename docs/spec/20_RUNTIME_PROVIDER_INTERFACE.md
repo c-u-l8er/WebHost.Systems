@@ -28,7 +28,7 @@ The RPI exists to ensure:
 ## 2) Key concepts
 
 ### 2.1 Control plane vs data plane
-- **Control plane** (Convex + web backend) owns: authentication, authorization, deployments, agent metadata, plan enforcement, telemetry ingestion, aggregation, and billing.
+- **Control plane** (Supabase + web backend) owns: authentication, authorization, deployments, agent metadata, plan enforcement, telemetry ingestion, aggregation, and billing.
 - **Data plane** (Cloudflare/AgentCore) owns: executing user agent code and reporting telemetry events.
 
 ### 2.2 Provider adapter

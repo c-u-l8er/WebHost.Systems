@@ -33,7 +33,7 @@ Security and operational requirements:
 
 ## Decision
 
-1. **No plaintext secrets are stored in the primary application database** (Convex).
+1. **No plaintext secrets are stored in the primary application database** (Supabase).
    - The DB stores only:
      - secret key names (e.g., `envVarKeys`),
      - provider secret references (names/ids),
