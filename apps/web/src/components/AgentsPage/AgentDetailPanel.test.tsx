@@ -10,15 +10,20 @@ const fakeAgent = {
   name: "test-agent",
   description: "A test agent",
   workspace_id: "ws-1",
+  created_by: "user-1",
+  framework: null,
   status: "active" as const,
   runtime_provider: "openrouter" as const,
   env_var_keys: [],
+  provider_config: {},
   system_prompt: "You are helpful",
   model: "anthropic/claude-sonnet-4-20250514",
   active_deployment_id: "dep-1",
   created_at: "2026-01-15T10:30:00Z",
   updated_at: "2026-03-20T14:00:00Z",
   deleted_at: null,
+  last_deployed_at: null,
+  last_invocation_at: null,
 };
 
 describe("AgentDetailPanel", () => {
