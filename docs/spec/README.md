@@ -86,3 +86,46 @@ If any contradictions are found:
 1. Prefer `00_MASTER_SPEC.md` and `10_API_CONTRACTS.md` for canonical behavior.
 2. Prefer ADRs for “why” and invariants.
 3. Treat earlier drafts as non-normative.
+
+## PULSE Loop Manifest
+
+WebHost.Systems is a **PULSE-conforming loop** under OS-010. As the hosting layer for the entire [&] ecosystem, its loop encodes the **deploy → invoke → meter → bill** rhythm. Unlike other loops in the portfolio it is the only one whose substrates include both Cloudflare Workers and AWS AgentCore (per ADR-0001), and its `act` phase is intentionally pluggable through the Runtime Provider Interface (per `20_RUNTIME_PROVIDER_INTERFACE.md`).
+
+**Loop ID:** `webhost.deploy_invoke`
+**Loop name:** WebHost.Systems Deploy/Invoke Loop
+**Version:** 1.0.0
+**Owner:** webhost.systems
+**Workspace scope:** required
+
+**Phases (5 canonical kinds):**
+
+| Phase ID | Kind | Description |
+|---|---|---|
+| `retrieve_deployment` | `retrieve` | Resolve `agent_id → activeDeploymentId` from Supabase control plane (per ADR-0005) |
+| `route_runtime` | `route` | Select runtime provider via RPI (Cloudflare default, AgentCore premium, others as adapters) |
+| `act_invoke` | `act` | Execute `invoke/v1` (per ADR-0006); stream SSE response if requested; capture telemetry |
+| `learn_telemetry` | `learn` | Aggregate signed telemetry events; update usage counters; check tier entitlements |
+| `consolidate_billing` | `consolidate` | Periodic aggregation by billing period; retention pruning; cost estimation rollups |
+
+**Closure:** `consolidate_billing → retrieve_deployment` via Supabase, guarantee `eventual`.
+
+**Cadence:** Primary `event` (every invocation). Fallback `periodic` (billing aggregation, retention sweeps).
+
+**Substrates:**
+- `memory`: `graphonomous://workspace/{ws_id}` (optional, for hosted MCP sidecars)
+- `policy`: `delegatic://workspace/{ws_id}` (tier entitlements, runtime gating)
+- `audit`: `delegatic://workspace/{ws_id}/audit` + Supabase telemetry table
+- `auth`: `supabase://auth` (Supabase Auth, shared with other Node-based products)
+- `transport`: `https` (`invoke/v1` per ADR-0006), `mcp` (sidecars)
+- `time`: `ticktickclock://workspace/{ws_id}` (optional, for SLA enforcement)
+
+**Invariants enabled:** `phase_atomicity`, `feedback_immutability` (immutable deployments per ADR-0005), `append_only_audit`, `outcome_grounding`, `trace_id_propagation`. The deployment-immutability invariant from ADR-0005 corresponds directly to `feedback_immutability` in PULSE terms.
+
+**Cross-loop connections:**
+- `usage_to_billing` — `consolidate_billing` emits `OutcomeSignal` (usage rollup) to billing webhooks
+- `entitlement_violation` — `route_runtime` emits `OutcomeSignal` (gated runtime requested) to `delegatic.governance.learn_drift`
+- `deploy_to_fleetprompt` — optional `ConsolidationEvent` from `consolidate_billing` to `fleetprompt.publish` for usage-based trust signals
+
+**Why this matters:** WebHost.Systems is the only loop in the portfolio with **multiple swappable runtime providers** in its `act` phase. PULSE's `phase` schema allows the runtime to be opaque (declared via `signature` and `policy_check` fields) — the manifest stays stable even as the RPI gains new adapters. This is the pattern other loops should follow when their `act` phase depends on third-party infrastructure.
+
+See `OS-010-PULSE-SPECIFICATION.md` in `/home/travis/ProjectAmp2/opensentience.org/docs/spec/` for the full PULSE protocol spec.
