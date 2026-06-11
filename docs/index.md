@@ -2,6 +2,8 @@
 
 > **Deploy AI agents to the edge or the cloud — one API, any runtime.**
 
+> **Part of the [&] Protocol stack** · [Ecosystem overview](../../ECOSYSTEM.md) · [Three-protocol stack](../../PULSE/docs/THREE_PROTOCOL_STACK.md) · [Stack status](../../STACK_COMPLETION.md)
+
 Welcome to the documentation hub for **WebHost.Systems** — a multi-runtime AI
 agent deployment and hosting platform built on Supabase, Cloudflare Workers,
 and AWS Bedrock AgentCore.
@@ -190,15 +192,34 @@ regardless of which cloud actually executes the code.
 
 The authoritative engineering spec lives in `docs/spec/`:
 
-- `00_MASTER_SPEC.md` — Self-contained master spec
-- `10_API_CONTRACTS.md` — API contracts and error codes
-- `20_RUNTIME_PROVIDER_INTERFACE.md` — RPI abstraction
-- `30_DATA_MODEL_SUPABASE.md` — Supabase/PostgreSQL data model with RLS
-- `40_SECURITY_SECRETS_COMPLIANCE.md` — Security requirements
-- `50_OBSERVABILITY_BILLING_LIMITS.md` — Billing and limits
-- `60_TESTING_ACCEPTANCE.md` — Test plan and acceptance criteria
-- `70_AMPERSAND_PROTOCOL_INTEGRATION.md` — [&] Protocol integration
-- `adr/` — Architecture decision records
+- [Spec index — Implementation-Ready Document Set](spec/README.md)
+- [00 — Master Spec](spec/00_MASTER_SPEC.md)
+- [10 — API Contracts](spec/10_API_CONTRACTS.md)
+- [20 — Runtime Provider Interface](spec/20_RUNTIME_PROVIDER_INTERFACE.md)
+- [30 — Data Model (Supabase/PostgreSQL) & Access Control](spec/30_DATA_MODEL_SUPABASE.md)
+- [40 — Security, Secrets, and Compliance](spec/40_SECURITY_SECRETS_COMPLIANCE.md)
+- [50 — Observability, Metering, Cost, Tiers, and Limit Enforcement](spec/50_OBSERVABILITY_BILLING_LIMITS.md)
+- [60 — Testing Plan & Acceptance Criteria](spec/60_TESTING_ACCEPTANCE.md)
+- [70 — Ampersand Protocol Integration](spec/70_AMPERSAND_PROTOCOL_INTEGRATION.md)
+- [Spec-to-Implementation Realignment Plan](spec/REALIGNMENT_PLAN.md)
+
+### Architecture decision records
+
+- [ADR-0001 — Multi-Runtime Strategy](spec/adr/ADR-0001-multi-runtime.md)
+- [ADR-0002 — Supabase as the Control Plane Backend](spec/adr/ADR-0002-supabase-control-plane.md)
+- [ADR-0003 — Secrets Handling & Provider Injection Strategy](spec/adr/ADR-0003-secrets-strategy.md)
+- [ADR-0004 — Telemetry Integrity & Attribution Model](spec/adr/ADR-0004-telemetry-integrity.md)
+- [ADR-0005 — Deployment Immutability + Active Deployment Pointer Model](spec/adr/ADR-0005-deployment-immutability.md)
+- [ADR-0006 — Canonical Invocation Protocol (invoke/v1) and Streaming](spec/adr/ADR-0006-invocation-protocol.md)
+- [ADR-0007 — Tier Entitlements, Runtime Gating, and Limit Enforcement](spec/adr/ADR-0007-entitlements-and-limits.md)
+- [ADR-0008 — Delegated Invocation Auth Mode (Server-to-Server HMAC)](spec/adr/ADR-0008-delegated-invocation-auth.md)
+
+### Progress logs & UX
+
+- [Daily Engineering Progress Logs](spec/progress/README.md)
+- [Progress Log — 2026-01-23](spec/progress/2026-01-23.md)
+- [Progress Log — 2026-01-24](spec/progress/2026-01-24.md)
+- [User Stories](ux/user-stories.md)
 
 ---
 
