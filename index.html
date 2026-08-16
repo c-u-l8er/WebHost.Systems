@@ -6,9 +6,9 @@
         <meta name="color-scheme" content="dark" />
         <meta
             name="description"
-            content="WebHost.Systems — multi-runtime AI agent deployment platform. Part of the [&amp;] Ampersand Box ecosystem."
+            content="WebHost.Systems — an agent control plane for the [&amp;] Protocol. Implemented and tested in-tree; it does not yet execute an agent on any runtime."
         />
-        <title>WebHost.Systems — AI Systems for Web Hosts</title>
+        <title>WebHost.Systems — an agent control plane, in progress</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
             href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Instrument+Serif:ital@0;1&family=Sora:wght@200;300;400;500;600;700;800&display=swap"
@@ -347,6 +347,33 @@
                 color: var(--fg);
                 font-weight: 500;
             }
+            .hero-sub code,
+            .hero-rung code {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--a4);
+                background: rgba(51, 208, 255, 0.08);
+                padding: 1px 5px;
+                border-radius: 3px;
+            }
+            .hero-rung {
+                margin-top: 18px;
+                max-width: 520px;
+                font-family: var(--mono);
+                font-size: 11.5px;
+                line-height: 1.65;
+                letter-spacing: 0.02em;
+                color: var(--muted2);
+                border-left: 2px solid var(--muted4);
+                padding-left: 14px;
+                animation: fadeUp 0.7s ease both;
+                animation-delay: 0.42s;
+                opacity: 0;
+            }
+            .hero-rung strong {
+                color: var(--a1);
+                font-weight: 500;
+            }
 
             .hero-btns {
                 display: flex;
@@ -461,6 +488,11 @@
                 background: var(--a2);
                 box-shadow: 0 0 8px rgba(176, 108, 255, 0.4);
             }
+            .hc-dot.off {
+                background: transparent;
+                border: 1px solid var(--muted3);
+                box-shadow: none;
+            }
             .hc-text {
                 font-size: 13.5px;
                 line-height: 1.55;
@@ -487,6 +519,22 @@
                 position: relative;
                 z-index: 2;
                 padding: 100px 0;
+            }
+            .sec-note {
+                margin-top: 22px;
+                max-width: 760px;
+                font-size: 14.5px;
+                line-height: 1.7;
+                font-weight: 300;
+                color: var(--muted2);
+            }
+            .sec-note code {
+                font-family: var(--mono);
+                font-size: 11.5px;
+                color: var(--a4);
+                background: rgba(51, 208, 255, 0.08);
+                padding: 1px 5px;
+                border-radius: 3px;
             }
             .sec-label {
                 font-family: var(--mono);
@@ -632,6 +680,20 @@
                 );
                 border-color: rgba(124, 136, 255, 0.2);
                 color: var(--a1);
+            }
+            .tag.off {
+                background: transparent;
+                border-style: dashed;
+                color: var(--muted3);
+                text-decoration: line-through;
+            }
+            .plane p code {
+                font-family: var(--mono);
+                font-size: 11.5px;
+                color: var(--a4);
+                background: rgba(51, 208, 255, 0.08);
+                padding: 1px 5px;
+                border-radius: 3px;
             }
 
             /* Ecosystem */
@@ -943,9 +1005,8 @@
                 content: "";
                 width: 5px;
                 height: 5px;
-                background: #4ade80;
+                background: var(--muted3);
                 border-radius: 50%;
-                box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
             }
 
             @media (max-width: 900px) {
@@ -1020,13 +1081,14 @@
                         >
                     </a>
                     <div class="nav-links">
-                        <a href="#features">Features</a>
+                        <a href="#status">Status</a>
                         <a href="#stack">Stack</a>
                         <a href="#ecosystem">Ecosystem</a>
-                        <a href="#protocol">Protocol</a>
                         <a href="https://docs.webhost.systems">Docs</a>
-                        <a href="https://app.webhost.systems" class="nav-cta"
-                            >Launch App &rarr;</a
+                        <a
+                            href="https://github.com/c-u-l8er/WebHost.Systems"
+                            class="nav-cta"
+                            >Read the source &rarr;</a
                         >
                     </div>
                 </div>
@@ -1044,44 +1106,63 @@
                                 >
                             </div>
                             <h1>
-                                Ship portable<br />agents,
-                                <span class="gradient italic">faster.</span>
+                                An agent control plane,<br />
+                                <span class="gradient italic"
+                                    >in progress.</span
+                                >
                             </h1>
                             <p class="hero-sub">
-                                <strong>WebHost.Systems</strong> is a
-                                multi-runtime AI agent deployment platform. One
-                                control plane &mdash; deploy to
-                                <strong>Cloudflare Workers</strong> or
-                                <strong>AWS Bedrock AgentCore</strong>.
-                                Immutable deploys, signed telemetry, metered
-                                usage. TypeScript-first.
+                                <strong>WebHost.Systems</strong> is the control
+                                plane for [&amp;] Protocol agents: a Postgres
+                                schema, a set of edge functions, and a
+                                dashboard. Agent records, versioned deployment
+                                rows with an active-deployment pointer, a stable
+                                <code>invoke/v1</code> endpoint with SSE, and
+                                HMAC-signed telemetry ingestion.
+                                <strong
+                                    >It does not execute an agent on a
+                                    runtime.</strong
+                                >
+                                The deploy step writes the version row and marks
+                                the provider reference
+                                <code>simulated</code>.
+                            </p>
+                            <p class="hero-rung">
+                                Evidence rung: <strong>in_tree</strong> &mdash;
+                                implemented and tested, but only against mocked
+                                clients in-process. Not proven against a live
+                                substrate.
                             </p>
                             <div class="hero-btns">
                                 <a
-                                    href="https://app.webhost.systems"
+                                    href="https://github.com/c-u-l8er/WebHost.Systems"
                                     class="btn-glow"
-                                    >Open Dashboard &rarr;</a
+                                    >Read the source &rarr;</a
                                 >
-                                <a href="https://docs.webhost.systems" class="btn-ghost"
-                                    >Documentation</a
+                                <a
+                                    href="https://github.com/c-u-l8er/WebHost.Systems/tree/main/docs/spec"
+                                    class="btn-ghost"
+                                    >Read the spec</a
                                 >
                             </div>
                         </div>
                         <div class="hero-card">
-                            <h2>What You Get</h2>
+                            <h2>What exists today</h2>
                             <div class="hero-card-row">
                                 <div class="hc-dot"></div>
                                 <div class="hc-text">
-                                    <strong>Multi-runtime portability</strong>
-                                    behind a single abstraction (Cloudflare by
-                                    default, AgentCore for enterprise).
+                                    <strong>A control plane</strong> &mdash; the
+                                    <code>webhost.*</code> Postgres schema, RLS
+                                    policies, RPCs, and six edge functions.
                                 </div>
                             </div>
                             <div class="hero-card-row">
                                 <div class="hc-dot pink"></div>
                                 <div class="hc-text">
-                                    <strong>Immutable deployments</strong> with
-                                    rollback via an active deployment pointer.
+                                    <strong>Versioned deployment rows</strong>
+                                    with rollback by moving an active-deployment
+                                    pointer. The row is the artefact; nothing is
+                                    shipped to a runtime.
                                 </div>
                             </div>
                             <div class="hero-card-row">
@@ -1089,15 +1170,25 @@
                                 <div class="hc-text">
                                     <strong>Stable invocation</strong> via
                                     <code>invoke/v1</code>, opaque session IDs,
-                                    and optional SSE streaming.
+                                    and optional SSE streaming. It reaches an
+                                    LLM provider, not a deployed agent.
                                 </div>
                             </div>
                             <div class="hero-card-row">
                                 <div class="hc-dot purple"></div>
                                 <div class="hc-text">
-                                    <strong>Secure metering + secrets</strong>:
-                                    signed telemetry, usage aggregation, plan
-                                    limit enforcement.
+                                    <strong>HMAC-signed telemetry</strong>
+                                    ingestion, usage aggregation, and plan-limit
+                                    tables.
+                                </div>
+                            </div>
+                            <div class="hero-card-row">
+                                <div class="hc-dot off"></div>
+                                <div class="hc-text">
+                                    <strong>Not built:</strong> execution on
+                                    Cloudflare Workers or AWS Bedrock AgentCore,
+                                    an SDK, a CLI, and any
+                                    <code>ampersand.json</code> handling.
                                 </div>
                             </div>
                         </div>
@@ -1108,69 +1199,118 @@
             <div class="below-fold">
                 <div class="content-veil" style="top: 0; bottom: 0"></div>
 
-                <section id="features">
+                <section id="status">
                     <div class="container">
-                        <div class="sec-label">System Capabilities</div>
+                        <div class="sec-label">Status, per claim</div>
                         <div class="sec-title">
-                            Infrastructure that
-                            <span class="gradient italic">disappears.</span>
+                            What this page used to say, and
+                            <span class="gradient italic"
+                                >what is actually here.</span
+                            >
                         </div>
+                        <p class="sec-note">
+                            Until 2026-08-16 this page sold a
+                            &ldquo;multi-runtime AI agent deployment
+                            platform&rdquo; deploying to Cloudflare Workers or
+                            AWS Bedrock AgentCore, over a control plane labelled
+                            <code>Convex</code>. There is no Convex anywhere in
+                            the repository, neither runtime is wired up, and the
+                            control plane is Postgres. Those claims are removed
+                            rather than restated at a later date. Each row below
+                            names the file that settles it.
+                        </p>
                         <div class="feat-grid">
                             <div class="feat">
                                 <div class="feat-num">
-                                    01 &mdash; Multi-Runtime
+                                    01 &mdash; not built
                                 </div>
-                                <h3>Runtime Portability</h3>
+                                <h3>Runtime execution</h3>
                                 <p>
-                                    One abstraction. Cloudflare Workers +
-                                    Durable Objects by default, AWS Bedrock
-                                    AgentCore for enterprise. Same API, same
-                                    agent code.
+                                    Nothing runs on Cloudflare Workers or AWS
+                                    Bedrock AgentCore. Both are values in a
+                                    dropdown. The deploy function inserts a
+                                    version row and returns &mdash; its own
+                                    source says
+                                    <code
+                                        >// TODO: Actual Cloudflare Workers API
+                                        call goes here</code
+                                    >
+                                    &mdash; and writes
+                                    <code>simulated: true</code> into the
+                                    provider reference. There is no AWS
+                                    dependency in the tree.
                                 </p>
                             </div>
                             <div class="feat">
-                                <div class="feat-num">02 &mdash; Immutable</div>
-                                <h3>Sealed Deploys</h3>
+                                <div class="feat-num">02 &mdash; in tree</div>
+                                <h3>Versioned deployments</h3>
                                 <p>
-                                    Every deploy is a snapshot. Rollback via
-                                    deployment pointer. No drift, no surprises,
-                                    full auditability from day one.
+                                    Each deployment is a row with a per-agent
+                                    unique version
+                                    (<code>unique (agent_id, version)</code>),
+                                    and rollback moves the agent&rsquo;s
+                                    <code>active_deployment_id</code> rather
+                                    than editing history. Clients hold
+                                    <code>select</code> only; every write goes
+                                    through a service-role function. What the
+                                    pointer points at is a record, not a running
+                                    worker.
                                 </p>
                             </div>
                             <div class="feat">
-                                <div class="feat-num">03 &mdash; Invoke</div>
-                                <h3>Stable Endpoints</h3>
+                                <div class="feat-num">03 &mdash; in tree</div>
+                                <h3>
+                                    <code>invoke/v1</code>
+                                </h3>
                                 <p>
-                                    Reach any agent via
-                                    <code>invoke/v1</code> with opaque session
-                                    IDs and optional SSE streaming.
+                                    An invocation endpoint with opaque session
+                                    IDs and SSE streaming exists. It routes to
+                                    OpenRouter, so what answers is a model, not
+                                    a deployed agent. The two are not the same
+                                    product and this page previously implied
+                                    they were.
                                 </p>
                             </div>
                             <div class="feat">
-                                <div class="feat-num">04 &mdash; Metered</div>
-                                <h3>Secure Telemetry</h3>
+                                <div class="feat-num">04 &mdash; in tree</div>
+                                <h3>Signed telemetry</h3>
                                 <p>
-                                    Signed telemetry events, usage aggregation
-                                    with plan limit enforcement. Provider-native
-                                    secret mechanisms only.
+                                    Telemetry ingestion is authenticated by a
+                                    deployment-scoped HMAC-SHA256 signature
+                                    rather than a user token, and an unsigned
+                                    event is refused with
+                                    <code>INVALID_SIGNATURE</code>. Usage
+                                    aggregation and plan-limit tables exist
+                                    beside it.
                                 </p>
                             </div>
                             <div class="feat">
-                                <div class="feat-num">05 &mdash; Typed</div>
-                                <h3>TypeScript-First</h3>
+                                <div class="feat-num">05 &mdash; in tree</div>
+                                <h3>TypeScript, checked</h3>
                                 <p>
-                                    Full type safety from config to deploy. SDK,
-                                    CLI, and APIs designed for the TypeScript
-                                    developer experience.
+                                    The dashboard is Vite + React +
+                                    TypeScript against a Supabase client.
+                                    <strong>143 tests across 12 files pass</strong>
+                                    with 0 failures &mdash;
+                                    <code>npm test</code>, run 2026-08-16. There
+                                    is no SDK and no CLI; the
+                                    <code>packages/</code> directory the
+                                    workspace declares does not exist yet.
                                 </p>
                             </div>
                             <div class="feat">
-                                <div class="feat-num">06 &mdash; Protocol</div>
-                                <h3>[&amp;] Native</h3>
+                                <div class="feat-num">
+                                    06 &mdash; spec only
+                                </div>
+                                <h3>[&amp;] Protocol integration</h3>
                                 <p>
-                                    MCP + A2A bindings, capability composition,
-                                    and governance constraints are first-class
-                                    citizens.
+                                    Manifest validation, MCP sidecars, A2A
+                                    routing and governance enforcement are
+                                    written down in
+                                    <code>docs/spec/70_&hellip;.md</code> and
+                                    implemented nowhere. No code in this
+                                    repository or its edge functions reads an
+                                    <code>ampersand.json</code>.
                                 </p>
                             </div>
                         </div>
@@ -1181,38 +1321,45 @@
                     <div class="container">
                         <div class="sec-label">Internals</div>
                         <div class="sec-title">
-                            Two planes, one
-                            <span class="gradient italic">surface.</span>
+                            One plane built, one
+                            <span class="gradient italic">plane empty.</span>
                         </div>
                         <div class="planes-grid">
                             <div class="plane">
                                 <div class="plane-eyebrow">Control Plane</div>
-                                <h3>UI + APIs</h3>
+                                <h3>Postgres + edge functions</h3>
                                 <p>
-                                    Dashboard, deploys, configuration, secrets,
-                                    telemetry, billing, and plan enforcement.
-                                    The system of record.
+                                    Dashboard, agent and deployment records,
+                                    telemetry ingestion, usage and plan limits.
+                                    The system of record. It runs on Postgres
+                                    with row-level security &mdash; this page
+                                    previously labelled it
+                                    <code>Convex</code>, which the repository
+                                    has never depended on.
                                 </p>
                                 <div class="tags">
-                                    <span class="tag hi">Convex</span
+                                    <span class="tag hi">Postgres + RLS</span
+                                    ><span class="tag hi">Edge Functions</span
                                     ><span class="tag">TypeScript</span
-                                    ><span class="tag">Auth</span
-                                    ><span class="tag">Billing</span>
+                                    ><span class="tag">React</span>
                                 </div>
                             </div>
                             <div class="plane">
                                 <div class="plane-eyebrow">Data Plane</div>
-                                <h3>Agent Runtime</h3>
+                                <h3>Not built</h3>
                                 <p>
-                                    Where agents execute. Cloudflare Workers +
-                                    Durable Objects as default, AgentCore for
-                                    premium isolation.
+                                    Where agents would execute. Nothing occupies
+                                    this half. <code>invoke/v1</code> answers
+                                    from an LLM provider, and the deploy path
+                                    stops at the version row. Whether the
+                                    runtime is Workers, AgentCore, or something
+                                    else is an open question, not a shipped
+                                    choice.
                                 </p>
                                 <div class="tags">
-                                    <span class="tag hi">CF Workers</span
-                                    ><span class="tag hi">Durable Objects</span
-                                    ><span class="tag">AgentCore</span
-                                    ><span class="tag">SSE</span>
+                                    <span class="tag off">CF Workers</span
+                                    ><span class="tag off">AgentCore</span
+                                    ><span class="tag hi">invoke/v1 + SSE</span>
                                 </div>
                             </div>
                         </div>
@@ -1334,8 +1481,8 @@
                                         ><span class="eco-name"
                                             >WebHost.Systems</span
                                         ><span class="eco-desc"
-                                            >Multi-runtime hosting, immutable
-                                            deploys, metered infra</span
+                                            >Control plane and deployment
+                                            records &mdash; no runtime yet</span
                                         ><span class="arrow">&rarr;</span></a
                                     >
                                 </div>
@@ -1344,60 +1491,21 @@
                     </div>
                 </section>
 
-                <section id="protocol">
-                    <div class="container">
-                        <div class="sec-label">Ecosystem Integration</div>
-                        <div class="sec-title">
-                            The &amp; composes.
-                            <span class="gradient italic">We run it.</span>
-                        </div>
-                        <div class="code-split">
-                            <div class="code-panel">
-                                <div class="code-bar">
-                                    <div class="code-dot"></div>
-                                    <div class="code-dot"></div>
-                                    <div class="code-dot"></div>
-                                    <span class="code-file"
-                                        >ampersand.json</span
-                                    >
-                                </div>
-                                <div class="code-body" id="code-block"></div>
-                            </div>
-                            <div class="code-info">
-                                <h3>
-                                    From spec to
-                                    <span class="gradient">production</span>
-                                </h3>
-                                <p>
-                                    WebHost.Systems is the runtime layer of the
-                                    <a
-                                        href="https://ampersandboxdesign.com/protocol.html"
-                                        >[&amp;] Protocol</a
-                                    >. Define capabilities, validate contracts
-                                    at compile time, and deploy to metered,
-                                    fault-tolerant infrastructure with a single
-                                    command.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 <div class="cta-section">
                     <div class="container">
                         <h2>
-                            Deploy your first
-                            <span class="gradient">agent.</span>
+                            Check it against the
+                            <span class="gradient">source.</span>
                         </h2>
                         <p class="cta-sub">
-                            TypeScript SDK, CLI tooling, and a dashboard &mdash;
-                            from <code>ampersand.json</code> to production.
+                            At <code>in_tree</code> the only honest invitation is
+                            to read the code and run the tests. Both are public.
                         </p>
                         <a
-                            href="https://app.webhost.systems"
+                            href="https://github.com/c-u-l8er/WebHost.Systems"
                             class="btn-glow"
                             style="font-size: 13px; padding: 16px 36px"
-                            >Launch Dashboard &rarr;</a
+                            >Read the source &rarr;</a
                         >
                     </div>
                 </div>
@@ -1417,7 +1525,7 @@
                                     ><a href="https://ampersandboxdesign.com"
                                         >Ecosystem</a
                                     ><a
-                                        href="https://github.com/c-u-l8er/AmpersandBoxDesign"
+                                        href="https://github.com/c-u-l8er/WebHost.Systems"
                                         >GitHub</a
                                     ><a
                                         href="https://ampersandboxdesign.com/protocol.html"
@@ -1433,7 +1541,7 @@
                                     Box Design</a
                                 >
                                 <span class="foot-status"
-                                    >All systems operational</span
+                                    >Claims audited 2026-08-16</span
                                 >
                             </div>
                         </div>
@@ -1448,54 +1556,10 @@
             document.getElementById("year").textContent =
                 new Date().getFullYear();
 
-            // Format code block with proper indentation and syntax highlighting
-            (function formatCode() {
-                const raw = [
-                    "{",
-                    '  "agent": "support-ops",',
-                    '  "capabilities": [',
-                    '    "&memory.graph",    // Graphonomous',
-                    '    "&reason.argument", // Deliberatic',
-                    '    "&time.anomaly"    // TickTickClock',
-                    "  ],",
-                    '  "runtime": "cloudflare",',
-                    '  "deploy":  "webhost.systems"',
-                    "}",
-                ];
-
-                const el = document.getElementById("code-block");
-                if (!el) return;
-
-                const highlighted = raw
-                    .map((line) => {
-                        return (
-                            line
-                                // Comments first
-                                .replace(
-                                    /(\/\/.*)$/g,
-                                    '<span class="c">$1</span>',
-                                )
-                                // String values (after colon)
-                                .replace(
-                                    /: "([^"]+)"/g,
-                                    ': <span class="s">"$1"</span>',
-                                )
-                                // String values (in arrays)
-                                .replace(
-                                    /"(&[^"]+)"/g,
-                                    '<span class="s">"$1"</span>',
-                                )
-                                // Keys
-                                .replace(
-                                    /"([^"]+)"(?=\s*:)/g,
-                                    '<span class="k">"$1"</span>',
-                                )
-                        );
-                    })
-                    .join("\n");
-
-                el.innerHTML = "<pre>" + highlighted + "</pre>";
-            })();
+            // The ampersand.json sample that used to render here was removed on
+            // 2026-08-16 with the #protocol section: nothing in this repository
+            // or its edge functions reads an ampersand.json, so the sample
+            // showed a capability the product does not have.
             const prefersReducedMotion = window.matchMedia(
                 "(prefers-reduced-motion: reduce)",
             ).matches;

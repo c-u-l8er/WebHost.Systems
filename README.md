@@ -15,19 +15,36 @@ it, not carried over from a planning document.
 | | |
 |---|---|
 | Marketing page | **live** — `https://webhost.systems` answers 200 |
-| Application | **in development.** No deployed app; `apps/web` builds and runs locally |
-| Tests | **143 passing across 12 files** (`npm test`, 0 failures) |
+| Application | **in development.** A build is served at `app.webhost.systems`, but the Supabase project it was built against no longer resolves — see below |
+| Tests | **143 passing across 12 files** (`npm test`, 0 failures, re-run 2026-08-16) |
 | Types | clean (`npm run typecheck`, `tsc --noEmit`) |
 | Spec | v1, and its data-layer half is **superseded** — see below |
-| Evidence rung | `live_local` for the app, `live_deployed` for the marketing page |
+| Evidence rung | `in_tree` for the app, `live_deployed` for the marketing page |
 
-**A known defect, not yet fixed:** the live marketing page advertises a
-**Convex** backend in its `#stack` section. This repository does not use Convex.
-`apps/web/package.json` depends on `@supabase/supabase-js`, and there is no
-`convex` or `@clerk/*` dependency anywhere in the tree. The same wrong claim
-reached the root `AGENTS.md` and four `docs/spec/` documents, which have been
-corrected; **the page itself has not been.** If you are here to fix one thing,
-fix that.
+**Fixed 2026-08-16, and recorded here rather than quietly dropped.** Until that
+date the marketing page advertised a **Convex** control plane and sold a
+"multi-runtime AI agent deployment platform" deploying to Cloudflare Workers or
+AWS Bedrock AgentCore. This repository has never depended on Convex —
+`apps/web/package.json` depends on `@supabase/supabase-js`, and the only Convex
+entry in any dependency manifest is a `"extraneous": true` record in
+`package-lock.json` for `apps/control-plane`, a workspace that no longer exists
+on disk. (Convex is still named in `docs/spec/` history and in `old_scrap/`,
+where it is either corrected or explicitly historical.) Neither runtime
+is wired up either: `ampersand-supabase/functions/webhost-deploy/index.ts`
+carries `// TODO: Actual Cloudflare Workers API call goes here` and writes
+`simulated: true`, and there is no AWS dependency anywhere. **Those claims were
+removed from `index.html` rather than replaced with newer ones**; the page now
+states its rung and lists what is and is not built. It is not yet pushed.
+
+**Two things measured the same day and not yet acted on.** `app.webhost.systems`
+serves a real React/Supabase build (200, `index-CBhPWK61.js`), but the project
+URL compiled into it — the same one in `.env.local` — returns **NXDOMAIN**, so
+the deployed dashboard has no backend to reach. The `index.html` links to it
+were removed for that reason. Separately, `apps/web/package.json` still
+describes itself as "Vite + React + **Clerk**"; there is no Clerk dependency.
+
+The old Convex claim also reached the root `AGENTS.md` and four `docs/spec/`
+documents, which were corrected earlier.
 
 ## Layout
 
