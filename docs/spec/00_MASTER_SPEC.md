@@ -1,4 +1,29 @@
 # webhost.systems — MASTER ENGINEERING SPEC (v1)
+
+> **SUPERSEDED IN PART — the data layer. Added 2026-08-15; the rest of this document stands.**
+>
+> This is a dated design record and has **not** been rewritten: rewriting it would fabricate a
+> design review nobody performed. What it gets wrong is one layer, named here so it can be read
+> around.
+>
+> **The shared-Supabase route was abandoned by Travis on 2026-07-30**, replaced by `studbook`
+> (`studbook/docs/spec/README.md` — a spec with no implementation; do not build from it yet).
+> Anything below that specifies Supabase tables, RLS policies, Supabase Auth or `amp.profiles`
+> identity is describing a route that is no longer taken. `ampersand-supabase/` is **archived, not
+> failed** — it still runs, and nothing migrates off it until studbook can hold the same data with
+> the same guarantees.
+>
+> The blocker is one unruled question — where confidentiality comes from. See `CONFIDENTIALITY.md`
+> and `THREAT_MODEL.md` in the repository root.
+>
+> **The product, API, UX and protocol design in this document are unaffected.** Read them.
+>
+> `REVISION_REGISTER.md` tracks what else in the tree still contradicts a decision already made.
+
+> **Also corrected:** this document describes WebHost.Systems as a **Convex** backend. It is not,
+> and never was in this tree — `WebHost.Systems/apps/web/package.json` depends on
+> `@supabase/supabase-js`, with no Convex or Clerk dependency anywhere in the monorepo. The same
+> wrong claim is currently live on `webhost.systems` and was in `AGENTS.md` until 2026-08-15.
 Version: 1.1
 Status: Implementation-ready draft
 Audience: Engineering (primary), Product/Security (secondary)
