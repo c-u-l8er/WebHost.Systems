@@ -1,0 +1,244 @@
+/* ==========================================================================
+   The ComputeDriven page shell, revision shell-r9.
+
+   Everything between TOKENS-START and TOKENS-END is this site's own character
+   and is the only part a sibling surface replaces. Everything after
+   TOKENS-END is shared structure, copied from bendscript.com/src/shell.css
+   (itself from ~/Projects/GPSCoord/src/shell.css) with the additions marked
+   "webhost". Documented in ProjectAmp2/agents/SHELL.md.
+   ========================================================================== */
+/* TOKENS-START — WebHost.Systems: cold-boot violet on graphite */
+:root{
+--ink:#0a0b10;--ink2:#0f1017;--ink3:#161822;          /* page · surface · raised */
+--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.14);
+/* fg2 .66 measures 7.4:1 on the page and 7.0:1 on the raised surface; fg3 .55
+   measures 5.3:1 on the band. The shell shipped .34 for a while, which is
+   2.78:1 — a caveat nobody can read is not a caveat. launch-gate.mjs
+   recomputes every pair and refuses below 4.5:1. SHELL.md §0. */
+--fg:#e8e9f2;--fg2:rgba(232,233,242,.66);--fg3:rgba(232,233,242,.55);
+/* The accent is the violet-blue of a console before anything has booted.
+   Deliberately NOT gpscoord's amber, bendscript's vermilion, runefort's green
+   or wrand's magenta — shared shell, distinct character. It is checked against
+   the five rung-chip hues too: those are ROLE colours, they only ever appear
+   inside a chip, and the accent never does. */
+--acc:#8b7dff;--acc-soft:rgba(139,125,255,.1);--acc-line:rgba(139,125,255,.34);
+--acc-ink:#0c0820;
+--data:#5ad1c8;--data-soft:rgba(90,209,200,.1);--warn:#f5c451;
+--display:"Space Grotesk",system-ui,sans-serif;
+--ui:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+--r:10px;--rl:16px
+}
+/* TOKENS-END */
+
+:root{--wrap:1080px;--xs:.6875rem;--sm:.8125rem;--md:1.0625rem;--lg:1.25rem;
+--h2:clamp(1.7rem,4vw,2.5rem);--h1:clamp(2.1rem,5.6vw,3.5rem)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ink);color:var(--fg);font:.9375rem/1.6 var(--ui);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:var(--acc)}
+h1,h2,h3{margin:0}
+img,canvas,svg{max-width:100%}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 22px}
+
+/* --- placement band ---
+   webhost is amp-nav place:2, so the band carries the LAYER sentence — that is
+   what amp-nav's own renderPlacement() emits for place 2, and a band that said
+   anything else would contradict the nav rendered directly beneath it.
+   The chip prints amp-nav's word for this surface's rung, which is "?"
+   (its PLACEMENT entry stores rung:null and RUNG_LABEL renders ? for null).
+   .covers is 11px and load-bearing — it is the span that keeps the chip honest
+   — so it takes --fg2, not --fg3. SHELL.md §0, §1, r6. */
+.band{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:11px 22px;background:var(--ink2);border-bottom:1px solid var(--line);font-size:var(--xs)}
+.band .where{color:var(--fg2);text-transform:uppercase;letter-spacing:.05em}
+.band .where b{color:var(--fg);font-weight:600}
+.band .covers{color:var(--fg2);flex:1 1 300px;min-width:0}
+.rung{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:var(--xs);padding:2px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--fg2);white-space:nowrap}
+.rung::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.rung[data-rung=spec]{color:#9aa4b2;border-color:rgba(154,164,178,.35)}
+.rung[data-rung=in_tree]{color:#7aa2f7;border-color:rgba(122,162,247,.35)}
+.rung[data-rung=live_local]{color:var(--data);border-color:rgba(90,209,200,.4);background:var(--data-soft)}
+.rung[data-rung=live_deployed]{color:#4ade80;border-color:rgba(74,222,128,.4)}
+.rung[data-rung=external]{color:#c4a1ff;border-color:rgba(196,161,255,.4)}
+.rung[data-rung="?"]{color:var(--warn);border-color:rgba(245,196,81,.45);border-style:dashed}
+
+/* --- nav ---
+   SHELL.md r7: `.top nav a` at specificity 0,2,1 beat `.btn` at 0,1,0 on all
+   nine surfaces built before this one, so the header CTA painted --fg2 on
+   --acc and shipped unreadable. `:not(.btn)` scopes the nav rule instead of
+   raising .btn. r8: the patch is not the check — launch-gate.mjs resolves the
+   whole cascade over the emitted artifact, at every breakpoint and in both
+   states, and refuses when a non-button rule decides a button's colour. */
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}
+.logo{font-family:var(--mono);font-size:var(--md);font-weight:600;letter-spacing:-.04em;color:var(--fg);text-decoration:none;white-space:nowrap}
+.logo span{color:var(--acc)}
+.logo:hover{color:var(--acc)}
+.top nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.top nav a:not(.btn){color:var(--fg2);text-decoration:none;font-size:var(--sm);font-weight:500;white-space:nowrap}
+.top nav a:not(.btn):hover{color:var(--acc)}
+.btn{display:inline-block;background:var(--acc);color:var(--acc-ink);font-weight:700;border-radius:var(--r);padding:11px 20px;text-decoration:none;font-size:var(--sm);white-space:nowrap;border:1px solid transparent;font-family:var(--ui);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line2);font-weight:500}
+.btn:hover{filter:brightness(1.12)}
+.btn.ghost:hover{border-color:var(--acc-line);color:var(--acc)}
+/* SHELL.md r5's defect: when the nav links wrap onto a second row,
+   justify-content:space-between drops the logo into the middle of it.
+   r6: the breakpoint belongs to the SURFACE, not the shell — r5 gives 430px
+   (four items), the bendrune lane measured 780px (six items). MEASURED here,
+   in a browser, with this nav's six items and the webfonts loaded: the nav is
+   one row down to 765px, and at 764px it wraps and the logo's centre lands
+   33px below the first row's centre line. So the underlying wrap point on this
+   surface is 764px. The rule fires at 800px — 36px of margin, because the wrap
+   point is a function of font metrics and those move. */
+@media(max-width:800px){.top{flex-direction:column;align-items:flex-start;gap:11px}.top nav{width:100%}}
+
+/* --- the identifying animation (SHELL.md §8, and r9: ABOVE THE FOLD) ---
+   In flow rather than absolutely positioned, in the second column of the hero
+   grid at desktop and a full-width strip under the hero copy on a phone. That
+   is the r9 requirement: visible without scrolling at 1280 AND at 390. It
+   comes after the h1 in source order because the question comes first. */
+.hero{padding-top:34px}
+.hgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.idanim{position:relative;min-width:0;height:132px;margin-top:20px;border:1px solid var(--line);border-radius:var(--rl);background:var(--ink2);overflow:hidden}
+.idanim canvas{display:block;width:100%;height:100%}
+.herobtns{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+@media(min-width:861px){
+.hero{padding-top:44px}
+.hgrid{grid-template-columns:minmax(0,1.06fr) minmax(0,.94fr);column-gap:38px;align-items:start}
+.hgrid>.eyebrow{grid-column:1;grid-row:1}
+.hgrid>h1{grid-column:1;grid-row:2}
+.hgrid>.lede{grid-column:1;grid-row:3}
+.hgrid>.herobtns{grid-column:1;grid-row:4}
+.hgrid>.idanim{grid-column:2;grid-row:1/5;align-self:center;height:290px;margin-top:0}
+.hero .lede{max-width:54ch}}
+
+/* --- sections --- */
+section{padding:56px 0;border-top:1px solid var(--line)}
+section:first-of-type{border-top:0}
+.eyebrow{font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.14em;color:var(--acc);display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.eyebrow::before{content:"";width:20px;height:1px;background:var(--acc);opacity:.6;flex:none}
+/* r7: line-height must clear the FONT'S INK BOX, not its em size. MEASURED in
+   the browser with canvas measureText, in the h1's own computed font, with the
+   webfont confirmed loaded (document.fonts.check('600 56px "Space Grotesk"')
+   === true — an unloaded face silently measures the fallback and the whole
+   exercise is void). Space Grotesk 600 at 56px: the h1's own string reports
+   ascent 40 + descent 2 = 42px of ink, and a descender probe reports ascent 40
+   + descent 11 = 51px. So this face needs line-height >= 0.911 to keep
+   consecutive lines from overlapping — agentromatic's Syne needed more than
+   1.02 and shipped at 1.02, which is where this rule comes from. 1.22 is well
+   clear of the floor and is chosen for reading a four-line question, not to
+   scrape past it. Do not lower it below 0.92 without re-measuring in this
+   face; launch-gate.mjs refuses that. */
+h1{font-family:var(--display);font-weight:600;font-size:var(--h1);line-height:1.22;letter-spacing:-.03em;max-width:15ch;text-wrap:balance}
+h1 em{font-style:normal;color:var(--acc)}
+h2{font-family:var(--display);font-weight:600;font-size:var(--h2);line-height:1.24;letter-spacing:-.02em;text-wrap:balance}
+h3{font-size:var(--md);font-weight:600;font-family:var(--display)}
+.lede{color:var(--fg2);font-size:var(--md);line-height:1.68;max-width:62ch;margin:14px 0 0}
+p{margin:14px 0 0}
+strong{color:var(--fg);font-weight:600}
+code{font-family:var(--mono);font-size:.92em;background:rgba(255,255,255,.05);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+
+/* --- cards ---
+   Separators are each cell's own 1px shadow filling the grid gap, NOT a
+   container background showing through: the background trick leaves a phantom
+   lit rectangle whenever the last row is short. SHELL.md §6. */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;background:var(--ink2);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;margin-top:28px}
+.grid>div{background:var(--ink2);padding:22px;min-width:0;box-shadow:0 0 0 1px var(--line)}
+.grid h3{margin-bottom:8px}
+.grid p{margin:0;color:var(--fg2);font-size:var(--sm);line-height:1.62}
+.grid .head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px}
+.grid .head h3{margin:0}
+.needs{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line2);font-family:var(--mono);font-size:var(--xs);color:var(--fg3);line-height:1.6;overflow-wrap:anywhere}
+.needs b{color:var(--fg2);font-weight:500}
+.where-tag{font-family:var(--mono);font-size:var(--xs);color:var(--data);white-space:nowrap}
+
+/* --- count plate --- */
+.plate{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
+.plate>div{text-align:center;padding:22px 12px}
+.plate .n{font-family:var(--mono);font-weight:600;font-size:1.55rem;color:var(--fg)}
+.plate .l{font-size:var(--xs);letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);margin-top:5px}
+.sm{font-size:var(--sm)}
+
+/* --- status block --- */
+.status{border:1px solid var(--line2);border-radius:var(--rl);background:var(--ink2);overflow:hidden;margin-top:26px}
+.status>div{display:grid;grid-template-columns:150px 1fr;gap:16px;padding:15px 20px;border-top:1px solid var(--line);min-width:0}
+.status>div:first-child{border-top:0}
+.status dt{font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);margin:0}
+.status dd{margin:0;font-size:var(--sm);color:var(--fg2);line-height:1.6;min-width:0;overflow-wrap:anywhere}
+.status dd strong{color:var(--fg);font-weight:500}
+.status .limit{background:rgba(245,196,81,.05)}
+.status .limit dt{color:var(--warn)}
+
+/* --- evidence table ---
+   Wide content scrolls in its own box, never the document. SHELL.md §6. */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--ink2);margin-top:22px}
+table{border-collapse:collapse;width:100%;min-width:700px;font-family:var(--mono);font-size:var(--xs)}
+th,td{text-align:left;padding:10px 15px;border-top:1px solid var(--line);vertical-align:top}
+th{color:var(--fg3);text-transform:uppercase;letter-spacing:.09em;font-weight:500;background:var(--ink3);border-top:0;white-space:nowrap}
+td.claim{font-family:var(--ui);color:var(--fg);min-width:170px}
+td.at{color:var(--data);white-space:nowrap}
+td.says{color:var(--fg2);min-width:250px}
+
+/* --- webhost's own figure: the two planes, one of them empty ---
+   Static markup, no script. It is a diagram of the shape of the product, and
+   the empty half is the point. */
+.planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:26px}
+.plane{border:1px solid var(--line);border-radius:var(--rl);background:var(--ink2);padding:22px;min-width:0}
+.plane.empty{border-style:dashed;border-color:rgba(245,196,81,.3);background:rgba(245,196,81,.03)}
+.plane .peyebrow{font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.12em;color:var(--fg3);margin-bottom:9px}
+.plane.empty .peyebrow{color:var(--warn)}
+.plane p{color:var(--fg2);font-size:var(--sm);line-height:1.62}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.chip{font-family:var(--mono);font-size:var(--xs);border:1px solid var(--line2);border-radius:6px;padding:3px 9px;color:var(--fg2)}
+.chip.on{color:var(--data);border-color:rgba(90,209,200,.35);background:var(--data-soft)}
+.chip.off{color:var(--warn);border-color:rgba(245,196,81,.35);border-style:dashed}
+
+/* --- claim tag + retraction --- */
+.tag{display:inline-block;font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.06em;color:var(--warn);background:rgba(245,196,81,.06);border:1px dashed rgba(245,196,81,.35);border-radius:6px;padding:5px 11px;margin-bottom:16px}
+.tag.ok{color:var(--data);border-color:rgba(90,209,200,.35);background:var(--data-soft)}
+.retract{border-left:3px solid var(--warn);background:rgba(245,196,81,.05);border-radius:0 var(--r) var(--r) 0;padding:20px;max-width:76ch;margin-top:26px}
+.retract h3{color:var(--warn);font-size:.9375rem}
+.retract p{font-size:var(--sm);color:var(--fg2);line-height:1.7}
+.retract ul{margin:14px 0 0;padding-left:20px;font-size:var(--sm);color:var(--fg2);line-height:1.7}
+.retract li{margin-top:7px}
+.retract q{color:var(--fg);font-style:normal}
+
+/* --- CTA, keyed to rung --- */
+.cta{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.cta a{display:block;background:var(--ink2);border:1px solid var(--line);border-radius:var(--r);padding:20px;text-decoration:none;transition:border-color .2s,background .2s,transform .2s;min-width:0}
+.cta a:hover{border-color:var(--acc-line);background:var(--acc-soft);transform:translateY(-2px)}
+.cta .verb{display:block;font-family:var(--mono);font-size:var(--xs);font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--acc);margin-bottom:7px}
+.cta .what{display:block;font-size:var(--sm);line-height:1.55;color:var(--fg2)}
+.cta code{color:var(--data);background:none;padding:0}
+.ctagroup+.ctagroup{margin-top:34px}
+
+/* --- the correction form (SHELL.md r9) ---
+   A real <form action> that posts with scripting off. The script only upgrades
+   it to an inline reply, and prints success on an actual 2xx and never before. */
+.say{margin-top:24px;max-width:68ch}
+.say-row{display:grid;grid-template-columns:1fr 1.6fr;gap:14px;align-items:start}
+.say-f{display:block;min-width:0}
+.say-f>span{display:block;font-family:var(--mono);font-size:var(--xs);letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:6px}
+.say input[type=email],.say textarea{width:100%;background:var(--ink2);border:1px solid var(--line2);border-radius:var(--r);color:var(--fg);font-family:var(--ui);font-size:var(--sm);padding:11px 12px;resize:vertical}
+.say input[type=email]:focus,.say textarea:focus{outline:none;border-color:var(--acc-line)}
+.say input[type=email]::placeholder,.say textarea::placeholder{color:var(--fg3)}
+.say input[name=_gotcha]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.say-act{display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap}
+.say-act .btn[disabled]{opacity:.55;cursor:default;filter:none}
+.say-msg{font-family:var(--mono);font-size:var(--xs);color:var(--fg3);margin:0}
+.say-msg.ok{color:var(--data)}
+.say-msg.bad{color:var(--warn)}
+.say-alt{font-size:var(--sm);color:var(--fg2);margin-top:16px}
+@media(max-width:640px){.say-row{grid-template-columns:1fr}}
+
+/* --- footer --- */
+footer{border-top:1px solid var(--line);background:var(--ink2);margin-top:56px}
+footer .in{max-width:var(--wrap);margin:0 auto;padding:26px 22px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;font-size:var(--xs);color:var(--fg3)}
+footer a{color:var(--fg2);text-decoration:none}
+footer a:hover{color:var(--acc)}
+footer .links{display:flex;flex-wrap:wrap;gap:20px}
+.stamp{font-family:var(--mono);color:var(--fg3)}
+.attrib{max-width:var(--wrap);margin:0 auto;padding:0 22px 26px;font-size:var(--xs);color:var(--fg3);line-height:1.6}
+
+@media(max-width:640px){.status>div{grid-template-columns:1fr;gap:6px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}

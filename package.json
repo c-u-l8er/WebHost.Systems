@@ -22,8 +22,12 @@
     "test": "npm --workspaces run test",
     "format": "npm --workspaces run format",
     "format:check": "npm --workspaces run format:check",
-    "clean": "npm --workspaces run clean"
+    "clean": "npm --workspaces run clean",
+    "site:build": "node build-site.mjs",
+    "site:gate": "node launch-gate.mjs",
+    "site:launch": "node build-site.mjs && node launch-gate.mjs"
   },
+  "_site_comment": "The three site:* scripts build and prove the MARKETING PAGE at / and are deliberately not wired into build/dev/test, which belong to apps/web and are a different artifact with a different toolchain. Run `npm run site:launch` before committing index.html; Cloudflare serves the committed file and runs no build.",
   "devDependencies": {
   }
 }

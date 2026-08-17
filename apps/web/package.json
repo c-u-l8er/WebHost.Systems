@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "webhost.systems dashboard (Vite + React + Clerk)",
+  "description": "webhost.systems dashboard (Vite + React + Supabase client)",
   "engines": {
     "node": ">=20"
   },

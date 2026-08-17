@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can this machine run somewhere that is not ours? — WebHost.Systems</title>
+<meta name="description" content="WebHost.Systems is the runtime layer of ComputeDriven and it has no runtime. This page lists what is in the tree, what is not built, and the file and line number that settles each row — and quotes, in place, every claim it used to make and could not back.">
+<meta name="falsifiable-question" content="{{QUESTION}}">
+<link rel="canonical" href="{{ORIGIN}}/">
+<meta name="theme-color" content="#0a0b10">
+<meta property="og:title" content="Can this machine run somewhere that is not ours? — WebHost.Systems">
+<meta property="og:description" content="The runtime layer of ComputeDriven, with no runtime. Everything that is here, everything that is not, and the file that settles each row.">
+<meta property="og:type" content="website"><meta property="og:url" content="{{ORIGIN}}/">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>{{CSS}}</style></head><body>
+{{BAND}}
+<div class="wrap">
+
+<div class="top"><a class="logo" href="/">webhost<span>.systems</span></a>
+<nav><a href="#retraction">Retraction</a><a href="#here">What is here</a><a href="#not">What is not</a><a href="#evidence">Evidence</a><a href="#status">Status</a><a class="btn" href="{{REPO}}">Inspect the source</a></nav></div>
+
+<section class="hero">
+<!-- The hero grid is FLAT rather than nested, and that is what puts the
+     animation above the fold on a phone. Nested, the animation could only
+     follow the whole of the copy, and at 390x812 it landed 952px down — on the
+     page and out of frame, which r9 says is not "above the fold". Flat, the
+     single-column order is eyebrow, question, animation, answer; and at >=861px
+     the animation is placed in the second column spanning every row. -->
+<div class="hgrid">
+<div class="eyebrow">The question this site exists to answer</div>
+<h1>Can this machine run <em>somewhere that is not ours?</em></h1>
+<!-- The identifying animation (SHELL.md §8, placed above the fold per r9). It
+     comes AFTER the h1 in source order because the question comes first. It
+     renders no data and asserts nothing: /boot.js takes no input from this
+     document and writes nothing back into it. Delete the two script tags at
+     the bottom of this file and every word, figure, chip, row and form on this
+     page still works. -->
+<div class="idanim" aria-hidden="true"><canvas data-identity-animation></canvas></div>
+<p class="lede">No. Not yet, and not anywhere &mdash; including here. <strong>WebHost.Systems is the runtime layer of ComputeDriven, and it has no runtime.</strong> What exists is a control plane: a database schema, {{probe.edge_functions}} edge functions and a dashboard, all of which record that a deployment happened without one having happened. This page lists what is in the tree, what is not built, and the file and line number that settles each row.</p>
+<p class="herobtns"><a class="btn" href="{{REPO}}">Inspect the source</a><a class="btn ghost" href="{{SPEC_URL}}">Read the spec</a></p>
+</div>
+</section>
+
+{{PLATE}}
+
+<section id="retraction">
+<div class="eyebrow">What this page used to say</div>
+<h2>Every claim below stood here, and none of them had a witness.</h2>
+<p class="lede">Until 2026-08-16 this page sold a multi-runtime agent deployment platform over a control plane labelled with the name of a database this repository has never depended on. The claims were not softened or moved to a later quarter. They were removed, and they are quoted here so that removing them is checkable rather than a promise &mdash; the publication gate counts every one of these strings on the emitted page and refuses the build if a single occurrence appears outside this block.</p>
+{{RETRACTION}}
+</section>
+
+<section id="here">
+<div class="eyebrow">What is actually here, and at which rung</div>
+<h2>A control plane, a dashboard, and a specification &mdash; not all at the same rung.</h2>
+<p class="lede">A single status for this domain would be a lie in one direction or the other. Some of this is code with a test suite and no deployment; some of it is a set of documents, part of which is superseded. None of it is a running system, so the chip on each card says which kind of thing it is.</p>
+{{ARTIFACTS}}
+{{PLANES}}
+</section>
+
+<section id="not">
+<div class="eyebrow">What is not built</div>
+<h2>The half this domain is named after is empty.</h2>
+<p class="lede">Each card names what is missing, what it would take, and how far along it is. The word <code>simulated</code> is not a euphemism here &mdash; it is the literal string the deploy function writes into the provider reference when it finishes, and the line that writes it is in the table below.</p>
+{{OPEN_CARDS}}
+</section>
+
+<section id="evidence">
+<div class="eyebrow">Evidence, recomputed at build time</div>
+<h2>Every row below is re-derived from disk when this page is built.</h2>
+<p class="lede">These are file probes, not prose. The build opens each file, checks that the cited line still says what this page says it says, and refuses to emit the page on any disagreement &mdash; so if somebody adds an AWS dependency or wires the deploy call up, this page stops building rather than going quietly out of date. <strong>The negative claims are the ones worth mechanising:</strong> a page can keep saying &ldquo;there is none of this&rdquo; only for as long as a build can prove it.</p>
+{{PROBE_TABLE}}
+<p class="lede sm">{{METHOD_NOTE}}</p>
+</section>
+
+<section id="status">
+<div class="eyebrow">Status</div>
+<h2>Where this stands, and what would move it.</h2>
+{{STATUS}}
+{{ZEROS}}
+</section>
+
+<section id="do">
+<div class="eyebrow">What you can actually do here</div>
+<h2>One list per rung. Nothing asks you to deploy anything.</h2>
+<p class="lede">There is no dashboard to open and nothing to launch. The rung a surface holds decides what it is allowed to ask a visitor for, and at these rungs the honest asks are to read the code, run its tests, read the specification and argue with it.</p>
+{{CTA}}
+</section>
+
+<section id="say">
+<div class="eyebrow">Corrections</div>
+<h2>Tell us a number of ours you think is wrong.</h2>
+<p class="lede">This page is mostly a list of things we said and could not back. If you find another one &mdash; a claim above that does not hold, a file that no longer says what it is quoted as saying, an arithmetic error in the counts &mdash; that is the most useful thing anyone can send.</p>
+{{FORM}}
+</section>
+
+</div>
+<footer><div class="in">
+<span class="stamp">{{STAMP}}</span>
+<span class="links"><a href="{{REPO}}">Source</a><a href="{{SPEC_URL}}">Spec</a><a href="{{ISSUES}}">Issues</a><a href="https://computedriven.com">ComputeDriven</a></span>
+</div>
+<div class="attrib">This page is generated from <code>records/surface.json</code> and re-derived file probes, and <code>launch-gate.mjs</code> refuses to publish it when the artifact and the records disagree. Its whole content ships with zero JavaScript &mdash; the two scripts below are the identifying animation, which reads nothing from this page and writes nothing to it, and the correction form's inline reply, which the form works without. &copy; {{YEAR}} WebHost.Systems.</div>
+</footer>
+<script src="/boot.js" defer></script>
+<script src="/say.js" defer></script>
+</body></html>

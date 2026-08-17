@@ -1,0 +1,19 @@
+{
+  "schema": "webhost-build-stamp-v1",
+  "_comment": "Written at emit. launch-gate.mjs recomputes these hashes AND re-derives the artifact from source, so a build that threw before writing cannot leave a stale index.html standing behind an approving gate. SHELL.md r6, hole 2.",
+  "built_at": "2026-08-17T17:16:03.452Z",
+  "node": "v25.2.1",
+  "artifacts": {
+    "index.html": "14f263e4aebf03a82bd7120a4300029e92b05612b0c6e382c70bbd1d35dac8b0",
+    "boot.js": "9c42d3c8773189dcc066b73e55fea76b0a8eb6a399215154ea2f5bcbd061e5a5",
+    "say.js": "e8b08ca13e50eea087672597ab73f5f78f321aa14d88ac6472ebb1184fc496f5"
+  },
+  "sources": {
+    "src/landing.html": "b3bee8c9473ab6a63b9845ad5fe7a72096bb91f99da53a6df7cb79b812789ef5",
+    "src/shell.css": "79a1d50ba7515dd20d4e5b47edc71e81f59954c2fcee6ac46e351c5c1b8049dd",
+    "src/boot.js": "42836cf841bd0d7998b1d234b03dbd93f61f97db3545db798ed39e5200ae5d25",
+    "src/say.js": "9ea5d3d87929f916d85807680eb2cc9cde695eb0ad0b29d84efe79bab577bf10",
+    "records/surface.json": "4752fd7966165c1cd10a95cd4ef55c500e225738c38ed9546295f61adfcd99f9",
+    "records/evidence.json": "a696f38060cde755054476d1fe1356994391631603f34cc3676180e9551acf20"
+  }
+}

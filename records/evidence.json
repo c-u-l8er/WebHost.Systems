@@ -1,0 +1,100 @@
+{
+  "schema": "webhost-evidence-v1",
+  "_comment": "Frozen by build-site.mjs on first run. Every value here is re-derived from disk on every subsequent build and the build refuses on any disagreement. Do not hand-edit: if a line number moved, that is a code event, and the page's citation moves with it only when a person has looked.",
+  "frozen_at": "2026-08-17",
+  "probes": {
+    "deploy_todo": {
+      "claim": "Nothing is shipped to a runtime",
+      "where": "ampersand-supabase/functions/webhost-deploy/index.ts",
+      "line": 94,
+      "says": "// TODO: Actual Cloudflare Workers API call goes here."
+    },
+    "deploy_simulated": {
+      "claim": "The deploy writes a marker instead",
+      "where": "ampersand-supabase/functions/webhost-deploy/index.ts",
+      "line": 107,
+      "says": ": { simulated: true }),"
+    },
+    "invoke_openrouter": {
+      "claim": "invoke/v1 answers from a model provider",
+      "where": "ampersand-supabase/functions/webhost-invoke/index.ts",
+      "line": 11,
+      "says": "import { invokeOpenRouter, invokeOpenRouterStream } from \"../_shared/openrouter.ts\";"
+    },
+    "agentcore_enum": {
+      "claim": "AgentCore is an enum member",
+      "where": "ampersand-supabase/migrations/020_webhost_schema.sql",
+      "line": 16,
+      "says": "create type webhost.runtime_provider as enum ('cloudflare', 'agentcore');"
+    },
+    "agentcore_option": {
+      "claim": "...and an option in a select element",
+      "where": "apps/web/src/components/AgentsPage/AgentsListPanel.tsx",
+      "line": 209,
+      "says": "<option value=\"agentcore\">agentcore</option>"
+    },
+    "no_aws": {
+      "claim": "No AWS or Bedrock package anywhere",
+      "where": "2 package.json files, node_modules excluded",
+      "line": null,
+      "says": "0 dependencies match /aws|bedrock|agentcore/",
+      "value": 0
+    },
+    "no_convex": {
+      "claim": "No Convex dependency in any manifest",
+      "where": "2 package.json files, node_modules excluded",
+      "line": null,
+      "says": "0 dependencies match /convex/",
+      "value": 0
+    },
+    "no_packages_dir": {
+      "claim": "The workspace declares packages/* and there is none",
+      "where": "packages/",
+      "line": null,
+      "says": "no such directory",
+      "value": 0
+    },
+    "no_manifest_reader": {
+      "claim": "Nothing reads an ampersand.json",
+      "where": "apps/ and the webhost edge functions",
+      "line": null,
+      "says": "0 source files mention it",
+      "value": 0
+    },
+    "edge_functions": {
+      "claim": "webhost edge functions",
+      "where": "ampersand-supabase/functions/",
+      "line": null,
+      "says": "webhost-activate-deployment, webhost-billing-webhook, webhost-delegated-invoke, webhost-deploy, webhost-invoke, webhost-telemetry",
+      "value": 6
+    },
+    "migrations": {
+      "claim": "webhost database migrations",
+      "where": "ampersand-supabase/migrations/",
+      "line": null,
+      "says": "020_webhost_schema.sql, 021_webhost_rls.sql, 022_webhost_cron.sql, 023_webhost_rpc.sql, 024_webhost_extra_tables.sql, 025_webhost_openrouter.sql",
+      "value": 6
+    },
+    "spec_docs": {
+      "claim": "specification documents",
+      "where": "docs/spec/",
+      "line": null,
+      "says": "00_MASTER_SPEC.md, 10_API_CONTRACTS.md, 20_RUNTIME_PROVIDER_INTERFACE.md, 30_DATA_MODEL_SUPABASE.md, 40_SECURITY_SECRETS_COMPLIANCE.md, 50_OBSERVABILITY_BILLING_LIMITS.md, 60_TESTING_ACCEPTANCE.md, 70_AMPERSAND_PROTOCOL_INTEGRATION.md, README.md, REALIGNMENT_PLAN.md",
+      "value": 10
+    },
+    "tests": {
+      "claim": "tests passing",
+      "where": "npm test — vitest, in this repository",
+      "line": null,
+      "says": "143 tests across 12 files, 0 failures",
+      "value": 143
+    },
+    "test_files": {
+      "claim": "test files",
+      "where": "apps/web/src/",
+      "line": null,
+      "says": "12 files",
+      "value": 12
+    }
+  }
+}

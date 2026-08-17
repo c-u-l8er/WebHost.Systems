@@ -1,0 +1,272 @@
+{
+  "schema": "computedriven-surface-v1",
+  "_comment": "The frozen record this landing page is GENERATED from. Nothing on the emitted page may state a rung, a status or a count that is not derived here or recomputed by build-site.mjs from the tree itself. launch-gate.mjs reads the emitted index.html and refuses to publish when the two disagree.",
+
+  "shell_revision": "shell-r9",
+  "_shell_revision_comment": "agents/SHELL.md. Its own header block still reads 'REVISION shell-r5' while its revision table runs to r9 — the header was not bumped when r6-r9 were appended. Reported in the lane report; SHELL.md is not this lane's file to edit.",
+
+  "version": "0.0.0",
+  "_version_comment": "package.json says 0.0.0 and that is not a placeholder to be tidied up: this repository has never cut a release. The stamp prints it.",
+
+  "origin": "https://webhost.systems",
+  "repo": "https://github.com/c-u-l8er/WebHost.Systems",
+  "surface": "WebHost.Systems",
+  "layer": "runtime",
+  "parent": "ComputeDriven",
+
+  "tier": 2,
+  "_tier_comment": "READ THE NAV, NOT THE TEMPLATE. ampersand-nav/src/amp-nav.js PLACEMENT records webhost as { place: 2, layer: 'runtime', rung: null }, and its renderPlacement() (line 1678) emits the layer sentence for place 2 only. So this band carries 'WebHost.Systems is the runtime layer of ComputeDriven' — the place-3 and place-4 sentences would both contradict the nav rendered directly beneath it. Checked 2026-08-17 by reading amp-nav.js at ampersand-nav HEAD d0a6415; the nav source is lane N's and was NOT edited.",
+  "_nav_comment_is_stale": "The PLACEMENT entry carries the comment 'Plan §5: no index.html in tree, so there is no marketing surface to place.' There is an index.html in this tree and there has been for months — it is the file this build replaces. The entry's premise is false; its value (place 2) is what this band obeys. Only lane N may change it. Flagged [TRAVIS].",
+
+  "nav_rung": null,
+  "_nav_rung_comment": "amp-nav's RUNG_LABEL(null) renders '?'. So the nav's word for this surface is '?', and that is the word this band prints. The measured evidence would support in_tree for the control plane in the tree — see status.statement — and printing in_tree here would put this band in visible disagreement with the chip the nav renders directly beneath it. SHELL.md r6: the nav is the record and the nav wins. The divergence is flagged [TRAVIS] rather than resolved here.",
+
+  "question": "Can this machine run somewhere that is not ours?",
+  "spec_file": "docs/spec/README.md",
+  "spec_url": "https://docs.ampersandboxdesign.com/#/WebHost.Systems/docs/spec/README.md",
+
+  "surface_rung": "?",
+  "rung_witness": "surface_rung_settled",
+  "_rung_witness_comment": "SHELL.md r5 asks the record to name the gate that witnesses its rung. This surface's rung is '?', so the named gate is the one that is PENDING and is the reason it is '?'. launch-gate.mjs enforces the pairing in both directions: a rung in the five requires its witness approved with evidence; '?' requires its witness pending.",
+  "rung_unsettled_because": "What this domain hosts is being decided again. The dashboard that used to answer at app.webhost.systems has been withdrawn, and no replacement has been written down. A rung names the best-evidenced shipped artifact of a surface; nothing here is shipped, and the artifact a rung would have covered is going away.",
+
+  "surface_rung_covers": "No rung is claimed here, and the portfolio nav records none either. Measured 2026-08-17: nothing on this domain executes an agent, and the dashboard at app.webhost.systems no longer resolves. What is in the tree is listed below, and every row cites the file that settles it.",
+  "verified_at": "2026-08-17",
+
+  "_token_comment": "{{probe.KEY}} in any RENDERED string below is substituted at build time with the value that probe re-derived off disk. No count in this record is typed. launch-gate.mjs refuses a rendered field that contains a multi-digit run outside an ISO date, or a number spelled as a word, because both are how a hand-typed count gets back in — the first draft of this file said 'eleven specification documents' and the probe counted ten.",
+
+  "status": {
+    "statement": "{{probe.edge_functions}} webhost edge functions, {{probe.migrations}} database migrations and a React dashboard exist in this repository, and {{probe.tests}} tests pass across {{probe.test_files}} files. None of it reaches a runtime: the deploy path writes a database row and marks the provider reference simulated, and the invocation endpoint answers from OpenRouter. The rung is left at ? because what this domain hosts is being decided again.",
+    "source": "Measured 2026-08-17, in this repository and against the live domain. The test count is re-run by build-site.mjs on every build, not carried in prose. Every file citation below is a path, a line number and the text on that line, recomputed at build time and refused on drift. The domain checks were curl and getent, and the commands are printed beside their results.",
+    "limit": "This establishes that a control plane exists in a repository and that its tests pass in a Node process against mocked clients. It does not establish that anything here has ever executed an agent, that any of it has run outside a developer's machine, that the schema underneath it will survive — the shared Supabase data layer it depends on was abandoned by ruling on 2026-07-30 — or that whatever this domain hosts next will resemble what is described here. The strongest thing on this page is a list of things that are not built."
+  },
+
+  "advance": {
+    "next_rung": "spec",
+    "requires": "A decision about what this domain hosts, and a written specification for it. Until then no rung above ? is available, and inventing one is precisely what this page has just finished retracting."
+  },
+
+  "artifacts": [
+    {
+      "id": "control_plane",
+      "name": "The control plane",
+      "where": "ampersand-supabase/",
+      "rung": "in_tree",
+      "detail": "A webhost.* Postgres schema with row-level security, RPCs and cron, plus {{probe.edge_functions}} edge functions: deploy, activate-deployment, invoke, delegated-invoke, telemetry and billing-webhook. Deployments are rows with a per-agent unique version, and rollback moves an active-deployment pointer rather than editing history.",
+      "witness": "The functions and migrations are counted off disk by this build and checked against the frozen record. The row it writes is the artifact; nothing is shipped to a runtime."
+    },
+    {
+      "id": "dashboard",
+      "name": "The dashboard",
+      "where": "apps/web/",
+      "rung": "in_tree",
+      "detail": "Vite, React and TypeScript against a Supabase client. Agents, deployments, invocation and telemetry views, with the runtime provider chosen from a select element.",
+      "witness": "{{probe.tests}} tests pass across {{probe.test_files}} files, re-run by this build. They exercise components and library code in a jsdom process against mocked clients — no network, no database, no runtime."
+    },
+    {
+      "id": "spec",
+      "name": "The v1 specification set",
+      "where": "docs/spec/",
+      "rung": "spec",
+      "detail": "{{probe.spec_docs}} documents: the master spec, API contracts, the runtime provider interface, the data model, security, observability and billing, the testing plan, the [&] Protocol integration, an index and a realignment plan. Written to be implementation-ready.",
+      "witness": "Documents. Several carry a supersession banner over their data-layer half, and the runtime provider interface has no implementation on either side of it."
+    }
+  ],
+
+  "unmeasured": [
+    {
+      "id": "runtime_execution",
+      "name": "Execution on any runtime",
+      "rung": "spec",
+      "detail": "The deploy function inserts a deployment row and returns. Its own source says so on the line this page cites, and it writes a simulated marker into the provider reference. Nothing is handed to Cloudflare Workers, and there is no AWS or Bedrock dependency anywhere in the tree.",
+      "needs": "A provider adapter that makes a real call and a real artifact to hand it. The interface is specified; neither side of it is written.",
+      "built": "no"
+    },
+    {
+      "id": "agentcore",
+      "name": "AWS Bedrock AgentCore",
+      "rung": "spec",
+      "detail": "It is a string. It appears as a member of a TypeScript union, as the value of an option element in the dashboard, and as a member of a Postgres enum. That is the whole of it.",
+      "needs": "An AWS account, a dependency, and an adapter. Not one of those exists here.",
+      "built": "no"
+    },
+    {
+      "id": "protocol_integration",
+      "name": "The [&] Protocol integration",
+      "rung": "spec",
+      "detail": "Capability manifests, MCP sidecars, agent-to-agent routing and governance enforcement are written down in the integration spec and implemented nowhere. No code in this repository or in its edge functions reads an ampersand.json.",
+      "needs": "A manifest reader, and a product decision about whether this is still the shape.",
+      "built": "no"
+    },
+    {
+      "id": "sdk_cli",
+      "name": "An SDK and a command line",
+      "rung": "spec",
+      "detail": "The workspace declares packages/* and there is no packages directory on disk. This build recomputes that on every run, so the day one appears the page can no longer say this.",
+      "needs": "A package worth publishing, which needs a product worth wrapping.",
+      "built": "no"
+    },
+    {
+      "id": "data_layer",
+      "name": "A data layer that is not abandoned",
+      "rung": "spec",
+      "detail": "Everything above stands on the shared Supabase instance, and that route was abandoned by ruling on 2026-07-30 in favour of studbook. Studbook is a draft spec with no implementation, blocked on one unruled question about where confidentiality comes from. Nothing migrates until it can hold the same data with the same guarantees.",
+      "needs": "That question answered, then an implementation. Neither is scheduled here.",
+      "built": "no, and blocked on a ruling"
+    }
+  ],
+
+  "zero_counts": [
+    {
+      "label": "Agents this platform has executed",
+      "value": "0",
+      "witness": "The deploy path stops at a database row. The invocation endpoint reaches a model provider. Neither of those is an agent running on a runtime, and this page said otherwise for months."
+    },
+    {
+      "label": "AWS or Bedrock packages in the tree",
+      "value": "0",
+      "witness": "Every dependency manifest in this repository is read by this build and searched for aws, bedrock and agentcore. A single match refuses the build, which is the only way a page can keep saying there are none."
+    },
+    {
+      "label": "Runtimes this control plane can reach",
+      "value": "0",
+      "witness": "The runtime provider interface is specified and has no implementation on either side. There is a select element whose values name providers, and no code behind any of them."
+    }
+  ],
+
+  "contact": {
+    "kind": "formspree",
+    "url": "https://formspree.io/f/xaewoadr",
+    "issues": "https://github.com/c-u-l8er/WebHost.Systems/issues",
+    "_comment": "SHELL.md r9, ruled by Travis 2026-08-17: the ComputeDriven endpoint, and the ComputeDriven shape — a real form action that works with scripting off, JS only upgrading it to an inline reply, success printed only on an actual 2xx, and the _gotcha honeypot. Deliberately not a mailto:, and the gate refuses one. The issues URL is kept as a second route."
+  },
+
+  "retracted": {
+    "_comment": "SHELL.md §4.2 and r8. Each string below stood on this page until 2026-08-16 and none of them had a witness. They may appear ONLY inside the retraction block, because naming the wrong claim is what a retraction is — so the check COUNTS occurrences and bounds them rather than testing for presence, and refuses any occurrence hidden in a comment or an attribute where a reader cannot see it and a search engine can.",
+    "sentences": [
+      {
+        "id": "multi_runtime",
+        "text": "multi-runtime AI agent deployment platform",
+        "note": "The meta description and the hero subtitle. Neither runtime was wired to anything."
+      },
+      {
+        "id": "deploy_to",
+        "text": "deploy to Cloudflare Workers or AWS Bedrock AgentCore",
+        "note": "The hero's second sentence. The deploy function writes a row and stops."
+      },
+      {
+        "id": "enterprise",
+        "text": "AgentCore for enterprise",
+        "note": "Said twice, in the stack diagram and in the plane description."
+      },
+      {
+        "id": "manifest_to_prod",
+        "text": "from ampersand.json to production",
+        "note": "Nothing in this repository or its edge functions reads an ampersand.json."
+      },
+      {
+        "id": "operational",
+        "text": "All systems operational",
+        "note": "A footer badge with no status source behind it. It was a decoration shaped like an instrument."
+      },
+      {
+        "id": "launch_dashboard",
+        "text": "Launch Dashboard",
+        "note": "Pointed at app.webhost.systems, whose backend project had already stopped resolving."
+      },
+      {
+        "id": "open_dashboard",
+        "text": "Open Dashboard",
+        "note": "The same target, in the hero."
+      },
+      {
+        "id": "launch_app",
+        "text": "Launch App",
+        "note": "The same target, in the nav."
+      }
+    ],
+    "bounded": [
+      {
+        "id": "convex",
+        "text": "Convex",
+        "min": 1,
+        "max": 4,
+        "note": "The control-plane box was labelled Convex and this repository has never depended on it. The word is allowed outside the retraction only so the page can state that there is none of it; the bound is what keeps that from drifting back into a stack label."
+      },
+      {
+        "id": "agentcore_word",
+        "text": "AgentCore",
+        "min": 2,
+        "max": 8,
+        "note": "It names a real string in a real enum, so it cannot be forbidden outright. It can be bounded, so it cannot quietly become a feature list again."
+      }
+    ],
+    "forbidden": [
+      "Get started",
+      "Get Started",
+      "Deploy your",
+      "Deploy now",
+      "Start deploying",
+      "Sign up",
+      "Start free",
+      "Try it free",
+      "Book a demo",
+      "Request access",
+      "Coming soon",
+      "systems operational.",
+      "mailto:"
+    ]
+  },
+
+  "gates": {
+    "_comment": "A gate may not read approved without its evidence, reviewer and date fields, and launch-gate.mjs enforces that.",
+    "surface_rung_settled": {
+      "label": "Which rung this surface may claim",
+      "status": "pending",
+      "description": "The named witness for this surface's rung, and it is pending on purpose. What this domain hosts is being decided again; the dashboard it fronted has been withdrawn and no replacement is written down. Until a decision exists there is no shipped artifact for a rung to name, so the chip reads ? and this gate is why.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    },
+    "tests_pass": {
+      "label": "The test suite passes, and the count on the page is the one that ran",
+      "status": "approved",
+      "description": "build-site.mjs shells out to the repository's own test command, parses the summary, refuses on any failure, and refuses when the parsed numbers disagree with records/evidence.json. The number on the page cannot be typed by hand.",
+      "evidence": "npm test — vitest, 143 tests across 12 files, 0 failures.",
+      "reviewer": "vitest 4.1.2, run in this repository by build-site.mjs",
+      "date": "2026-08-17"
+    },
+    "claims_cite_a_file": {
+      "label": "Every not-built claim names a file, a line, and the text on that line",
+      "status": "approved",
+      "description": "Nine file probes are recomputed from disk on every build — the deploy TODO and its simulated marker, the OpenRouter import, the AgentCore enum member, the absence of packages/, the absence of any AWS or Convex dependency in any manifest, and the counts of edge functions, migrations and spec documents. Any drift refuses the build.",
+      "evidence": "records/evidence.json, frozen 2026-08-17 and re-derived on every build.",
+      "reviewer": "build-site.mjs, run against ampersand-supabase HEAD 6de38b7",
+      "date": "2026-08-17"
+    },
+    "deployed_page_check": {
+      "label": "This page answers on webhost.systems",
+      "status": "pending",
+      "description": "As of 2026-08-17 the domain serves the PRE-TAKEDOWN page. curl returned 77,450 bytes, byte-identical to this repository at HEAD~1; the takedown commit of 2026-08-16 was never pushed, and neither is this one. So the claims retracted below are still live on the domain while this gate is pending, and that is the single most important thing on this ledger.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    },
+    "runtime_execution": {
+      "label": "An agent executes on a runtime",
+      "status": "pending",
+      "description": "The claim this domain existed to make. The deploy path has never made an API call to a runtime provider; the line that says so is cited on the page.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    },
+    "independent_use": {
+      "label": "Somebody who is not us has deployed something with this",
+      "status": "pending",
+      "description": "Pending by construction, and it stays pending without blocking a rung — that is what rung_witness is for.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    }
+  }
+}

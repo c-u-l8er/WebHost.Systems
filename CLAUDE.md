@@ -1,6 +1,23 @@
 # WebHost.Systems
 
-AI-driven web hosting platform. Node.js monorepo with Supabase backend (PostgreSQL + Edge Functions) and Vite/React frontend with Supabase Auth.
+A control plane for [&] Protocol agents. Node.js monorepo with a Supabase
+backend (PostgreSQL + Edge Functions) and a Vite/React frontend with Supabase
+Auth. **It does not execute an agent on a runtime** — the deploy path writes a
+version row and marks the provider reference `simulated`, and the invocation
+endpoint reaches a model provider. See `README.md`.
+
+## The marketing page is GENERATED. Do not hand-edit `index.html`.
+
+`/index.html`, `/boot.js` and `/say.js` are emitted by `build-site.mjs` from
+`records/surface.json`, `records/evidence.json` and `src/`. **An edit to the
+served HTML is silently reverted by the next build.** Change the record or the
+template, then run `npm run site:launch`, which emits the page and then runs
+`launch-gate.mjs` against the artifact. The shell is documented in
+`ProjectAmp2/agents/SHELL.md`; this surface is built against revision
+`shell-r9`, recorded as `shell_revision` in `records/surface.json`.
+
+`site:build` / `site:gate` / `site:launch` are **not** wired into `build`,
+`dev` or `test` — those belong to `apps/web`, a separate artifact.
 
 ## Source-of-truth spec
 
@@ -46,7 +63,10 @@ cd .. && supabase start        # Local Supabase from repo root (all ecosystem sc
 ## Monorepo structure
 
 - `apps/web/` — Dashboard frontend (Vite + React + Supabase Auth)
-- `packages/` — shared packages
+- `packages/` — **declared by the workspace glob and absent from disk.** There
+  is no SDK and no CLI. The page build re-checks this every run and refuses if
+  one appears without the page being updated.
+- `src/`, `records/`, `build-site.mjs`, `launch-gate.mjs` — the marketing page
 
 ## Shared Supabase data layer
 
