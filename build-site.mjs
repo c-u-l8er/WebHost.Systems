@@ -291,6 +291,31 @@ function rung(value) {
    with the nav rendered immediately beneath it. The nav is the record and the
    nav wins — including on the rung, where its stored value is null and its own
    RUNG_LABEL renders that as "?". SHELL.md §1, r6. */
+/* THE SHARED PORTFOLIO NAV. Ruled by Travis 2026-08-17 — "the ampersand-nav
+   needs to be on each website!" — after this surface and four siblings each
+   dropped it independently on adopting the shell.
+
+   Emitted from the record rather than typed into the template, so the property
+   key has one home. An unknown key is the dangerous failure: amp-nav renders
+   an EMPTY bar for a property it does not know, which looks like a styling
+   problem and not like a wrong string, so the build refuses it here instead.
+
+   The vendored ./amp-nav.js is written by ampersand-nav/sync-nav.sh and is NOT
+   this repo's to edit; it has been present and unreferenced all along. It is
+   deliberately not recorded in build-stamp.json's `sources` — sync-nav.sh
+   rewrites it across ~21 repos and lane N runs it last, so treating it as a
+   source would make this gate refuse "stale artifact" for a file this repo may
+   not change. */
+function navChrome() {
+    const key = surface.nav_property;
+    if (!key) throw new Error("BUILD REFUSED — records/surface.json declares no nav_property, so the page cannot say which property the shared nav should render.");
+    if (!existsSync("./amp-nav.js")) throw new Error("BUILD REFUSED — ./amp-nav.js is not in this tree; the page would load the nav from a 404. Run ampersand-nav/sync-nav.sh.");
+    if (!new RegExp(`^\\s*${key}:\\s*\\{`, "m").test(read("./amp-nav.js"))) {
+        throw new Error(`BUILD REFUSED — the vendored amp-nav.js has no "${key}" property. An unknown key renders an empty nav bar rather than an error.`);
+    }
+    return `<script type="module" src="/amp-nav.js"></script>\n<amp-nav property="${key}"></amp-nav>`;
+}
+
 function band() {
     const where = {
         4: `A <b>${esc(surface.parent)}</b> project`,
@@ -459,6 +484,7 @@ export function render(probes) {
     const html = fill(read("./src/landing.html"), {
         CSS,
         BAND: band(),
+        NAV: navChrome(),
         STAMP,
         ORIGIN: surface.origin,
         REPO: surface.repo,
@@ -562,7 +588,7 @@ if (isMain) {
         sources: Object.fromEntries(["./src/landing.html", "./src/shell.css", "./src/boot.js", "./src/say.js", "./records/surface.json", "./records/evidence.json"].map((f) => [f.replace("./", ""), sha(read(f))])),
     }, null, 2) + "\n");
 
-    console.log(`wrote index.html   ${out.html.length.toLocaleString()} bytes`);
-    console.log(`wrote boot.js      ${out.boot.length.toLocaleString()} bytes  (decoration; the page's content does not depend on it)`);
-    console.log(`wrote say.js       ${out.say.length.toLocaleString()} bytes  (an upgrade; the form works without it)`);
+    console.log(`wrote index.html   ${Buffer.byteLength(out.html).toLocaleString()} bytes`);
+    console.log(`wrote boot.js      ${Buffer.byteLength(out.boot).toLocaleString()} bytes  (decoration; the page's content does not depend on it)`);
+    console.log(`wrote say.js       ${Buffer.byteLength(out.say).toLocaleString()} bytes  (an upgrade; the form works without it)`);
 }

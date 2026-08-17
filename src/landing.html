@@ -11,6 +11,15 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>{{CSS}}</style></head><body>
 {{BAND}}
+<!-- The shared portfolio nav, restored 2026-08-17 by ruling. It is CHROME and
+     it is the ONLY thing on this page that needs JavaScript: it is a web
+     component, so it cannot exist without one. Delete both lines and every
+     rung chip, status row, evidence figure and word below is still here —
+     which launch-gate.mjs checks by deleting them and re-extracting the text
+     rather than by trusting this comment. The band above is the PAGE's own
+     placement claim and a different object (SHELL.md §1); the nav paints
+     fixed at the top of the viewport and pushes the band down under it. -->
+{{NAV}}
 <div class="wrap">
 
 <div class="top"><a class="logo" href="/">webhost<span>.systems</span></a>
@@ -96,7 +105,7 @@
 <span class="stamp">{{STAMP}}</span>
 <span class="links"><a href="{{REPO}}">Source</a><a href="{{SPEC_URL}}">Spec</a><a href="{{ISSUES}}">Issues</a><a href="https://computedriven.com">ComputeDriven</a></span>
 </div>
-<div class="attrib">This page is generated from <code>records/surface.json</code> and re-derived file probes, and <code>launch-gate.mjs</code> refuses to publish it when the artifact and the records disagree. Its whole content ships with zero JavaScript &mdash; the two scripts below are the identifying animation, which reads nothing from this page and writes nothing to it, and the correction form's inline reply, which the form works without. &copy; {{YEAR}} WebHost.Systems.</div>
+<div class="attrib">This page is generated from <code>records/surface.json</code> and re-derived file probes, and <code>launch-gate.mjs</code> refuses to publish it when the artifact and the records disagree. Its whole content ships with zero JavaScript &mdash; the scripts here are chrome and instrumentation, never content: the shared portfolio nav at the top, which is a web component and so is the one thing on this page that cannot exist without a script; the identifying animation, which reads nothing from this page and writes nothing to it; and the correction form's inline reply, which the form works without. &copy; {{YEAR}} WebHost.Systems.</div>
 </footer>
 <script src="/boot.js" defer></script>
 <script src="/say.js" defer></script>

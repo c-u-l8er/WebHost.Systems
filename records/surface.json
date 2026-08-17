@@ -33,6 +33,15 @@
   "surface_rung_covers": "No rung is claimed here, and the portfolio nav records none either. Measured 2026-08-17: nothing on this domain executes an agent, and the dashboard at app.webhost.systems no longer resolves. What is in the tree is listed below, and every row cites the file that settles it.",
   "verified_at": "2026-08-17",
 
+  "nav_property": "webhost",
+  "_nav_property_comment": "RULED BY TRAVIS 2026-08-17: 'the ampersand-nav needs to be on each website!'. This surface, and four siblings, dropped <amp-nav> when they adopted the shell — each lane independently, to keep the page's content shipping with zero JavaScript, and no ruling had ever been made. It has now been made. This is the key the shared nav files this property under in ampersand-nav/src/amp-nav.js; build-site.mjs refuses to emit if the vendored amp-nav.js does not know it, because an unknown key renders an empty bar rather than an error. NOTE, and it is expected: the vendored copy in this repo is the DEPLOYED 51,428-byte revision, which has no renderPlacement(), so the nav renders without a placement band until lane N syncs the 65,544-byte source. That is lane N's to fix and a vendored copy must not be hand-edited to add it.",
+
+  "nav_stack_px": 800,
+  "_nav_stack_comment": "SHELL.md r6: the stacking breakpoint belongs to the surface, not the shell. r5 gave 430px, measured on a four-item nav. 800px was written into the stylesheet and never recorded, so nothing compared the two — recorded now, and launch-gate.mjs checks the stylesheet against it. Re-measured 2026-08-17 in agent-browser session 'navback': .top is a column at 785px and a row at 800px.",
+  "nav_wrap_px": 611,
+  "nav_labels_at_measure": ["Retraction", "What is here", "What is not", "Evidence", "Status", "Inspect the source"],
+  "_nav_labels_comment": "SHELL.md r11: a stacking breakpoint measured against labels that can be renamed without notice is a stale number waiting to happen — renaming one item to 'Correct us' once moved a wrap point 538 → 576, past a 560 breakpoint, marooning the logo in a broken two-row state. So the labels the measurement was taken with are recorded here and launch-gate.mjs refuses when the emitted nav drifts from them. BISECTED, not computed (r11), on 2026-08-17: 2+ rows at <= 610px, one clean row at >= 611px. Re-bisected AFTER <amp-nav> was restored and the number did not move — the portfolio nav is position:fixed chrome above the page and takes no width from .top.",
+
   "_token_comment": "{{probe.KEY}} in any RENDERED string below is substituted at build time with the value that probe re-derived off disk. No count in this record is typed. launch-gate.mjs refuses a rendered field that contains a multi-digit run outside an ISO date, or a number spelled as a word, because both are how a hand-typed count gets back in — the first draft of this file said 'eleven specification documents' and the probe counted ten.",
 
   "status": {
