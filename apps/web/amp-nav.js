@@ -31,7 +31,7 @@
  * License: MIT (Ampersand Box Design)
  */
 
-const VERSION = "0.8.2";
+const VERSION = "0.8.3";
 
 // Canonical URLs per property. The "href" is the destination used in cross-property
 // links; the "label" is what visitors see in the dropdown.
@@ -508,10 +508,21 @@ const LINKS = {
     tagline: "R&D domain graph — the whole portfolio, drawn",
     href: "https://wrand.cc",
   },
+  // SHELL.md r16. This entry shipped a mailto: href and the bare address as its
+  // tagline, to 22 targets and every live domain. (Both are named in the commit
+  // message, not here: a comment in a published .js file is published, so
+  // writing the address down to explain its removal would re-ship it. The first
+  // draft of this comment did exactly that.) The
+  // page-level mailto anchors were retracted surface by surface, but this one
+  // is in JavaScript, and Cloudflare's email obfuscation does not rewrite JS —
+  // so the address it was masking in HTML was served in the clear here the
+  // whole time. A published .js asset is a published asset; the blocklist that
+  // only reads index.html scored this clean. Corrections go to the form, which
+  // is the r9 ruling for contact everywhere else on the portfolio.
   contact: {
     label: "Talk to us",
-    tagline: "hello@ampersandboxdesign.com",
-    href: "mailto:hello@ampersandboxdesign.com",
+    tagline: "Corrections and questions, through the form",
+    href: "https://computedriven.com/#join",
   },
 };
 
